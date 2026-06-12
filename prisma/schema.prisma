@@ -1,0 +1,884 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTH & MULTI-TENANT
+// ============================================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String   @default("") //bcrypt hash — empty if not yet set (e.g. Supabase-only users)
+  avatarUrl     String?
+  role          String   @default("user") // user, admin, sales_rep
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Supabase Auth integration — links to auth.users table
+  supabaseUid   String?  @unique // Supabase Auth user ID (auth.users.id)
+
+  // Two-Factor Authentication
+  twoFactorSecret  String?  // TOTP secret (encrypted)
+  twoFactorEnabled Boolean  @default(false)
+  backupCodes      String?  // JSON array of hashed backup codes
+
+  memberships      OrganizationMember[]
+  sessions         Session[]
+  shopMemberships  ShopMember[]
+  salesRep         SalesRep?
+  auditLogs        AuditLog[]
+  devices          UserDevice[]
+}
+
+model Session {
+  id            String   @id @default(cuid())
+  userId        String
+  token         String   @unique
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ============================================
+// REGION / CITY SYSTEM
+// ============================================
+
+model Region {
+  id            String   @id @default(cuid())
+  name          String   @unique    // e.g. "Addis Ababa", "Adama", "Hawassa"
+  slug          String   @unique    // e.g. "addis-ababa", "adama", "hawassa"
+  country       String   @default("Ethiopia")
+  latitude      Float?              // Center point for map
+  longitude     Float?
+  population    Int?                // For prioritization
+  description   String?
+  isActive      Boolean  @default(true)
+  order         Int      @default(0) // Display order
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organizations Organization[]
+  salesReps     SalesRep[]
+}
+
+model Organization {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  logoUrl       String?
+  currency      String   @default("ETB")
+  country       String   @default("Ethiopia")
+  businessType  String   @default("retail") // retail, service, mixed
+  description   String?
+  address       String?
+  city          String?
+  latitude      Float?
+  longitude     Float?
+  phone         String?
+  subscriptionPlan    String @default("starter")
+  subscriptionStatus  String @default("active")
+  subscriptionExpiresAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  regionId      String?
+  region        Region?  @relation(fields: [regionId], references: [id], onDelete: SetNull)
+
+  members            OrganizationMember[]
+  shops              Shop[]
+  productTypes       ProductType[]
+  serviceTypes       ServiceType[]
+  customers          Customer[]
+  suppliers          Supplier[]
+  sales              Sale[]
+  debts              Debt[]
+  stockMovements     StockMovement[]
+  integrationConfigs IntegrationConfig[]
+  serviceBookings    ServiceBooking[]
+  activeModules      OrganizationModule[]
+  notifications      Notification[]
+  referredBy         SalesRep?   @relation(fields: [referredById], references: [id])
+  referredById       String?
+  commission         SalesCommission[]
+  expenses           Expense[]
+  auditLogs          AuditLog[]
+  scheduledReports   ScheduledReport[]
+  stockTransfers     StockTransfer[]
+  purchaseOrders     PurchaseOrder[]
+
+  @@index([regionId])
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           String   @default("employee") // owner, manager, employee
+  joinedAt       DateTime @default(now())
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+// ============================================
+// MULTI-SHOP SYSTEM
+// ============================================
+
+model Shop {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  address        String?
+  city           String?
+  latitude       Float?
+  longitude      Float?
+  phone          String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        ShopMember[]
+  products       Product[]
+  sales          Sale[]
+  stockMovements StockMovement[]
+  serviceBookings ServiceBooking[]
+  customers      Customer[]
+  suppliers      Supplier[]
+  debts          Debt[]
+  notifications  Notification[]
+  expenses       Expense[]
+  transfersFrom  StockTransfer[] @relation("TransfersFrom")
+  transfersTo    StockTransfer[] @relation("TransfersTo")
+  purchaseOrders PurchaseOrder[]
+
+  @@index([organizationId])
+}
+
+model ShopMember {
+  id        String   @id @default(cuid())
+  userId    String
+  shopId    String
+  role      String   @default("cashier") // manager, cashier, warehouse, sales
+  joinedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, shopId])
+  @@index([shopId])
+}
+
+// ============================================
+// MODULAR FEATURE SYSTEM
+// ============================================
+
+model Module {
+  id             String   @id @default(cuid())
+  key            String   @unique // e.g. "inventory", "sales", "debts", "ai-assistant", "multi-shop"
+  name           String
+  description    String
+  icon           String   // Lucide icon name
+  category       String   @default("core") // core, analytics, integration, ai
+  priceETB       Float    @default(0) // Monthly price in ETB (0 = free/included)
+  isFree         Boolean  @default(false) // Whether this module is always free
+  freeTrialDays  Int      @default(30) // Free trial period in days for paid modules
+  billingCycle   String   @default("monthly") // monthly, yearly
+  isActive       Boolean  @default(true) // Platform-wide availability
+  order          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orgModules     OrganizationModule[]
+}
+
+model OrganizationModule {
+  id               String    @id @default(cuid())
+  organizationId   String
+  moduleId         String
+  status           String    @default("trial") // trial, active, expired, cancelled, requested
+  isActive         Boolean   @default(true)
+  activatedAt      DateTime  @default(now())
+  expiresAt        DateTime?
+  priceAtActivation Float     @default(0) // Snapshot of module price when activated
+  autoRenew        Boolean   @default(false)
+
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  module           Module       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, moduleId])
+  @@index([organizationId])
+}
+
+// ============================================
+// DYNAMIC PRODUCT SYSTEM
+// ============================================
+
+model ProductType {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  icon           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attributes     AttributeDefinition[]
+  products       Product[]
+
+  @@index([organizationId])
+}
+
+model AttributeDefinition {
+  id             String   @id @default(cuid())
+  productTypeId  String
+  name           String
+  fieldType      String   @default("text") // text, number, boolean, select, image, date
+  options        String?  // JSON string for select options: ["Red","Blue","Green"]
+  required       Boolean  @default(false)
+  order          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  productType    ProductType          @relation(fields: [productTypeId], references: [id], onDelete: Cascade)
+  attributeValues ProductAttributeValue[]
+
+  @@index([productTypeId])
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  productTypeId  String
+  organizationId String
+  shopId         String?  // Optional - if null, product is shared across all shops
+  sku            String?
+  name           String
+  description    String?
+  imageUrl       String?
+  quantity       Int      @default(0)
+  costPrice      Float    @default(0)
+  sellingPrice   Float    @default(0)
+  lowStockThreshold Int   @default(10)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  productType    ProductType          @relation(fields: [productTypeId], references: [id], onDelete: Cascade)
+  shop           Shop?                @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  attributeValues ProductAttributeValue[]
+  saleItems      SaleItem[]
+  stockMovements StockMovement[]
+  stockTransfers StockTransfer[]
+  purchaseOrderItems PurchaseOrderItem[]
+
+  @@index([productTypeId])
+  @@index([organizationId])
+  @@index([shopId])
+  @@index([organizationId, isActive])
+  @@index([organizationId, isActive, shopId])
+  @@index([organizationId, isActive, productTypeId])
+  @@index([sku])
+}
+
+model ProductAttributeValue {
+  id                   String   @id @default(cuid())
+  productId            String
+  attributeDefinitionId String
+  value                String   // Stored as string, parsed based on fieldType
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  product              Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeDefinition  AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, attributeDefinitionId])
+  @@index([productId])
+}
+
+// ============================================
+// CUSTOMERS & SUPPLIERS
+// ============================================
+
+model Customer {
+  id             String   @id @default(cuid())
+  organizationId String
+  shopId         String?  // Optional - which shop/branch this customer belongs to
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  sales          Sale[]
+  debts          Debt[]
+  bookings       ServiceBooking[]
+  loyaltyAccount LoyaltyAccount?
+  creditLimit    CreditLimit?
+
+  @@index([organizationId])
+  @@index([shopId])
+  @@index([organizationId, email])
+  @@index([organizationId, name])
+  @@index([organizationId, shopId])
+}
+
+model Supplier {
+  id             String   @id @default(cuid())
+  organizationId String
+  shopId         String?  // Optional - which shop/branch this supplier belongs to
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  debts          Debt[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([organizationId])
+  @@index([shopId])
+  @@index([organizationId, email])
+}
+
+// ============================================
+// SALES
+// ============================================
+
+model Sale {
+  id             String   @id @default(cuid())
+  organizationId String
+  shopId         String?  // Optional - which shop made the sale
+  customerId     String?
+  invoiceNumber  String
+  status         String   @default("completed") // completed, pending, cancelled
+  paymentMethod  String   @default("cash") // cash, card, mobile_money, credit
+  subtotal       Float    @default(0)
+  discount       Float    @default(0)
+  tax            Float    @default(0)
+  total          Float    @default(0)
+  amountPaid     Float    @default(0)
+  notes          String?
+  saleDate       DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items          SaleItem[]
+
+  @@index([organizationId])
+  @@index([shopId])
+  @@index([saleDate])
+  @@index([organizationId, status])
+  @@index([organizationId, status, saleDate])
+}
+
+model SaleItem {
+  id             String   @id @default(cuid())
+  saleId         String
+  productId      String?  // Nullable so product can be deleted after nullifying the reference
+  quantity       Int
+  unitPrice      Float
+  costPrice      Float
+  total          Float
+  createdAt      DateTime @default(now())
+
+  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product        Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+// ============================================
+// INVENTORY / STOCK MOVEMENTS
+// ============================================
+
+model StockMovement {
+  id             String   @id @default(cuid())
+  organizationId String
+  shopId         String?  // Optional - which shop
+  productId      String
+  type           String   // in, out, transfer, adjustment
+  quantity       Int
+  previousStock  Int
+  newStock       Int
+  reason         String?
+  reference      String?  // Reference to sale, purchase order, etc.
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([shopId])
+  @@index([productId])
+  @@index([createdAt])
+  @@index([organizationId, createdAt])
+}
+
+// ============================================
+// DEBTS & CREDIT TRACKING
+// ============================================
+
+model Debt {
+  id             String   @id @default(cuid())
+  organizationId String
+  shopId         String?  // Optional - which shop/branch this debt belongs to
+  customerId     String?
+  supplierId     String?
+  type           String   // customer_debt, supplier_debt
+  amount         Float
+  paidAmount     Float    @default(0)
+  dueDate        DateTime?
+  status         String   @default("pending") // pending, partial, paid, overdue
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  supplier       Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  payments       DebtPayment[]
+
+  @@index([organizationId])
+  @@index([shopId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([organizationId, type, status])
+}
+
+model DebtPayment {
+  id             String   @id @default(cuid())
+  debtId         String
+  amount         Float
+  paymentMethod  String   @default("cash")
+  notes          String?
+  paidAt         DateTime @default(now())
+
+  debt           Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([debtId])
+}
+
+// ============================================
+// INTEGRATION CONFIGS
+// ============================================
+
+model IntegrationConfig {
+  id             String   @id @default(cuid())
+  organizationId String
+  type           String   // telegram, whatsapp
+  config         String   // JSON string with bot token, api keys, etc.
+  isActive       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// ============================================
+// SERVICE PROVIDER SYSTEM (Barbershops, Salons, etc.)
+// ============================================
+
+model ServiceType {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  duration       Int      @default(30) // Duration in minutes
+  price          Float    @default(0)
+  imageUrl       String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bookings       ServiceBooking[]
+
+  @@index([organizationId])
+}
+
+model ServiceBooking {
+  id             String   @id @default(cuid())
+  organizationId String
+  shopId         String?  // Optional - which shop/location
+  serviceTypeId  String
+  customerId     String?
+  customerName   String
+  customerPhone  String?
+  status         String   @default("scheduled") // scheduled, completed, cancelled, no_show
+  bookingDate    DateTime
+  startTime      String   // "09:00"
+  endTime        String   // "09:30"
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  serviceType    ServiceType  @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([shopId])
+  @@index([serviceTypeId])
+  @@index([bookingDate])
+}
+
+// ============================================
+// NOTIFICATION SYSTEM
+// ============================================
+
+model Notification {
+  id             String   @id @default(cuid())
+  organizationId String
+  shopId         String?  // Optional - which shop/branch this notification belongs to
+  userId         String?  // null = all org members, specific user = targeted
+  type           String   // module_expiry, module_expired, trial_ending, subscription, low_stock, debt_reminder, system
+  title          String
+  message        String
+  isRead         Boolean  @default(false)
+  actionUrl      String?  // e.g. "/modules" for module-related notifications
+  metadata       String?  // JSON string for extra data (moduleKey, daysUntilExpiry, etc.)
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([shopId])
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([organizationId, isRead])
+  @@index([organizationId, userId, isRead])
+}
+
+// ============================================
+// SALES TEAM SYSTEM
+// ============================================
+
+model SalesRep {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  phone           String?
+  targetCity      String?  // Assigned territory/city
+  commissionRate  Float    @default(0) // Commission percentage per registration (e.g. 10 = 10%)
+  commissionPerReg Float  @default(0) // Fixed commission amount per registration in ETB
+  isActive        Boolean  @default(true)
+  joinedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  regionId        String?
+  region          Region?  @relation(fields: [regionId], references: [id], onDelete: SetNull)
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals           SalesGoal[]
+  commissions     SalesCommission[]
+  registrations   Organization[] // Shops this rep has registered
+
+  @@index([userId])
+  @@index([targetCity])
+  @@index([isActive])
+  @@index([regionId])
+}
+
+model SalesGoal {
+  id              String   @id @default(cuid())
+  salesRepId      String
+  period          String   // "2025-03" (month), "2025-Q1" (quarter)
+  targetCount     Int      @default(0) // Number of shops to register
+  achievedCount   Int      @default(0) // How many registered so far
+  bonusAmount     Float    @default(0) // Bonus if target is met (ETB)
+  isAchieved      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  salesRep        SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+
+  @@unique([salesRepId, period])
+  @@index([salesRepId])
+  @@index([period])
+}
+
+model SalesCommission {
+  id              String   @id @default(cuid())
+  salesRepId      String
+  organizationId  String   // Which shop was registered
+  amount          Float    @default(0) // Commission amount in ETB
+  status          String   @default("pending") // pending, paid, cancelled
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  salesRep        SalesRep     @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([salesRepId])
+  @@index([organizationId])
+  @@index([status])
+}
+
+// ============================================
+// AUDIT / ACTIVITY LOG
+// ============================================
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  userId         String?
+  action         String   // create, update, delete, login, logout, etc.
+  entity         String   // Product, Sale, Customer, User, etc.
+  entityId       String?  // ID of the affected entity
+  details        String?  // JSON string with before/after snapshot
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ============================================
+// EXPENSE TRACKING
+// ============================================
+
+model Expense {
+  id             String   @id @default(cuid())
+  organizationId String
+  shopId         String?
+  category       String   // rent, salary, utilities, marketing, supplies, transport, other
+  amount         Float
+  description    String?
+  expenseDate    DateTime @default(now())
+  receiptUrl     String?
+  isRecurring    Boolean  @default(false)
+  recurringPeriod String? // monthly, weekly, yearly
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([shopId])
+  @@index([category])
+  @@index([expenseDate])
+  @@index([organizationId, expenseDate])
+  @@index([organizationId, category])
+}
+
+// ============================================
+// CUSTOMER LOYALTY / POINTS SYSTEM
+// ============================================
+
+model LoyaltyAccount {
+  id             String   @id @default(cuid())
+  customerId     String   @unique
+  points         Int      @default(0)
+  totalEarned    Int      @default(0)
+  totalRedeemed  Int      @default(0)
+  tier           String   @default("bronze") // bronze, silver, gold, platinum
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  transactions   LoyaltyTransaction[]
+
+  @@index([customerId])
+  @@index([tier])
+}
+
+model LoyaltyTransaction {
+  id              String   @id @default(cuid())
+  loyaltyAccountId String
+  type            String   // earn, redeem, expire, adjust
+  points          Int      // positive for earn, negative for redeem
+  saleId          String?  // Linked sale for earning
+  description     String?
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  loyaltyAccount  LoyaltyAccount @relation(fields: [loyaltyAccountId], references: [id], onDelete: Cascade)
+
+  @@index([loyaltyAccountId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ============================================
+// CREDIT LIMIT MANAGEMENT
+// ============================================
+
+model CreditLimit {
+  id             String   @id @default(cuid())
+  customerId     String   @unique
+  creditLimit    Float    @default(0) // Maximum credit allowed in ETB
+  usedCredit     Float    @default(0) // Currently outstanding credit
+  availableCredit Float   @default(0) // creditLimit - usedCredit
+  alertThreshold Float    @default(0.8) // Alert when usedCredit/creditLimit exceeds this
+  isBlocked      Boolean  @default(false) // Block sales on credit when true
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([isBlocked])
+}
+
+// ============================================
+// STOCK TRANSFER
+// ============================================
+
+model StockTransfer {
+  id              String   @id @default(cuid())
+  organizationId  String
+  fromShopId      String
+  toShopId        String
+  productId       String
+  quantity        Int
+  status          String   @default("pending") // pending, approved, in_transit, completed, cancelled
+  requestedById   String?  // User who initiated
+  approvedById    String?  // User who approved
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fromShop        Shop         @relation("TransfersFrom", fields: [fromShopId], references: [id], onDelete: Cascade)
+  toShop          Shop         @relation("TransfersTo", fields: [toShopId], references: [id], onDelete: Cascade)
+  product         Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([fromShopId])
+  @@index([toShopId])
+  @@index([productId])
+  @@index([status])
+}
+
+// ============================================
+// PURCHASE ORDER (Auto Reorder)
+// ============================================
+
+model PurchaseOrder {
+  id              String   @id @default(cuid())
+  organizationId  String
+  shopId          String?
+  supplierId      String?
+  status          String   @default("draft") // draft, sent, confirmed, received, cancelled
+  totalAmount     Float    @default(0)
+  notes           String?
+  orderDate       DateTime @default(now())
+  expectedDate    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  shop            Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  supplier        Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  items           PurchaseOrderItem[]
+
+  @@index([organizationId])
+  @@index([shopId])
+  @@index([supplierId])
+  @@index([status])
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  productId       String
+  quantity        Int
+  unitCost        Float
+  totalCost       Float
+  receivedQty     Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product         Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+}
+
+// ============================================
+// USER SESSION MANAGEMENT (Enhanced)
+// ============================================
+
+model UserDevice {
+  id             String   @id @default(cuid())
+  userId         String
+  deviceName     String?
+  deviceType     String?  // desktop, mobile, tablet
+  browser        String?
+  os             String?
+  ipAddress      String?
+  lastActiveAt   DateTime @default(now())
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+// ============================================
+// SCHEDULED REPORTS
+// ============================================
+
+model ScheduledReport {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String
+  reportType      String   // daily_sales, weekly_summary, monthly_pnl, inventory_status
+  frequency       String   // daily, weekly, monthly
+  deliveryMethod  String   // email, telegram, whatsapp
+  deliveryConfig  String   // JSON: {email, chatId, etc.}
+  isActive        Boolean  @default(true)
+  lastSentAt      DateTime?
+  nextSendAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([isActive])
+  @@index([nextSendAt])
+}
