@@ -1,0 +1,1319 @@
+ .gitignore                                         |    0
+ .zscripts/dev.pid                                  |    0
+ Caddyfile                                          |    0
+ agent-ctx/10-design-system.md                      |   80 +
+ agent-ctx/12-accessibility-audit.md                |   22 +
+ agent-ctx/17-p1-priority-fixes.md                  |   32 +
+ agent-ctx/1b-notification-triggers-developer.md    |   52 +
+ agent-ctx/2-format-utilities.md                    |   19 +
+ .../2a2b-dashboard-sql-optimization-engineer.md    |   44 +
+ agent-ctx/3-shared-components.md                   |   43 +
+ agent-ctx/5-bug-fix-agent.md                       |   25 +
+ agent-ctx/8-data-accuracy-fixes.md                 |   28 +
+ bun.lock                                           |    0
+ components.json                                    |    0
+ db/custom.db                                       |  Bin 823296 -> 925696 bytes
+ e2e/auth.spec.ts                                   |    0
+ e2e/dashboard.spec.ts                              |    0
+ eslint.config.mjs                                  |    0
+ examples/websocket/frontend.tsx                    |    0
+ examples/websocket/server.ts                       |    0
+ mini-services/notification-service/bun.lock        |    0
+ mini-services/notification-service/index.ts        |    0
+ mini-services/notification-service/package.json    |    0
+ next.config.ts                                     |    0
+ package.json                                       |    2 +-
+ playwright.config.ts                               |    0
+ postcss.config.mjs                                 |    0
+ prisma/migrate-to-neon.ts                          |    0
+ prisma/scalability-seed.ts                         |    0
+ prisma/schema.prisma                               |    7 +-
+ public/icon-192.png                                |  Bin
+ public/icon-192.svg                                |    0
+ public/icon-512.png                                |  Bin
+ public/icon-512.svg                                |    0
+ public/manifest.json                               |    0
+ public/sw.js                                       |    0
+ skills/ASR/LICENSE.txt                             |   21 +
+ skills/ASR/SKILL.md                                |  580 +++
+ skills/ASR/scripts/asr.ts                          |   27 +
+ skills/LLM/LICENSE.txt                             |   21 +
+ skills/LLM/SKILL.md                                |  856 ++++
+ skills/LLM/scripts/chat.ts                         |   32 +
+ skills/TTS/LICENSE.txt                             |   21 +
+ skills/TTS/SKILL.md                                |  735 ++++
+ skills/TTS/tts.ts                                  |   25 +
+ skills/VLM/LICENSE.txt                             |   21 +
+ skills/VLM/SKILL.md                                |  588 +++
+ skills/VLM/scripts/vlm.ts                          |   57 +
+ skills/agent-browser/SKILL.md                      |  328 ++
+ skills/ai-news-collectors/SKILL.md                 |  157 +
+ skills/ai-news-collectors/_meta.json               |    6 +
+ skills/ai-news-collectors/references/sources.md    |  128 +
+ skills/aminer-academic-search/SKILL.md             |  157 +
+ skills/aminer-academic-search/scripts/aminer.py    |  391 ++
+ skills/aminer-daily-paper/README.md                |   27 +
+ skills/aminer-daily-paper/SKILL.md                 |   75 +
+ skills/aminer-daily-paper/scripts/recommend.py     |  193 +
+ skills/aminer-free-academic/SKILL.md               |  363 ++
+ skills/aminer-free-academic/evals/evals.json       |   93 +
+ .../aminer-free-academic/references/api-catalog.md |  286 ++
+ skills/anti-pua/SKILL.md                           |  245 ++
+ skills/auto-target-tracker/SKILL.md                |  317 ++
+ .../2024-02-17-radical-transparency-sales.md       |   35 +
+ .../2024-02-17-raycast-spotlight-superpowers.md    |   33 +
+ .../2024-02-17-short-form-content-marketing.md     |   47 +
+ .../2024-02-17-typing-speed-benefits.md            |   33 +
+ .../blog-writer/2024-03-14-effective-ai-prompts.md |   55 +
+ ...4-11-08-ai-revolutionizing-entry-level-sales.md |   43 +
+ .../2025-11-12-why-ai-art-is-useless.md            |   49 +
+ skills/blog-writer/README.md                       |    2 +
+ skills/blog-writer/SKILL.md                        |  158 +
+ skills/blog-writer/_meta.json                      |    6 +
+ skills/blog-writer/manage_examples.py              |   90 +
+ skills/blog-writer/style-guide.md                  |  160 +
+ skills/charts/LICENSE.txt                          |   13 +
+ skills/charts/SKILL.md                             |  427 ++
+ skills/charts/references/_rules.md                 |   49 +
+ skills/charts/references/d3.md                     |  199 +
+ skills/charts/references/echarts.md                |  651 +++
+ skills/charts/references/matplotlib.md             |  617 +++
+ skills/charts/references/mermaid.md                |  797 ++++
+ skills/charts/references/mindmap-css.md            |  911 ++++
+ skills/charts/references/playwright-css.md         |  801 ++++
+ skills/charts/references/radial-grid.md            |  576 +++
+ skills/charts/references/seaborn.md                |  324 ++
+ skills/charts/setup.sh                             |  228 +
+ skills/cheat-sheet/SKILL.md                        |  210 +
+ skills/coding-agent/SKILL.md                       |  120 +
+ skills/coding-agent/_meta.json                     |    6 +
+ skills/coding-agent/criteria.md                    |   48 +
+ skills/coding-agent/execution.md                   |   42 +
+ skills/coding-agent/memory-template.md             |   38 +
+ skills/coding-agent/planning.md                    |   31 +
+ skills/coding-agent/state.md                       |   60 +
+ skills/coding-agent/verification.md                |   39 +
+ skills/content-strategy/SKILL.md                   |  181 +
+ skills/content-strategy/_meta.json                 |    6 +
+ skills/contentanalysis/ExtractWisdom/SKILL.md      |  229 +
+ .../ExtractWisdom/Workflows/Extract.md             |   60 +
+ skills/contentanalysis/SKILL.md                    |   14 +
+ skills/design/INDEX.md                             |   92 +
+ skills/design/SKILL.md                             |  593 +++
+ skills/design/canvas-and-device.md                 |  327 ++
+ skills/design/content-page.md                      |  388 ++
+ skills/design/deck.md                              |  105 +
+ skills/design/design-system-generation.md          |  803 ++++
+ skills/design/design-system-reference.md           |  600 +++
+ skills/design/design-systems/INDEX.md              |  281 ++
+ skills/design/design-systems/TAG-VOCABULARY.md     |   41 +
+ .../brand-inspiration/airbnb/DESIGN.md             |  545 +++
+ .../brand-inspiration/airbnb/README.md             |    5 +
+ .../brand-inspiration/airbnb/components.html       | 1373 ++++++
+ .../brand-inspiration/airbnb/tokens.css            |  261 ++
+ .../brand-inspiration/airtable/DESIGN.md           |  554 +++
+ .../brand-inspiration/airtable/README.md           |    5 +
+ .../brand-inspiration/apple/DESIGN.md              |  562 +++
+ .../brand-inspiration/apple/README.md              |    5 +
+ .../brand-inspiration/apple/components.html        |  749 ++++
+ .../brand-inspiration/apple/tokens.css             |  286 ++
+ .../design-systems/brand-inspiration/arc/DESIGN.md |  163 +
+ .../brand-inspiration/binance/DESIGN.md            |  634 +++
+ .../brand-inspiration/binance/README.md            |    5 +
+ .../brand-inspiration/bmw-m/DESIGN.md              |  503 +++
+ .../brand-inspiration/bmw-m/README.md              |    5 +
+ .../design-systems/brand-inspiration/bmw/DESIGN.md |  544 +++
+ .../design-systems/brand-inspiration/bmw/README.md |    5 +
+ .../brand-inspiration/bugatti/DESIGN.md            |  454 ++
+ .../brand-inspiration/bugatti/README.md            |    5 +
+ .../design-systems/brand-inspiration/cal/DESIGN.md |  542 +++
+ .../design-systems/brand-inspiration/cal/README.md |    5 +
+ .../brand-inspiration/canva/DESIGN.md              |  168 +
+ .../brand-inspiration/cisco/DESIGN.md              |  212 +
+ .../brand-inspiration/claude/DESIGN.md             |  589 +++
+ .../brand-inspiration/claude/README.md             |    5 +
+ .../brand-inspiration/clay/DESIGN.md               |  541 +++
+ .../brand-inspiration/clay/README.md               |    5 +
+ .../brand-inspiration/clickhouse/DESIGN.md         |  544 +++
+ .../brand-inspiration/clickhouse/README.md         |    5 +
+ .../brand-inspiration/cohere/DESIGN.md             |  451 ++
+ .../brand-inspiration/cohere/README.md             |    5 +
+ .../brand-inspiration/coinbase/DESIGN.md           |  570 +++
+ .../brand-inspiration/coinbase/README.md           |    5 +
+ .../brand-inspiration/composio/DESIGN.md           |  506 +++
+ .../brand-inspiration/composio/README.md           |    5 +
+ .../brand-inspiration/cursor/DESIGN.md             |  537 +++
+ .../brand-inspiration/cursor/README.md             |    5 +
+ .../brand-inspiration/cursor/components.html       |  654 +++
+ .../brand-inspiration/cursor/tokens.css            |  218 +
+ .../brand-inspiration/discord/DESIGN.md            |  173 +
+ .../brand-inspiration/discord/components.html      |  359 ++
+ .../brand-inspiration/discord/tokens.css           |  125 +
+ .../brand-inspiration/duolingo/DESIGN.md           |  165 +
+ .../brand-inspiration/elevenlabs/DESIGN.md         |  504 +++
+ .../brand-inspiration/elevenlabs/README.md         |    5 +
+ .../brand-inspiration/expo/DESIGN.md               |  526 +++
+ .../brand-inspiration/expo/README.md               |    5 +
+ .../brand-inspiration/ferrari/DESIGN.md            |  531 +++
+ .../brand-inspiration/ferrari/README.md            |    5 +
+ .../brand-inspiration/figma/DESIGN.md              |  578 +++
+ .../brand-inspiration/figma/README.md              |    5 +
+ .../brand-inspiration/figma/components.html        |  344 ++
+ .../brand-inspiration/figma/tokens.css             |  126 +
+ .../brand-inspiration/framer/DESIGN.md             |  544 +++
+ .../brand-inspiration/framer/README.md             |    5 +
+ .../brand-inspiration/github/DESIGN.md             |  166 +
+ .../brand-inspiration/github/components.html       |  383 ++
+ .../brand-inspiration/github/tokens.css            |  125 +
+ .../brand-inspiration/hashicorp/DESIGN.md          |  575 +++
+ .../brand-inspiration/hashicorp/README.md          |    5 +
+ .../brand-inspiration/huggingface/DESIGN.md        |  160 +
+ .../design-systems/brand-inspiration/ibm/DESIGN.md |  550 +++
+ .../design-systems/brand-inspiration/ibm/README.md |    5 +
+ .../brand-inspiration/intercom/DESIGN.md           |  546 +++
+ .../brand-inspiration/intercom/README.md           |    5 +
+ .../brand-inspiration/kami/DESIGN.md               |  421 ++
+ .../brand-inspiration/kami/components.html         |  601 +++
+ .../brand-inspiration/kami/tokens.css              |  272 ++
+ .../brand-inspiration/kraken/DESIGN.md             |  135 +
+ .../brand-inspiration/kraken/README.md             |    5 +
+ .../brand-inspiration/lamborghini/DESIGN.md        |  298 ++
+ .../brand-inspiration/lamborghini/README.md        |    5 +
+ .../brand-inspiration/linear-app/DESIGN.md         |  381 ++
+ .../brand-inspiration/linear-app/components.html   |  370 ++
+ .../brand-inspiration/linear-app/tokens.css        |  130 +
+ .../brand-inspiration/loom/DESIGN.md               |  219 +
+ .../brand-inspiration/lovable/DESIGN.md            |  306 ++
+ .../brand-inspiration/lovable/README.md            |    5 +
+ .../brand-inspiration/mastercard/DESIGN.md         |  375 ++
+ .../brand-inspiration/mastercard/README.md         |    5 +
+ .../brand-inspiration/meta/DESIGN.md               |  683 +++
+ .../brand-inspiration/meta/README.md               |    5 +
+ .../brand-inspiration/minimax/DESIGN.md            |  746 ++++
+ .../brand-inspiration/minimax/README.md            |    5 +
+ .../brand-inspiration/mintlify/DESIGN.md           |  852 ++++
+ .../brand-inspiration/mintlify/README.md           |    5 +
+ .../brand-inspiration/miro/DESIGN.md               |  825 ++++
+ .../brand-inspiration/miro/README.md               |    5 +
+ .../brand-inspiration/mistral-ai/DESIGN.md         |  273 ++
+ .../brand-inspiration/mistral.ai/DESIGN.md         |  773 ++++
+ .../brand-inspiration/mistral.ai/README.md         |    5 +
+ .../brand-inspiration/mongodb/DESIGN.md            |  767 ++++
+ .../brand-inspiration/mongodb/README.md            |    5 +
+ .../brand-inspiration/nike/DESIGN.md               |  575 +++
+ .../brand-inspiration/nike/README.md               |    5 +
+ .../brand-inspiration/notion/DESIGN.md             |  821 ++++
+ .../brand-inspiration/notion/README.md             |    5 +
+ .../brand-inspiration/notion/components.html       |  413 ++
+ .../brand-inspiration/notion/tokens.css            |  130 +
+ .../brand-inspiration/nvidia/DESIGN.md             |  640 +++
+ .../brand-inspiration/nvidia/README.md             |    5 +
+ .../brand-inspiration/ollama/DESIGN.md             |  539 +++
+ .../brand-inspiration/ollama/README.md             |    5 +
+ .../brand-inspiration/openai/DESIGN.md             |  151 +
+ .../brand-inspiration/openai/components.html       |  382 ++
+ .../brand-inspiration/openai/tokens.css            |  133 +
+ .../brand-inspiration/opencode-ai/DESIGN.md        |  295 ++
+ .../brand-inspiration/opencode.ai/DESIGN.md        |  521 +++
+ .../brand-inspiration/opencode.ai/README.md        |    5 +
+ .../brand-inspiration/perplexity/DESIGN.md         |  297 ++
+ .../brand-inspiration/pinterest/DESIGN.md          |  597 +++
+ .../brand-inspiration/pinterest/README.md          |    5 +
+ .../brand-inspiration/playstation/DESIGN.md        |  661 +++
+ .../brand-inspiration/playstation/README.md        |    5 +
+ .../brand-inspiration/posthog/DESIGN.md            |  690 +++
+ .../brand-inspiration/posthog/README.md            |    5 +
+ .../brand-inspiration/raycast/DESIGN.md            |  668 +++
+ .../brand-inspiration/raycast/README.md            |    5 +
+ .../brand-inspiration/renault/DESIGN.md            |  589 +++
+ .../brand-inspiration/renault/README.md            |    5 +
+ .../brand-inspiration/replicate/DESIGN.md          |  616 +++
+ .../brand-inspiration/replicate/README.md          |    5 +
+ .../brand-inspiration/resend/DESIGN.md             |  585 +++
+ .../brand-inspiration/resend/README.md             |    5 +
+ .../brand-inspiration/revolut/DESIGN.md            |  636 +++
+ .../brand-inspiration/revolut/README.md            |    5 +
+ .../brand-inspiration/runwayml/DESIGN.md           |  254 ++
+ .../brand-inspiration/runwayml/README.md           |    5 +
+ .../brand-inspiration/sanity/DESIGN.md             |  367 ++
+ .../brand-inspiration/sanity/README.md             |    5 +
+ .../brand-inspiration/sentry/DESIGN.md             |  551 +++
+ .../brand-inspiration/sentry/README.md             |    5 +
+ .../brand-inspiration/shopify/DESIGN.md            |  516 +++
+ .../brand-inspiration/shopify/README.md            |    5 +
+ .../brand-inspiration/shopify/components.html      |  342 ++
+ .../brand-inspiration/shopify/tokens.css           |  141 +
+ .../brand-inspiration/slack/DESIGN.md              |  482 +++
+ .../brand-inspiration/slack/components.html        |  387 ++
+ .../brand-inspiration/slack/tokens.css             |  127 +
+ .../brand-inspiration/spacex/DESIGN.md             |  363 ++
+ .../brand-inspiration/spacex/README.md             |    5 +
+ .../brand-inspiration/spotify/DESIGN.md            |  256 ++
+ .../brand-inspiration/spotify/README.md            |    5 +
+ .../brand-inspiration/spotify/components.html      |  365 ++
+ .../brand-inspiration/spotify/tokens.css           |  127 +
+ .../brand-inspiration/starbucks/DESIGN.md          |  590 +++
+ .../brand-inspiration/starbucks/README.md          |    5 +
+ .../brand-inspiration/stripe/DESIGN.md             |  487 +++
+ .../brand-inspiration/stripe/README.md             |    5 +
+ .../brand-inspiration/stripe/components.html       | 1018 +++++
+ .../brand-inspiration/stripe/tokens.css            |  295 ++
+ .../brand-inspiration/supabase/DESIGN.md           |  462 ++
+ .../brand-inspiration/supabase/README.md           |    5 +
+ .../brand-inspiration/superhuman/DESIGN.md         |  448 ++
+ .../brand-inspiration/superhuman/README.md         |    5 +
+ .../brand-inspiration/tesla/DESIGN.md              |  296 ++
+ .../brand-inspiration/tesla/README.md              |    5 +
+ .../brand-inspiration/theverge/DESIGN.md           |  349 ++
+ .../brand-inspiration/theverge/README.md           |    5 +
+ .../brand-inspiration/together-ai/DESIGN.md        |  277 ++
+ .../brand-inspiration/together.ai/DESIGN.md        |  633 +++
+ .../brand-inspiration/together.ai/README.md        |    5 +
+ .../brand-inspiration/uber/DESIGN.md               |  636 +++
+ .../brand-inspiration/uber/README.md               |    5 +
+ .../brand-inspiration/uber/components.html         |  347 ++
+ .../brand-inspiration/uber/tokens.css              |  131 +
+ .../brand-inspiration/vercel/DESIGN.md             |  736 ++++
+ .../brand-inspiration/vercel/README.md             |    5 +
+ .../brand-inspiration/vercel/components.html       |  839 ++++
+ .../brand-inspiration/vercel/tokens.css            |  270 ++
+ .../brand-inspiration/vodafone/DESIGN.md           |  538 +++
+ .../brand-inspiration/vodafone/README.md           |    5 +
+ .../brand-inspiration/voltagent/DESIGN.md          |  521 +++
+ .../brand-inspiration/voltagent/README.md          |    5 +
+ .../brand-inspiration/warp/DESIGN.md               |  526 +++
+ .../brand-inspiration/warp/README.md               |    5 +
+ .../brand-inspiration/webex/DESIGN.md              |  218 +
+ .../brand-inspiration/webflow/DESIGN.md            |  588 +++
+ .../brand-inspiration/webflow/README.md            |    5 +
+ .../brand-inspiration/wechat/DESIGN.md             |  313 ++
+ .../brand-inspiration/wired/DESIGN.md              |  497 +++
+ .../brand-inspiration/wired/README.md              |    5 +
+ .../brand-inspiration/wise/DESIGN.md               |  544 +++
+ .../brand-inspiration/wise/README.md               |    5 +
+ .../brand-inspiration/x-ai/DESIGN.md               |  271 ++
+ .../brand-inspiration/x.ai/DESIGN.md               |  465 ++
+ .../brand-inspiration/x.ai/README.md               |    5 +
+ .../brand-inspiration/xiaohongshu/DESIGN.md        |  413 ++
+ .../brand-inspiration/zapier/DESIGN.md             |  537 +++
+ .../brand-inspiration/zapier/README.md             |    5 +
+ skills/design/design-systems/index.json            | 4088 ++++++++++++++++++
+ .../design-systems/style-skills/agentic/DESIGN.md  |   55 +
+ .../design-systems/style-skills/agentic/SKILL.md   |   89 +
+ .../design-systems/style-skills/ant/DESIGN.md      |   55 +
+ .../design-systems/style-skills/ant/SKILL.md       |   89 +
+ .../style-skills/application/DESIGN.md             |   55 +
+ .../style-skills/application/SKILL.md              |   84 +
+ .../design-systems/style-skills/artistic/DESIGN.md |   55 +
+ .../design-systems/style-skills/artistic/SKILL.md  |   89 +
+ .../style-skills/atelier-zero/DESIGN.md            |  315 ++
+ .../style-skills/atelier-zero/SKILL.md             |   85 +
+ .../design-systems/style-skills/bento/DESIGN.md    |   55 +
+ .../design-systems/style-skills/bento/SKILL.md     |   83 +
+ .../design-systems/style-skills/bold/DESIGN.md     |   55 +
+ .../design-systems/style-skills/bold/SKILL.md      |   83 +
+ .../style-skills/brutalism/DESIGN.md               |   55 +
+ .../design-systems/style-skills/brutalism/SKILL.md |   97 +
+ .../design-systems/style-skills/cafe/DESIGN.md     |   55 +
+ .../design-systems/style-skills/cafe/SKILL.md      |   83 +
+ .../design-systems/style-skills/claude/DESIGN.md   |   55 +
+ .../design-systems/style-skills/claude/SKILL.md    |   81 +
+ .../style-skills/claymorphism/DESIGN.md            |   55 +
+ .../style-skills/claymorphism/SKILL.md             |   84 +
+ .../design-systems/style-skills/clean/DESIGN.md    |   55 +
+ .../design-systems/style-skills/clean/SKILL.md     |   84 +
+ .../design-systems/style-skills/codex/DESIGN.md    |   55 +
+ .../design-systems/style-skills/codex/SKILL.md     |   81 +
+ .../design-systems/style-skills/colorful/DESIGN.md |   55 +
+ .../design-systems/style-skills/colorful/SKILL.md  |   82 +
+ .../style-skills/contemporary/DESIGN.md            |   55 +
+ .../style-skills/contemporary/SKILL.md             |   83 +
+ .../style-skills/corporate/DESIGN.md               |   55 +
+ .../design-systems/style-skills/corporate/SKILL.md |   89 +
+ .../design-systems/style-skills/cosmic/DESIGN.md   |   55 +
+ .../design-systems/style-skills/cosmic/SKILL.md    |   83 +
+ .../design-systems/style-skills/creative/DESIGN.md |   55 +
+ .../design-systems/style-skills/creative/SKILL.md  |   83 +
+ .../style-skills/dashboard/DESIGN.md               |   55 +
+ .../design-systems/style-skills/dashboard/SKILL.md |   89 +
+ .../design-systems/style-skills/default/DESIGN.md  |   62 +
+ .../design-systems/style-skills/default/SKILL.md   |   85 +
+ .../style-skills/default/components.html           |  523 +++
+ .../design-systems/style-skills/default/tokens.css |  200 +
+ .../design-systems/style-skills/dithered/DESIGN.md |   55 +
+ .../design-systems/style-skills/dithered/SKILL.md  |   87 +
+ .../design-systems/style-skills/doodle/DESIGN.md   |   55 +
+ .../design-systems/style-skills/doodle/SKILL.md    |   97 +
+ .../design-systems/style-skills/dramatic/DESIGN.md |   55 +
+ .../design-systems/style-skills/dramatic/SKILL.md  |   83 +
+ .../style-skills/editorial/DESIGN.md               |   55 +
+ .../design-systems/style-skills/editorial/SKILL.md |   86 +
+ .../design-systems/style-skills/elegant/DESIGN.md  |   55 +
+ .../design-systems/style-skills/elegant/SKILL.md   |   83 +
+ .../style-skills/energetic/DESIGN.md               |   51 +
+ .../design-systems/style-skills/energetic/SKILL.md |   86 +
+ .../style-skills/enterprise/DESIGN.md              |   55 +
+ .../style-skills/enterprise/SKILL.md               |   88 +
+ .../style-skills/expressive/DESIGN.md              |   55 +
+ .../style-skills/expressive/SKILL.md               |   83 +
+ .../design-systems/style-skills/fantasy/DESIGN.md  |   55 +
+ .../design-systems/style-skills/fantasy/SKILL.md   |   83 +
+ .../design-systems/style-skills/fiction/DESIGN.md  |   55 +
+ .../design-systems/style-skills/fiction/SKILL.md   |   81 +
+ .../design-systems/style-skills/flat/DESIGN.md     |   55 +
+ .../design-systems/style-skills/flat/SKILL.md      |  101 +
+ .../design-systems/style-skills/friendly/DESIGN.md |   55 +
+ .../design-systems/style-skills/friendly/SKILL.md  |   83 +
+ .../style-skills/futuristic/DESIGN.md              |   55 +
+ .../style-skills/futuristic/SKILL.md               |   83 +
+ .../style-skills/glassmorphism/DESIGN.md           |   55 +
+ .../style-skills/glassmorphism/SKILL.md            |   86 +
+ .../design-systems/style-skills/gradient/DESIGN.md |   55 +
+ .../design-systems/style-skills/gradient/SKILL.md  |   83 +
+ .../design-systems/style-skills/hud/DESIGN.md      |  173 +
+ .../design-systems/style-skills/hud/SKILL.md       |   85 +
+ .../style-skills/immersive/DESIGN.md               |   55 +
+ .../design-systems/style-skills/immersive/SKILL.md |   81 +
+ .../style-skills/impeccable/DESIGN.md              |   55 +
+ .../style-skills/impeccable/SKILL.md               |   81 +
+ .../design/design-systems/style-skills/index.json  | 1151 +++++
+ .../design-systems/style-skills/levels/DESIGN.md   |   55 +
+ .../design-systems/style-skills/levels/SKILL.md    |   83 +
+ .../design-systems/style-skills/lingo/DESIGN.md    |   55 +
+ .../design-systems/style-skills/lingo/SKILL.md     |   87 +
+ .../design-systems/style-skills/luxury/DESIGN.md   |   55 +
+ .../design-systems/style-skills/luxury/SKILL.md    |   83 +
+ .../design-systems/style-skills/material/DESIGN.md |   55 +
+ .../design-systems/style-skills/material/SKILL.md  |   97 +
+ .../design-systems/style-skills/matrix/DESIGN.md   |   55 +
+ .../design-systems/style-skills/matrix/SKILL.md    |   82 +
+ .../design-systems/style-skills/minimal/DESIGN.md  |   55 +
+ .../design-systems/style-skills/minimal/SKILL.md   |   83 +
+ .../style-skills/mission-control/DESIGN.md         |  474 ++
+ .../style-skills/mission-control/SKILL.md          |   85 +
+ .../design-systems/style-skills/modern/DESIGN.md   |   55 +
+ .../design-systems/style-skills/modern/SKILL.md    |   83 +
+ .../design-systems/style-skills/mono/DESIGN.md     |   55 +
+ .../design-systems/style-skills/mono/SKILL.md      |   88 +
+ .../style-skills/neobrutalism/DESIGN.md            |   55 +
+ .../style-skills/neobrutalism/SKILL.md             |   83 +
+ .../design-systems/style-skills/neon/DESIGN.md     |   55 +
+ .../design-systems/style-skills/neon/SKILL.md      |   83 +
+ .../style-skills/neumorphism/DESIGN.md             |   55 +
+ .../style-skills/neumorphism/SKILL.md              |   88 +
+ .../design-systems/style-skills/pacman/DESIGN.md   |   55 +
+ .../design-systems/style-skills/pacman/SKILL.md    |   84 +
+ .../design-systems/style-skills/paper/DESIGN.md    |   55 +
+ .../design-systems/style-skills/paper/SKILL.md     |   83 +
+ .../style-skills/parchment/DESIGN.md               |   70 +
+ .../design-systems/style-skills/parchment/SKILL.md |   66 +
+ .../style-skills/perspective/DESIGN.md             |   55 +
+ .../style-skills/perspective/SKILL.md              |   83 +
+ .../design-systems/style-skills/premium/DESIGN.md  |   55 +
+ .../design-systems/style-skills/premium/SKILL.md   |   83 +
+ .../style-skills/professional/DESIGN.md            |   55 +
+ .../style-skills/professional/SKILL.md             |   83 +
+ .../style-skills/publication/DESIGN.md             |   55 +
+ .../style-skills/publication/SKILL.md              |   89 +
+ .../design-systems/style-skills/refined/DESIGN.md  |   55 +
+ .../design-systems/style-skills/refined/SKILL.md   |   83 +
+ .../design-systems/style-skills/retro/DESIGN.md    |   55 +
+ .../design-systems/style-skills/retro/SKILL.md     |   83 +
+ .../design-systems/style-skills/riso/DESIGN.md     |   55 +
+ .../design-systems/style-skills/riso/SKILL.md      |   81 +
+ .../design-systems/style-skills/sega/DESIGN.md     |   55 +
+ .../design-systems/style-skills/sega/SKILL.md      |   81 +
+ .../design-systems/style-skills/shadcn/DESIGN.md   |   55 +
+ .../design-systems/style-skills/shadcn/SKILL.md    |   83 +
+ .../design-systems/style-skills/simple/DESIGN.md   |   55 +
+ .../design-systems/style-skills/simple/SKILL.md    |   83 +
+ .../design-systems/style-skills/sketch/DESIGN.md   |   55 +
+ .../design-systems/style-skills/sketch/SKILL.md    |   81 +
+ .../style-skills/skeumorphism/DESIGN.md            |   55 +
+ .../style-skills/skeumorphism/SKILL.md             |   97 +
+ .../design-systems/style-skills/sleek/DESIGN.md    |   55 +
+ .../design-systems/style-skills/sleek/SKILL.md     |   83 +
+ .../design-systems/style-skills/spacious/DESIGN.md |   55 +
+ .../design-systems/style-skills/spacious/SKILL.md  |   89 +
+ .../style-skills/storytelling/DESIGN.md            |   55 +
+ .../style-skills/storytelling/SKILL.md             |   83 +
+ .../style-skills/terracotta/DESIGN.md              |   55 +
+ .../style-skills/terracotta/SKILL.md               |   81 +
+ .../design-systems/style-skills/tetris/DESIGN.md   |   55 +
+ .../design-systems/style-skills/tetris/SKILL.md    |   83 +
+ .../style-skills/totality-festival/DESIGN.md       |  206 +
+ .../style-skills/totality-festival/SKILL.md        |   85 +
+ .../style-skills/trading-terminal/DESIGN.md        |  178 +
+ .../style-skills/trading-terminal/SKILL.md         |   85 +
+ .../design-systems/style-skills/urdu/DESIGN.md     | 1002 +++++
+ .../design-systems/style-skills/urdu/SKILL.md      |   85 +
+ .../design-systems/style-skills/vibrant/DESIGN.md  |   55 +
+ .../design-systems/style-skills/vibrant/SKILL.md   |   83 +
+ .../design-systems/style-skills/vintage/DESIGN.md  |   55 +
+ .../design-systems/style-skills/vintage/SKILL.md   |   83 +
+ .../style-skills/warm-editorial/DESIGN.md          |   65 +
+ .../style-skills/warm-editorial/SKILL.md           |   85 +
+ skills/design/design-templates/INDEX.md            |  281 ++
+ .../design/design-templates/ascii-cosmos/SKILL.md  |  293 ++
+ .../design-templates/ascii-cosmos/reference.html   |  958 ++++
+ .../design/design-templates/ascii-cosmos/styles.md |  188 +
+ .../design-templates/ascii-cosmos/template.html    |  967 +++++
+ .../design/design-templates/audio-jingle/SKILL.md  |   72 +
+ .../audio-jingle/music-player.html                 |  625 +++
+ skills/design/design-templates/blog-post/SKILL.md  |   89 +
+ .../design-templates/blog-post/qiye-wildstay.html  |  435 ++
+ ...0\200\346\254\241\351\207\215\350\257\273.html" |  421 ++
+ skills/design/design-templates/dashboard/SKILL.md  |   90 +
+ .../dashboard/stack-dashboard-zh.html              | 1545 +++++++
+ .../design-templates/digital-eguide/SKILL.md       |   85 +
+ .../case/images/p-01-color-macro.jpg"              |  Bin 0 -> 172145 bytes
+ .../case/images/p-02-typography.jpg"               |  Bin 0 -> 114254 bytes
+ .../case/images/p-03-packaging.jpg"                |  Bin 0 -> 152063 bytes
+ .../case/images/p-04-paint-stroke.jpg"             |  Bin 0 -> 135183 bytes
+ .../case/images/p-05-brand-flatlay.jpg"            |  Bin 0 -> 158788 bytes
+ .../case/images/p-06-studio-portrait.jpg"          |  Bin 0 -> 72101 bytes
+ .../case/images/p-07-gradient.jpg"                 |  Bin 0 -> 31769 bytes
+ .../case/images/p-08-editorial.jpg"                |  Bin 0 -> 188493 bytes
+ .../case/images/p-09-ceramic.jpg"                  |  Bin 0 -> 41250 bytes
+ .../case/images/p-10-urban.jpg"                    |  Bin 0 -> 187214 bytes
+ .../case/images/p-11-ink-paper.jpg"                |  Bin 0 -> 45743 bytes
+ .../case/images/p-12-botanical.jpg"                |  Bin 0 -> 288598 bytes
+ .../case/images/p-13-risograph.jpg"                |  Bin 0 -> 45089 bytes
+ .../case/images/p-14-gallery-wall.jpg"             |  Bin 0 -> 129059 bytes
+ .../case/images/p-15-light-motion.jpg"             |  Bin 0 -> 30693 bytes
+ .../case/images/p-16-interior.jpg"                 |  Bin 0 -> 55594 bytes
+ .../case/images/p-17-color-block.jpg"              |  Bin 0 -> 174431 bytes
+ .../case/images/p-18-magazine.jpg"                 |  Bin 0 -> 255772 bytes
+ .../case/index.html"                               | 1644 +++++++
+ .../digital-eguide/social-carousel.html            |  909 ++++
+ .../design-templates/dot-matrix-xhs/SKILL.md       |  318 ++
+ .../dot-matrix-xhs/\347\202\271\351\230\265.html"  |  250 ++
+ .../design-templates/html-ppt-xhs-post/SKILL.md    |   85 +
+ .../html-ppt-xhs-post/xhs-cover-spring.html        |  440 ++
+ .../html-ppt-xhs-post/xhs-cover-typography.html    |  411 ++
+ .../design-templates/industrial-archive/SKILL.md   |  245 ++
+ .../industrial-archive/reference.html              | 1563 +++++++
+ .../design-templates/industrial-archive/styles.md  |  165 +
+ .../industrial-archive/template.html               | 1232 ++++++
+ .../design-templates/portfolio-detail/SKILL.md     |  248 ++
+ .../portfolio-detail/reference.html                | 1097 +++++
+ .../portfolio-detail/template.html                 |  717 +++
+ skills/design/design-templates/ppt/AGENTS.md       |    9 +
+ skills/design/design-templates/ppt/INDEX.md        |   19 +
+ .../design-templates/ppt/guizang-ppt/LICENSE       |   21 +
+ .../design-templates/ppt/guizang-ppt/README.en.md  |  119 +
+ .../design-templates/ppt/guizang-ppt/README.md     |  120 +
+ .../ppt/guizang-ppt/README.pt-BR.md                |  121 +
+ .../design-templates/ppt/guizang-ppt/SKILL.md      |  317 ++
+ .../ppt/guizang-ppt/assets/pattern-slides.html     |  318 ++
+ .../ppt/guizang-ppt/assets/template.html           |  647 +++
+ .../ppt/guizang-ppt/references/checklist.md        |  265 ++
+ .../ppt/guizang-ppt/references/components.md       |  363 ++
+ .../ppt/guizang-ppt/references/layouts.md          |  630 +++
+ .../ppt/guizang-ppt/references/styles.md           |  195 +
+ .../ppt/guizang-ppt/references/themes.md           |  122 +
+ .../ppt/html-ppt-zhangzara-8-bit-orbit/LICENSE     |   21 +
+ .../ppt/html-ppt-zhangzara-8-bit-orbit/SKILL.md    |   96 +
+ .../html-ppt-zhangzara-8-bit-orbit/pattern.html    | 1640 +++++++
+ .../html-ppt-zhangzara-8-bit-orbit/template.json   |   48 +
+ .../ppt/html-ppt-zhangzara-biennale-yellow/LICENSE |   21 +
+ .../html-ppt-zhangzara-biennale-yellow/SKILL.md    |   97 +
+ .../pattern.html                                   |  833 ++++
+ .../template.json                                  |   49 +
+ .../ppt/html-ppt-zhangzara-grove/LICENSE           |   21 +
+ .../ppt/html-ppt-zhangzara-grove/SKILL.md          |   97 +
+ .../ppt/html-ppt-zhangzara-grove/pattern.html      | 1676 +++++++
+ .../ppt/html-ppt-zhangzara-grove/template.json     |   51 +
+ .../ppt/html-ppt-zhangzara-pin-and-paper/LICENSE   |   21 +
+ .../ppt/html-ppt-zhangzara-pin-and-paper/SKILL.md  |  104 +
+ .../assets/deck-stage.js                           |  619 +++
+ .../assets/styles.css                              |  668 +++
+ .../html-ppt-zhangzara-pin-and-paper/pattern.html  |  443 ++
+ .../html-ppt-zhangzara-pin-and-paper/template.json |   46 +
+ .../ppt/html-ppt-zhangzara-retro-windows/LICENSE   |   21 +
+ .../ppt/html-ppt-zhangzara-retro-windows/SKILL.md  |   96 +
+ .../html-ppt-zhangzara-retro-windows/pattern.html  | 1287 ++++++
+ .../html-ppt-zhangzara-retro-windows/template.json |   47 +
+ .../ppt/html-ppt-zhangzara-retro-zine/LICENSE      |   21 +
+ .../ppt/html-ppt-zhangzara-retro-zine/SKILL.md     |   97 +
+ .../ppt/html-ppt-zhangzara-retro-zine/pattern.html | 1058 +++++
+ .../html-ppt-zhangzara-retro-zine/template.json    |   47 +
+ .../design-templates/ppt/ib-pitch-book/SKILL.md    |  160 +
+ .../ppt/ib-pitch-book/assets/template.html         |  436 ++
+ .../ppt/ib-pitch-book/pattern.html                 | 1181 +++++
+ .../ppt/ib-pitch-book/references/attribution.md    |   35 +
+ .../ppt/ib-pitch-book/references/checklist.md      |   39 +
+ .../ppt/ib-pitch-book/references/compliance.md     |   60 +
+ .../ppt/ib-pitch-book/references/conventions.md    |   36 +
+ .../design/design-templates/pricing-page/SKILL.md  |   73 +
+ .../design-templates/pricing-page/pricing-cn.html  | 1010 +++++
+ .../design/design-templates/project-brief/SKILL.md |   74 +
+ ...00\345\221\250\346\212\245-VOL18-notebook.html" |  945 ++++
+ .../design/design-templates/riso-product/SKILL.md  |  307 ++
+ .../design-templates/riso-product/reference.html   | 1893 ++++++++
+ .../design/design-templates/saas-landing/SKILL.md  |   77 +
+ .../design-templates/saas-landing/reference.html   | 1674 +++++++
+ .../design-templates/social-card-data-kpi/SKILL.md |   56 +
+ .../social-card-data-kpi/pattern.html              |   42 +
+ .../social-card-editorial/SKILL.md                 |   78 +
+ .../assets/magazine-bg-webgl.js                    |  160 +
+ .../screenshot-backgrounds/style-a/dune.webp       |  Bin 0 -> 160742 bytes
+ .../screenshot-backgrounds/style-a/forest-ink.webp |  Bin 0 -> 237774 bytes
+ .../style-a/indigo-porcelain.webp                  |  Bin 0 -> 130840 bytes
+ .../style-a/kraft-paper.webp                       |  Bin 0 -> 256352 bytes
+ .../style-a/monocle-classic.webp                   |  Bin 0 -> 184520 bytes
+ .../social-card-editorial/pattern.html             |  838 ++++
+ .../references/image-overlay.md                    |  152 +
+ .../references/layout-recipes.md                   |  831 ++++
+ .../references/map-component.md                    |  148 +
+ .../references/platform-specs.md                   |  122 +
+ .../references/portrait-fill.md                    |   85 +
+ .../references/screenshot-treatment.md             |  196 +
+ .../references/style-system.md                     |  188 +
+ .../references/theme-presets.md                    |  208 +
+ .../references/title-shortener.md                  |  128 +
+ .../social-card-image-led/SKILL.md                 |   59 +
+ .../social-card-image-led/pattern.html             |   27 +
+ .../design-templates/social-card-map/SKILL.md      |   53 +
+ .../design-templates/social-card-map/pattern.html  |   24 +
+ .../design-templates/social-card-quote/SKILL.md    |   59 +
+ .../social-card-quote/pattern.html                 |   30 +
+ .../social-card-screenshot-explainer/SKILL.md      |   59 +
+ .../social-card-screenshot-explainer/pattern.html  |   65 +
+ .../design-templates/social-card-swiss/SKILL.md    |   75 +
+ .../social-card-swiss/assets/magazine-bg-webgl.js  |  160 +
+ .../style-b/ikb-dot-gradient.webp                  |  Bin 0 -> 385692 bytes
+ .../style-b/lemon-green-dot-shadow.webp            |  Bin 0 -> 145062 bytes
+ .../screenshot-backgrounds/style-b/lemon-grid.webp |  Bin 0 -> 65512 bytes
+ .../style-b/safety-orange-halftone.webp            |  Bin 0 -> 255056 bytes
+ .../social-card-swiss/pattern.html                 |  943 ++++
+ .../social-card-swiss/references/image-overlay.md  |  152 +
+ .../social-card-swiss/references/layout-recipes.md |  831 ++++
+ .../social-card-swiss/references/map-component.md  |  148 +
+ .../social-card-swiss/references/platform-specs.md |  122 +
+ .../social-card-swiss/references/portrait-fill.md  |   85 +
+ .../references/screenshot-treatment.md             |  196 +
+ .../social-card-swiss/references/style-system.md   |  188 +
+ .../social-card-swiss/references/theme-presets.md  |  208 +
+ .../references/title-shortener.md                  |  128 +
+ .../design-templates/social-carousel/SKILL.md      |   77 +
+ .../social-carousel/scroll-gallery.html            |  431 ++
+ skills/design/design-templates/team-okrs/SKILL.md  |   91 +
+ .../team-okrs/activity-stream.html                 | 1292 ++++++
+ .../design-templates/video-shortform/SKILL.md      |  197 +
+ .../video-shortform/video-shortform.html           |  743 ++++
+ skills/design/design-templates/vr-canvas/SKILL.md  |  194 +
+ .../vr-canvas/images/p-01-color-macro.jpg          |  Bin 0 -> 172145 bytes
+ .../vr-canvas/images/p-02-typography.jpg           |  Bin 0 -> 114254 bytes
+ .../vr-canvas/images/p-03-packaging.jpg            |  Bin 0 -> 152063 bytes
+ .../vr-canvas/images/p-04-paint-stroke.jpg         |  Bin 0 -> 135183 bytes
+ .../vr-canvas/images/p-05-brand-flatlay.jpg        |  Bin 0 -> 158788 bytes
+ .../vr-canvas/images/p-06-studio-portrait.jpg      |  Bin 0 -> 72101 bytes
+ .../vr-canvas/images/p-07-gradient.jpg             |  Bin 0 -> 31769 bytes
+ .../vr-canvas/images/p-08-editorial.jpg            |  Bin 0 -> 188493 bytes
+ .../vr-canvas/images/p-09-ceramic.jpg              |  Bin 0 -> 41250 bytes
+ .../vr-canvas/images/p-10-urban.jpg                |  Bin 0 -> 187214 bytes
+ .../vr-canvas/images/p-11-ink-paper.jpg            |  Bin 0 -> 45743 bytes
+ .../vr-canvas/images/p-12-botanical.jpg            |  Bin 0 -> 288598 bytes
+ .../vr-canvas/images/p-13-risograph.jpg            |  Bin 0 -> 45089 bytes
+ .../vr-canvas/images/p-14-gallery-wall.jpg         |  Bin 0 -> 129059 bytes
+ .../vr-canvas/images/p-15-light-motion.jpg         |  Bin 0 -> 30693 bytes
+ .../vr-canvas/images/p-16-interior.jpg             |  Bin 0 -> 55594 bytes
+ .../vr-canvas/images/p-17-color-block.jpg          |  Bin 0 -> 174431 bytes
+ .../vr-canvas/images/p-18-magazine.jpg             |  Bin 0 -> 255772 bytes
+ .../design-templates/vr-canvas/reference.html      | 1406 ++++++
+ .../design-templates/vr-canvas/template.html       | 1443 +++++++
+ .../design/design-templates/waitlist-page/SKILL.md |   83 +
+ .../\345\261\202\344\272\221-waitlist.html"        |  809 ++++
+ .../design-templates/wechat-cover-pair/SKILL.md    |   52 +
+ .../wechat-cover-pair/pattern.html                 |  560 +++
+ .../design-templates/wireframe-sketch/SKILL.md     |  209 +
+ .../wireframe-sketch/foolscap-wireframe.html       | 1238 ++++++
+ .../design/design-templates/xianying-tool/SKILL.md |   80 +
+ .../xianying-tool/index.standalone.html            | 1065 +++++
+ skills/design/export.md                            |  495 +++
+ skills/design/horizontal-craft/README.md           |   92 +
+ skills/design/horizontal-craft/accessibility.md    |  134 +
+ .../horizontal-craft/animation-discipline.md       |  200 +
+ skills/design/horizontal-craft/anti-ai-slop.md     |  299 ++
+ .../design/horizontal-craft/chinese-typography.md  |  226 +
+ skills/design/horizontal-craft/color.md            |   88 +
+ skills/design/horizontal-craft/data-integrity.md   |  158 +
+ skills/design/horizontal-craft/form-validation.md  |  221 +
+ skills/design/horizontal-craft/icon-system.md      |  343 ++
+ skills/design/horizontal-craft/laws-of-ux.md       |  296 ++
+ skills/design/horizontal-craft/link-and-proof.md   |  164 +
+ .../horizontal-craft/reference/directions.md       |  277 ++
+ skills/design/horizontal-craft/reference/fonts.md  |  627 +++
+ .../horizontal-craft/reference/grid-system.md      |  290 ++
+ .../horizontal-craft/reference/punctuation.md      |  413 ++
+ .../horizontal-craft/reference/text-detail.md      |  344 ++
+ .../reference/title-and-breaking.md                |  349 ++
+ skills/design/horizontal-craft/state-coverage.md   |  172 +
+ .../design/horizontal-craft/technique-library.md   |  218 +
+ .../design/horizontal-craft/visual-explanation.md  |  300 ++
+ skills/design/info-interactive.md                  |  249 ++
+ skills/design/landing-page.md                      |  141 +
+ skills/design/portfolio.md                         |  191 +
+ skills/design/prototype.md                         |  514 +++
+ skills/design/quality-gate.md                      |  364 ++
+ skills/design/social-card.md                       |  538 +++
+ skills/design/web-tool.md                          |  160 +
+ skills/docx/LICENSE.txt                            |   13 +
+ skills/docx/SKILL.md                               |  201 +
+ skills/docx/references/chart-templates.md          |  386 ++
+ skills/docx/references/common-rules.md             |  419 ++
+ skills/docx/references/decorations.md              |  538 +++
+ skills/docx/references/design-system.md            | 1797 ++++++++
+ skills/docx/references/docx-js-advanced.md         |  257 ++
+ skills/docx/references/docx-js-core.md             |  333 ++
+ skills/docx/references/faq.md                      |  323 ++
+ skills/docx/references/math-formulas.md            |  276 ++
+ skills/docx/references/ooxml.md                    |  222 +
+ skills/docx/references/toc.md                      |  264 ++
+ skills/docx/routes/comment.md                      |   88 +
+ skills/docx/routes/create.md                       |  207 +
+ skills/docx/routes/edit.md                         |  115 +
+ skills/docx/routes/format.md                       |  120 +
+ skills/docx/routes/read.md                         |  114 +
+ skills/docx/scenes/academic.md                     |  783 ++++
+ skills/docx/scenes/contract.md                     |  463 ++
+ skills/docx/scenes/copywriting.md                  |  139 +
+ skills/docx/scenes/exam.md                         |  698 +++
+ skills/docx/scenes/official-doc.md                 |  411 ++
+ skills/docx/scenes/report.md                       |  340 ++
+ skills/docx/scenes/resume.md                       |  534 +++
+ skills/docx/scripts/__init__.py                    |    1 +
+ skills/docx/scripts/add_toc_placeholders.py        |  749 ++++
+ skills/docx/scripts/document.py                    | 1333 ++++++
+ skills/docx/scripts/postcheck.py                   |  807 ++++
+ skills/docx/scripts/templates/comments.xml         |    3 +
+ skills/docx/scripts/templates/commentsExtended.xml |    3 +
+ .../docx/scripts/templates/commentsExtensible.xml  |    3 +
+ skills/docx/scripts/templates/commentsIds.xml      |    3 +
+ skills/docx/scripts/templates/people.xml           |    3 +
+ skills/docx/scripts/utilities.py                   |  374 ++
+ skills/docx/setup.sh                               |  177 +
+ skills/dream-interpreter/SKILL.md                  |   88 +
+ skills/dream-interpreter/assets/example_asset.txt  |   24 +
+ .../dream-interpreter/references/api_reference.md  |   34 +
+ .../references/interpretation-guide.md             |   83 +
+ .../dream-interpreter/references/output-schema.md  |   65 +
+ .../references/questioning-strategy.md             |   62 +
+ .../dream-interpreter/references/visual-mapping.md |   81 +
+ skills/dream-interpreter/scripts/example.py        |   19 +
+ skills/dream-interpreter/skill.json                |    7 +
+ skills/finance/Finance_API_Doc.md                  |  445 ++
+ skills/finance/SKILL.md                            |   53 +
+ skills/fullstack-dev/SKILL.md                      |  238 +
+ skills/get-fortune-analysis/SKILL.md               |  370 ++
+ skills/get-fortune-analysis/lunar_python.py        |   91 +
+ skills/gift-evaluator/SKILL.md                     |   83 +
+ skills/gift-evaluator/html_tools.py                |  268 ++
+ skills/image-edit/LICENSE.txt                      |   21 +
+ skills/image-edit/SKILL.md                         |  896 ++++
+ skills/image-edit/scripts/image-edit.ts            |   36 +
+ skills/image-generation/LICENSE.txt                |   21 +
+ skills/image-generation/SKILL.md                   |  583 +++
+ .../image-generation/scripts/image-generation.ts   |   28 +
+ skills/image-search/SKILL.md                       |  163 +
+ skills/image-understand/LICENSE.txt                |   21 +
+ skills/image-understand/SKILL.md                   |  855 ++++
+ .../image-understand/scripts/image-understand.ts   |   41 +
+ skills/interview-designer/README.md                |   70 +
+ skills/interview-designer/SKILL.md                 |   53 +
+ skills/interview-designer/_meta.json               |    6 +
+ .../references/design_rationale.md                 |   43 +
+ .../templates/interview_guide_template.md          |   62 +
+ skills/interview-prep/SKILL.md                     |  131 +
+ .../interview-prep/references/answer_frameworks.md |   97 +
+ skills/interview-prep/references/behavioral.md     |   94 +
+ skills/interview-prep/references/case.md           |   93 +
+ skills/interview-prep/references/hr_round.md       |  103 +
+ skills/interview-prep/references/role_finance.md   |  103 +
+ skills/interview-prep/references/role_internet.md  |   80 +
+ skills/interview-prep/references/role_tech.md      |   83 +
+ .../references/salary_negotiation.md               |   99 +
+ skills/interview-prep/references/technical.md      |  100 +
+ .../interview-prep/scripts/star_story_builder.py   |  178 +
+ skills/jd-resume-tailor/SKILL.md                   |  127 +
+ .../references/jd_parsing_signals.md               |   79 +
+ .../references/rewrite_principles.md               |   75 +
+ skills/jd-resume-tailor/scripts/jd_gap.py          |  177 +
+ skills/jd-resume-tailor/scripts/parse_jd.py        |  189 +
+ skills/job-intent-tracker/SKILL.md                 |  136 +
+ .../references/keywords_finance.md                 |   78 +
+ .../references/keywords_general.md                 |   45 +
+ .../references/keywords_internet.md                |   54 +
+ .../job-intent-tracker/references/keywords_tech.md |   87 +
+ .../references/target_profile_template.md          |   74 +
+ skills/job-intent-tracker/scripts/init_tracker.py  |  194 +
+ skills/job-intent-tracker/scripts/profile_match.py |  128 +
+ skills/market-research-reports/SKILL.md            |  901 ++++
+ .../assets/FORMATTING_GUIDE.md                     |  428 ++
+ .../assets/market_report_template.tex              | 1380 ++++++
+ .../assets/market_research.sty                     |  564 +++
+ .../references/data_analysis_patterns.md           |  548 +++
+ .../references/report_structure_guide.md           |  999 +++++
+ .../references/visual_generation_guide.md          | 1077 +++++
+ .../scripts/generate_market_visuals.py             |  529 +++
+ skills/marketing-mode/README.md                    |   49 +
+ skills/marketing-mode/SKILL.md                     |  693 +++
+ skills/marketing-mode/_meta.json                   |    6 +
+ skills/marketing-mode/mode-prompt.md               |   39 +
+ skills/marketing-mode/skill.json                   |   51 +
+ skills/mindfulness-meditation/SKILL.md             |   65 +
+ skills/mindfulness-meditation/_meta.json           |    6 +
+ skills/multi-search-engine/CHANGELOG.md            |   15 +
+ skills/multi-search-engine/CHANNELLOG.md           |   48 +
+ skills/multi-search-engine/SKILL.md                |   78 +
+ skills/multi-search-engine/_meta.json              |    6 +
+ skills/multi-search-engine/config.json             |   14 +
+ skills/multi-search-engine/metadata.json           |    7 +
+ .../references/international-search.md             |  651 +++
+ skills/pdf/LICENSE.txt                             |   13 +
+ skills/pdf/SKILL.md                                |  915 ++++
+ skills/pdf/briefs/academic.md                      | 1058 +++++
+ skills/pdf/briefs/creative.md                      |  770 ++++
+ skills/pdf/briefs/poster.md                        |  702 +++
+ skills/pdf/briefs/process-advanced.md              |  284 ++
+ skills/pdf/briefs/process.md                       |  319 ++
+ skills/pdf/briefs/report.md                        | 1659 +++++++
+ skills/pdf/configs/components.md                   |  153 +
+ skills/pdf/configs/fonts.md                        |   93 +
+ skills/pdf/configs/visual_framework.md             |  263 ++
+ skills/pdf/references/resume-academic.tex          |  130 +
+ skills/pdf/references/resume-altacv.tex            |  190 +
+ skills/pdf/scripts/cover_validate.js               |  367 ++
+ skills/pdf/scripts/design_engine.py                | 2816 ++++++++++++
+ skills/pdf/scripts/html2pdf-next.js                |  754 ++++
+ skills/pdf/scripts/html2poster.js                  |  256 ++
+ skills/pdf/scripts/pdf.py                          | 2959 +++++++++++++
+ skills/pdf/scripts/pdf_qa.py                       |  901 ++++
+ skills/pdf/scripts/poster_validate.py              | 1337 ++++++
+ skills/pdf/scripts/setup.sh                        |  269 ++
+ skills/pdf/scripts/toc_validate.py                 | 2075 +++++++++
+ skills/pdf/typesetting/charts.md                   |  320 ++
+ skills/pdf/typesetting/cover-backgrounds.md        |  384 ++
+ skills/pdf/typesetting/cover.md                    | 1442 +++++++
+ skills/pdf/typesetting/fill-engine.md              |  527 +++
+ skills/pdf/typesetting/geometry.md                 |  142 +
+ skills/pdf/typesetting/overflow.md                 |  630 +++
+ skills/pdf/typesetting/pagination.md               |  367 ++
+ skills/pdf/typesetting/palette.md                  |  217 +
+ skills/pdf/typesetting/typography.md               |   20 +
+ skills/podcast-generate/LICENSE.txt                |   21 +
+ skills/podcast-generate/SKILL.md                   |  198 +
+ skills/podcast-generate/generate.ts                |  661 +++
+ skills/podcast-generate/package.json               |   30 +
+ skills/podcast-generate/readme.md                  |  177 +
+ skills/podcast-generate/test_data/segments.jsonl   |    3 +
+ skills/podcast-generate/tsconfig.json              |   26 +
+ skills/pptx/SKILL.md                               |  512 +++
+ skills/pptx/batch_html2pptx.js                     |  224 +
+ skills/pptx/html2pptx1.js                          | 4554 ++++++++++++++++++++
+ skills/pptx/ooxml/scripts/pack.py                  |  159 +
+ skills/pptx/ooxml/scripts/unpack.py                |   45 +
+ skills/pptx/ooxml/scripts/validate.py              |   70 +
+ skills/pptx/ooxml/scripts/validation/__init__.py   |   15 +
+ skills/pptx/ooxml/scripts/validation/base.py       |  948 ++++
+ skills/pptx/ooxml/scripts/validation/docx.py       |  274 ++
+ skills/pptx/ooxml/scripts/validation/pptx.py       |  309 ++
+ skills/pptx/ooxml/scripts/validation/redlining.py  |  279 ++
+ skills/pptx/scripts/check_slides.py                |  712 +++
+ skills/pptx/scripts/extract_html_style.py          |   52 +
+ skills/pptx/scripts/extract_pptx_style.py          |  270 ++
+ skills/qingyan-research/SKILL.md                   |  294 ++
+ skills/qingyan-research/generate_html.py           |   33 +
+ skills/quiz-html/README.md                         |  117 +
+ skills/quiz-html/SKILL.md                          |  191 +
+ skills/quiz-html/examples/demo.html                | 1349 ++++++
+ skills/quiz-html/scripts/build_quiz_html.py        |  220 +
+ skills/quiz-html/skill.yaml                        |   57 +
+ skills/quiz-html/templates/quiz_template.html      | 1418 ++++++
+ skills/quiz-mastery/README.md                      |   93 +
+ skills/quiz-mastery/SKILL.md                       |  212 +
+ .../quiz-mastery/scripts/generate_from_material.py |   47 +
+ skills/quiz-mastery/scripts/import_quiz.py         |   51 +
+ skills/quiz-mastery/scripts/run_quiz.py            |   63 +
+ skills/quiz-mastery/scripts/submit_answers.py      |   48 +
+ skills/quiz-mastery/skill.yaml                     |   21 +
+ skills/quiz-mastery/src/quiz_mastery/__init__.py   |    3 +
+ .../__pycache__/__init__.cpython-313.pyc           |  Bin 0 -> 264 bytes
+ .../__pycache__/evaluator.cpython-313.pyc          |  Bin 0 -> 2634 bytes
+ .../__pycache__/file_parser.cpython-313.pyc        |  Bin 0 -> 10909 bytes
+ .../__pycache__/mastery_engine.cpython-313.pyc     |  Bin 0 -> 6235 bytes
+ .../__pycache__/models.cpython-313.pyc             |  Bin 0 -> 3991 bytes
+ .../__pycache__/planner.cpython-313.pyc            |  Bin 0 -> 2863 bytes
+ .../__pycache__/quiz_extractor.cpython-313.pyc     |  Bin 0 -> 4172 bytes
+ .../__pycache__/quiz_generator.cpython-313.pyc     |  Bin 0 -> 5096 bytes
+ .../__pycache__/repository.cpython-313.pyc         |  Bin 0 -> 3016 bytes
+ .../__pycache__/service.cpython-313.pyc            |  Bin 0 -> 13204 bytes
+ skills/quiz-mastery/src/quiz_mastery/evaluator.py  |   78 +
+ .../quiz-mastery/src/quiz_mastery/file_parser.py   |  274 ++
+ .../src/quiz_mastery/mastery_engine.py             |  149 +
+ skills/quiz-mastery/src/quiz_mastery/models.py     |   82 +
+ skills/quiz-mastery/src/quiz_mastery/planner.py    |   62 +
+ .../src/quiz_mastery/quiz_extractor.py             |  115 +
+ .../src/quiz_mastery/quiz_generator.py             |  128 +
+ skills/quiz-mastery/src/quiz_mastery/repository.py |   36 +
+ skills/quiz-mastery/src/quiz_mastery/service.py    |  304 ++
+ skills/quiz-mastery/src/quiz_mastery/utils.py      |    7 +
+ skills/resume-builder/SKILL.md                     |  133 +
+ skills/resume-builder/references/export_guide.md   |   55 +
+ .../resume-builder/references/intake_questions.md  |   44 +
+ .../resume-builder/references/keywords/finance.txt |   50 +
+ .../resume-builder/references/keywords/general.txt |   25 +
+ .../references/keywords/internet.txt               |   45 +
+ skills/resume-builder/references/keywords/tech.txt |   69 +
+ .../references/star_rewrite_guide.md               |   83 +
+ .../resume-builder/references/templates/finance.md |   63 +
+ .../resume-builder/references/templates/general.md |   55 +
+ .../references/templates/internet.md               |   50 +
+ skills/resume-builder/references/templates/tech.md |   53 +
+ skills/resume-builder/scripts/ats_check.py         |  269 ++
+ skills/seo-content-writer/SKILL.md                 |  661 +++
+ skills/seo-content-writer/_meta.json               |    6 +
+ .../references/content-structure-templates.md      |  875 ++++
+ .../references/title-formulas.md                   |  339 ++
+ skills/skill-creator/LICENSE.txt                   |  202 +
+ skills/skill-creator/SKILL.md                      |  485 +++
+ skills/skill-creator/agents/analyzer.md            |  274 ++
+ skills/skill-creator/agents/comparator.md          |  202 +
+ skills/skill-creator/agents/grader.md              |  223 +
+ skills/skill-creator/assets/eval_review.html       |  146 +
+ .../skill-creator/eval-viewer/generate_review.py   |  471 ++
+ skills/skill-creator/eval-viewer/viewer.html       | 1325 ++++++
+ skills/skill-creator/references/schemas.md         |  430 ++
+ skills/skill-creator/scripts/__init__.py           |    0
+ .../skill-creator/scripts/aggregate_benchmark.py   |  401 ++
+ skills/skill-creator/scripts/generate_report.py    |  326 ++
+ .../skill-creator/scripts/improve_description.py   |  236 +
+ skills/skill-creator/scripts/package_skill.py      |  136 +
+ skills/skill-creator/scripts/quick_validate.py     |  103 +
+ skills/skill-creator/scripts/run_eval.py           |  310 ++
+ skills/skill-creator/scripts/run_loop.py           |  328 ++
+ skills/skill-creator/scripts/utils.py              |   47 +
+ skills/skill-finder-cn/SKILL.md                    |   66 +
+ skills/skill-finder-cn/_meta.json                  |    6 +
+ skills/skill-finder-cn/package.json                |    5 +
+ skills/skill-finder-cn/scripts/search.sh           |   15 +
+ skills/stock-analysis-skill/SKILL.md               |  156 +
+ skills/stock-analysis-skill/package.json           |   21 +
+ skills/stock-analysis-skill/src/analyzer.ts        |  264 ++
+ skills/stock-analysis-skill/src/dataFetcher.ts     |  130 +
+ skills/stock-analysis-skill/src/dividend.ts        |  226 +
+ skills/stock-analysis-skill/src/index.ts           |  327 ++
+ skills/stock-analysis-skill/src/rumorScanner.ts    |  200 +
+ skills/stock-analysis-skill/src/types.ts           |  167 +
+ skills/stock-analysis-skill/src/watchlist.ts       |  292 ++
+ skills/stock-analysis-skill/tsconfig.json          |   15 +
+ skills/storyboard-manager/SKILL.md                 |  532 +++
+ skills/storyboard-manager/index.js                 |    9 +
+ skills/storyboard-manager/package.json             |   11 +
+ .../references/character_development.md            |  232 +
+ .../references/story_structures.md                 |  148 +
+ .../scripts/consistency_checker.py                 |  391 ++
+ .../storyboard-manager/scripts/timeline_tracker.py |  352 ++
+ skills/study-buddy/SKILL.md                        |  525 +++
+ skills/task-review/SKILL.md                        |   49 +
+ skills/ui-ux-pro-max/SKILL.md                      |   43 +
+ skills/ui-ux-pro-max/_meta.json                    |    6 +
+ skills/ui-ux-pro-max/assets/data/charts.csv        |   26 +
+ skills/ui-ux-pro-max/assets/data/colors.csv        |   97 +
+ skills/ui-ux-pro-max/assets/data/icons.csv         |  101 +
+ skills/ui-ux-pro-max/assets/data/landing.csv       |   31 +
+ skills/ui-ux-pro-max/assets/data/products.csv      |   97 +
+ .../assets/data/react-performance.csv              |   45 +
+ skills/ui-ux-pro-max/assets/data/stacks/astro.csv  |   54 +
+ .../ui-ux-pro-max/assets/data/stacks/flutter.csv   |   53 +
+ .../assets/data/stacks/html-tailwind.csv           |   56 +
+ .../assets/data/stacks/jetpack-compose.csv         |   53 +
+ skills/ui-ux-pro-max/assets/data/stacks/nextjs.csv |   53 +
+ .../ui-ux-pro-max/assets/data/stacks/nuxt-ui.csv   |   51 +
+ skills/ui-ux-pro-max/assets/data/stacks/nuxtjs.csv |   59 +
+ .../assets/data/stacks/react-native.csv            |   52 +
+ skills/ui-ux-pro-max/assets/data/stacks/react.csv  |   54 +
+ skills/ui-ux-pro-max/assets/data/stacks/shadcn.csv |   61 +
+ skills/ui-ux-pro-max/assets/data/stacks/svelte.csv |   54 +
+ .../ui-ux-pro-max/assets/data/stacks/swiftui.csv   |   51 +
+ skills/ui-ux-pro-max/assets/data/stacks/vue.csv    |   50 +
+ skills/ui-ux-pro-max/assets/data/styles.csv        |   68 +
+ skills/ui-ux-pro-max/assets/data/typography.csv    |   58 +
+ skills/ui-ux-pro-max/assets/data/ui-reasoning.csv  |  101 +
+ skills/ui-ux-pro-max/assets/data/ux-guidelines.csv |  100 +
+ skills/ui-ux-pro-max/assets/data/web-interface.csv |   31 +
+ skills/ui-ux-pro-max/data/charts.csv               |   26 +
+ skills/ui-ux-pro-max/data/colors.csv               |   97 +
+ skills/ui-ux-pro-max/data/icons.csv                |  101 +
+ skills/ui-ux-pro-max/data/landing.csv              |   31 +
+ skills/ui-ux-pro-max/data/products.csv             |   97 +
+ skills/ui-ux-pro-max/data/react-performance.csv    |   45 +
+ skills/ui-ux-pro-max/data/stacks/astro.csv         |   54 +
+ skills/ui-ux-pro-max/data/stacks/flutter.csv       |   53 +
+ skills/ui-ux-pro-max/data/stacks/html-tailwind.csv |   56 +
+ .../ui-ux-pro-max/data/stacks/jetpack-compose.csv  |   53 +
+ skills/ui-ux-pro-max/data/stacks/nextjs.csv        |   53 +
+ skills/ui-ux-pro-max/data/stacks/nuxt-ui.csv       |   51 +
+ skills/ui-ux-pro-max/data/stacks/nuxtjs.csv        |   59 +
+ skills/ui-ux-pro-max/data/stacks/react-native.csv  |   52 +
+ skills/ui-ux-pro-max/data/stacks/react.csv         |   54 +
+ skills/ui-ux-pro-max/data/stacks/shadcn.csv        |   61 +
+ skills/ui-ux-pro-max/data/stacks/svelte.csv        |   54 +
+ skills/ui-ux-pro-max/data/stacks/swiftui.csv       |   51 +
+ skills/ui-ux-pro-max/data/stacks/vue.csv           |   50 +
+ skills/ui-ux-pro-max/data/styles.csv               |   68 +
+ skills/ui-ux-pro-max/data/typography.csv           |   58 +
+ skills/ui-ux-pro-max/data/ui-reasoning.csv         |  101 +
+ skills/ui-ux-pro-max/data/ux-guidelines.csv        |  100 +
+ skills/ui-ux-pro-max/data/web-interface.csv        |   31 +
+ skills/ui-ux-pro-max/references/upstream-README.md |  488 +++
+ .../references/upstream-skill-content.md           |  288 ++
+ skills/ui-ux-pro-max/scripts/__init__.py           |    0
+ skills/ui-ux-pro-max/scripts/core.py               |  253 ++
+ skills/ui-ux-pro-max/scripts/design_system.py      | 1071 +++++
+ skills/ui-ux-pro-max/scripts/search.py             |  111 +
+ skills/version-management/SKILL.md                 |  575 +++
+ skills/video-generation/LICENSE.txt                |   21 +
+ skills/video-generation/SKILL.md                   | 1082 +++++
+ skills/video-generation/scripts/video.ts           |  168 +
+ skills/video-understand/LICENSE.txt                |   21 +
+ skills/video-understand/SKILL.md                   |  916 ++++
+ .../video-understand/scripts/video-understand.ts   |   41 +
+ skills/visual-design-foundations/SKILL.md          |  318 ++
+ .../references/color-systems.md                    |  417 ++
+ .../references/spacing-iconography.md              |  425 ++
+ .../references/typography-systems.md               |  432 ++
+ skills/web-reader/LICENSE.txt                      |   21 +
+ skills/web-reader/SKILL.md                         | 1140 +++++
+ skills/web-reader/scripts/web-reader.ts            |   37 +
+ skills/web-search/LICENSE.txt                      |   21 +
+ skills/web-search/SKILL.md                         |  912 ++++
+ skills/web-search/scripts/web_search.ts            |   44 +
+ skills/web-shader-extractor/SKILL.md               |  145 +
+ .../references/config-extraction.md                |   50 +
+ .../references/encoded-definitions.md              |   53 +
+ .../references/extraction-workflow.md              |   61 +
+ .../references/porting-strategy.md                 |  164 +
+ .../references/shader-injection.md                 |  126 +
+ .../web-shader-extractor/references/shaders-com.md |  190 +
+ .../references/tech-signatures.md                  |   54 +
+ .../references/tsl-extraction.md                   |   41 +
+ .../references/unicorn-studio.md                   |  353 ++
+ .../scripts/fetch-rendered-dom.mjs                 |  153 +
+ skills/web-shader-extractor/scripts/scan-bundle.sh |   76 +
+ skills/writing-plans/SKILL.md                      |  116 +
+ skills/writing-plans/_meta.json                    |    6 +
+ skills/xlsx/LICENSE.txt                            |   13 +
+ skills/xlsx/SKILL.md                               |  230 +
+ skills/xlsx/engines/chart-templates.md             |  167 +
+ skills/xlsx/engines/chart.md                       |   87 +
+ skills/xlsx/engines/design.md                      |  575 +++
+ skills/xlsx/engines/vba-templates.md               |  435 ++
+ skills/xlsx/quality/pipeline.md                    |  196 +
+ skills/xlsx/scenes/advanced.md                     |  271 ++
+ skills/xlsx/scenes/analyze-recipes.md              |  234 +
+ skills/xlsx/scenes/analyze.md                      |   95 +
+ skills/xlsx/scenes/convert.md                      |  133 +
+ skills/xlsx/scenes/create.md                       |  105 +
+ skills/xlsx/scenes/edit-patterns.md                |  222 +
+ skills/xlsx/scenes/edit.md                         |  195 +
+ skills/xlsx/scenes/finance.md                      |  318 ++
+ skills/xlsx/scenes/finance_lite.md                 |  192 +
+ skills/xlsx/scenes/vba.md                          |  298 ++
+ skills/xlsx/setup.sh                               |  136 +
+ skills/xlsx/templates/base.py                      |  632 +++
+ skills/xlsx/templates/palettes.py                  |  521 +++
+ skills/xlsx/xlsx.py                                | 1299 ++++++
+ .../api/admin/audit-logs/__tests__/route.test.ts   |    0
+ src/app/api/admin/audit-logs/route.ts              |    0
+ src/app/api/admin/system/errors/route.ts           |    0
+ src/app/api/admin/users/[id]/route.ts              |    0
+ src/app/api/ai/anomaly-detection/route.ts          |    0
+ src/app/api/ai/price-optimization/route.ts         |    0
+ src/app/api/ai/sales-forecast/route.ts             |    0
+ .../analytics/profit-loss/__tests__/route.test.ts  |    0
+ src/app/api/analytics/profit-loss/route.ts         |    0
+ src/app/api/audit-logs/route.ts                    |    0
+ src/app/api/auth/2fa/disable/route.ts              |    0
+ src/app/api/auth/2fa/setup/route.ts                |    0
+ src/app/api/auth/2fa/verify/route.ts               |    0
+ src/app/api/auth/login/2fa/route.ts                |    0
+ src/app/api/auth/login/__tests__/route.test.ts     |    0
+ src/app/api/auth/login/route.ts                    |    6 +-
+ src/app/api/auth/register/__tests__/route.test.ts  |    0
+ src/app/api/auth/sessions/[id]/route.ts            |    0
+ src/app/api/auth/sessions/revoke-all/route.ts      |    0
+ src/app/api/auth/sessions/route.ts                 |    0
+ src/app/api/credit-limits/[id]/route.ts            |    0
+ src/app/api/credit-limits/__tests__/route.test.ts  |    0
+ src/app/api/credit-limits/route.ts                 |    0
+ src/app/api/cron/check-expiries/route.ts           |    8 +-
+ src/app/api/dashboard/route.ts                     |  164 +-
+ src/app/api/debts/[id]/route.ts                    |   37 +
+ src/app/api/expenses/[id]/route.ts                 |    0
+ src/app/api/expenses/__tests__/route.test.ts       |    0
+ src/app/api/expenses/route.ts                      |   18 +
+ src/app/api/integrations/telegram/route.ts         |    0
+ src/app/api/integrations/whatsapp/route.ts         |    0
+ src/app/api/inventory/route.ts                     |   53 +
+ src/app/api/loyalty/[id]/route.ts                  |    0
+ src/app/api/loyalty/__tests__/route.test.ts        |    0
+ src/app/api/loyalty/route.ts                       |    0
+ src/app/api/products/[id]/barcode/route.ts         |    0
+ src/app/api/products/__tests__/route.test.ts       |    0
+ src/app/api/products/import/route.ts               |    0
+ src/app/api/products/route.ts                      |   13 +
+ src/app/api/purchase-orders/[id]/route.ts          |    0
+ .../api/purchase-orders/__tests__/route.test.ts    |    0
+ src/app/api/purchase-orders/route.ts               |    0
+ src/app/api/reports/route.ts                       |   21 +
+ src/app/api/sales/[id]/invoice/route.ts            |    0
+ src/app/api/sales/[id]/receipt/route.ts            |    0
+ src/app/api/sales/route.ts                         |   92 +
+ src/app/api/scheduled-reports/[id]/route.ts        |    0
+ .../api/scheduled-reports/__tests__/route.test.ts  |    0
+ src/app/api/scheduled-reports/route.ts             |    0
+ src/app/api/setup/database/route.ts                |   30 +-
+ src/app/api/setup/migration/route.ts               |   16 +-
+ src/app/api/setup/seed/route.ts                    |   16 +-
+ src/app/api/setup/status/route.ts                  |   16 +-
+ src/app/api/smart-search/route.ts                  |    0
+ src/app/api/stock-transfers/[id]/route.ts          |    0
+ .../api/stock-transfers/__tests__/route.test.ts    |    0
+ src/app/api/stock-transfers/route.ts               |    0
+ src/app/api/subscriptions/route.ts                 |   12 +
+ src/app/globals.css                                |    2 +-
+ src/app/not-found.tsx                              |    0
+ src/app/page.tsx.bak                               |    7 -
+ src/components/app/admin/admin-audit-log-page.tsx  |    0
+ src/components/app/admin/shops-map-component.tsx   |    7 +-
+ src/components/app/ai/anomaly-detection-page.tsx   |    0
+ src/components/app/ai/anomaly-detection-widget.tsx |    0
+ src/components/app/ai/price-optimization-page.tsx  |    0
+ src/components/app/ai/sales-forecast-page.tsx      |    8 +-
+ src/components/app/ai/smart-search-page.tsx        |    0
+ src/components/app/analytics/profit-loss-page.tsx  |    9 +-
+ src/components/app/auth/two-factor-page.tsx        |    0
+ .../app/customers/credit-limits-page.tsx           |    4 +-
+ src/components/app/customers/customers-page.tsx    |   63 +-
+ src/components/app/customers/loyalty-page.tsx      |   16 +-
+ src/components/app/dashboard/dashboard-page.tsx    |   87 +-
+ src/components/app/debts/debts-page.tsx            |   58 +-
+ src/components/app/expenses/expenses-page.tsx      |   97 +-
+ src/components/app/inventory/inventory-page.tsx    |   44 +-
+ .../app/inventory/purchase-orders-page.tsx         |   35 +-
+ .../app/inventory/stock-transfers-page.tsx         |   12 +-
+ src/components/app/landing/landing-page.tsx        |  226 +-
+ src/components/app/modules/modules-page.tsx        |    8 +-
+ src/components/app/products/barcode-dialog.tsx     |   12 +-
+ src/components/app/products/bulk-import-dialog.tsx |    0
+ src/components/app/products/products-page.tsx      |   40 +-
+ src/components/app/reports/reports-page.tsx        |   48 +-
+ .../app/reports/scheduled-reports-page.tsx         |   12 +-
+ .../app/sales-rep/sales-rep-dashboard-page.tsx     |   23 +-
+ src/components/app/sales/sales-page.tsx            |   93 +-
+ src/components/app/services/services-page.tsx      |    4 +-
+ src/components/app/settings/integrations-tab.tsx   |    0
+ src/components/app/settings/security-tab.tsx       |    0
+ src/components/app/settings/settings-page.tsx      |    4 +-
+ src/components/app/suppliers/suppliers-page.tsx    |    9 +-
+ src/components/shared/currency-switcher.tsx        |    0
+ src/components/shared/form-fields.tsx              |    2 +
+ src/components/shared/language-switcher.tsx        |    0
+ src/components/shared/notification-bell.tsx        |  388 +-
+ src/components/shared/offline-indicator.tsx        |    0
+ src/components/shared/pwa-install-prompt.tsx       |    0
+ src/components/shared/status-badge.tsx             |   37 +
+ src/components/ui/recharts-exports.ts              |    0
+ src/hooks/use-page-search.ts                       |   23 +
+ src/lib/__tests__/api-client.test.ts               |    0
+ src/lib/__tests__/auth.test.ts                     |    0
+ src/lib/__tests__/barcode.test.ts                  |    0
+ src/lib/__tests__/currency.test.ts                 |    0
+ src/lib/__tests__/i18n.test.ts                     |    0
+ src/lib/__tests__/two-factor.test.ts               |    0
+ src/lib/__tests__/validation.test.ts               |    0
+ src/lib/api-client.ts                              |  107 +-
+ src/lib/api-error.ts                               |    0
+ src/lib/auth.ts                                    |    5 +-
+ src/lib/barcode.ts                                 |    0
+ src/lib/currency-context.tsx                       |    0
+ src/lib/currency.ts                                |    0
+ src/lib/dynamic-import.tsx                         |    0
+ src/lib/error-monitor.ts                           |    0
+ src/lib/format.ts                                  |   91 +
+ src/lib/i18n.ts                                    |    0
+ src/lib/module-guard.ts                            |   14 +-
+ src/lib/notification-broadcast.ts                  |  198 +
+ src/lib/notification-sound.ts                      |    0
+ src/lib/offline-queue.ts                           |    0
+ src/lib/realtime-client.ts                         |    0
+ src/lib/sanitize.ts                                |    0
+ src/lib/stores/language-store.ts                   |    0
+ src/lib/two-factor.ts                              |    0
+ src/lib/validations.ts                             |   16 +
+ tailwind.config.ts                                 |    0
+ tool-results/01-landing-page.png                   |  Bin 0 -> 78744 bytes
+ tool-results/bash_1781368743613_10a907c67376.txt   |  286 ++
+ tool-results/grep_1781367685128_d328b9485ca2.txt   |  238 +
+ tool-results/landing-page-v2.png                   |  Bin 0 -> 8017 bytes
+ tool-results/landing-page.png                      |  Bin 0 -> 8019 bytes
+ tool-results/read_1781303327495_a825ed4294f5.txt   |  600 +++
+ tool-results/read_1781303327747_ce47e4139399.txt   |  886 ++++
+ tool-results/read_1781303366313_25f7f45251df.txt   |  886 ++++
+ tool-results/read_1781303368525_ce47e4139399.txt   |  886 ++++
+ tool-results/read_1781304715067_99c2f9c5984a.txt   |  729 ++++
+ tool-results/read_1781305604644_ce47e4139399.txt   |  886 ++++
+ tool-results/read_1781305849402_ce47e4139399.txt   |  886 ++++
+ tool-results/read_1781310362997_ce47e4139399.txt   |  886 ++++
+ tool-results/read_1781310684072_db3fb48278de.txt   | 1287 ++++++
+ tool-results/read_1781314652757_f4431dffa5b1.txt   | 1402 ++++++
+ tool-results/read_1781314655991_bafa6a2fcab1.txt   | 2002 +++++++++
+ tool-results/read_1781316502592_faae2452768b.txt   |  992 +++++
+ tool-results/read_1781316502847_99c2f9c5984a.txt   |  729 ++++
+ tool-results/read_1781316503666_423824b09fb7.txt   | 1308 ++++++
+ tool-results/read_1781316507772_1f6e3004bfaf.txt   |  697 +++
+ tool-results/read_1781316508817_d02b121d85ee.txt   |  954 ++++
+ tool-results/read_1781316628733_1f6e3004bfaf.txt   |  697 +++
+ tool-results/read_1781316632238_8e1e96f3706f.txt   |  697 +++
+ tool-results/read_1781317964671_fc98037633f6.txt   |  887 ++++
+ tool-results/read_1781317970233_fc98037633f6.txt   |  887 ++++
+ tool-results/read_1781317975461_896fff2f498a.txt   |  887 ++++
+ tool-results/read_1781318107087_02ffa1066838.txt   |  697 +++
+ tool-results/read_1781318111288_0a5501037d5b.txt   |  729 ++++
+ tool-results/read_1781318114654_0c40797d9cbe.txt   |  697 +++
+ tool-results/read_1781318115168_6cb0c7e78ecb.txt   |  729 ++++
+ tool-results/read_1781318131687_fc98037633f6.txt   |  887 ++++
+ tool-results/read_1781318139822_faae2452768b.txt   |  992 +++++
+ tool-results/read_1781318431717_bafa6a2fcab1.txt   | 2002 +++++++++
+ tool-results/read_1781318478759_02ffa1066838.txt   |  697 +++
+ tool-results/read_1781318660789_0a5501037d5b.txt   |  729 ++++
+ tool-results/read_1781318661225_faae2452768b.txt   |  992 +++++
+ tool-results/read_1781318665520_24f245c4ee8e.txt   |  906 ++++
+ tool-results/read_1781318665811_f4431dffa5b1.txt   | 1402 ++++++
+ tool-results/read_1781318666079_b3a4efab1cd8.txt   | 1103 +++++
+ tool-results/read_1781318666340_caeccade9153.txt   | 2002 +++++++++
+ tool-results/read_1781318666600_933a05ecd0e8.txt   |  784 ++++
+ tool-results/read_1781318670993_76d242544c73.txt   |  673 +++
+ tool-results/read_1781318671249_3753c449d76b.txt   |  847 ++++
+ tool-results/read_1781318671505_6c1b5f765c97.txt   |  750 ++++
+ tool-results/read_1781318671765_b7a1d6bfee52.txt   |  695 +++
+ tool-results/read_1781318672052_165c9eb40e13.txt   |  708 +++
+ tool-results/read_1781318672305_e7b658e25505.txt   |  746 ++++
+ tool-results/read_1781318673177_faae2452768b.txt   |  992 +++++
+ tool-results/read_1781318675578_b56fc4ed60f2.txt   | 1149 +++++
+ tool-results/read_1781318675835_8d625ca84118.txt   | 1399 ++++++
+ tool-results/read_1781318676090_faae2452768b.txt   |  992 +++++
+ tool-results/read_1781318973557_faae2452768b.txt   |  992 +++++
+ tool-results/read_1781319290363_fc98037633f6.txt   |  887 ++++
+ tool-results/read_1781319292330_bafa6a2fcab1.txt   | 2002 +++++++++
+ tool-results/read_1781319292556_896fff2f498a.txt   |  887 ++++
+ tool-results/read_1781319293690_1cee2810231d.txt   | 2002 +++++++++
+ tool-results/read_1781319304913_fc98037633f6.txt   |  887 ++++
+ tool-results/read_1781319311406_fecb5e959972.txt   |  602 +++
+ tool-results/read_1781319341641_a598e4ad561d.txt   |  502 +++
+ tool-results/read_1781320195543_c2006c70d6da.txt   | 2002 +++++++++
+ tool-results/read_1781328516729_748289d9c15d.txt   |  730 ++++
+ tool-results/read_1781328526720_748289d9c15d.txt   |  730 ++++
+ tool-results/read_1781328638884_748289d9c15d.txt   |  730 ++++
+ tool-results/read_1781328644749_f387b517c9b5.txt   | 2002 +++++++++
+ tool-results/read_1781328645018_1ceb0a2b29dc.txt   | 1406 ++++++
+ tool-results/read_1781328645311_165e671078f0.txt   |  695 +++
+ tool-results/read_1781328648152_bf0985d22b7e.txt   |  784 ++++
+ tool-results/read_1781328648415_3b8e42a31d33.txt   | 1103 +++++
+ tool-results/read_1781328652944_bc23ef500290.txt   | 1399 ++++++
+ tool-results/read_1781328657232_54c8818e1bc3.txt   | 1615 +++++++
+ tool-results/read_1781328657491_e4c55b09bcde.txt   |  841 ++++
+ tool-results/read_1781328657751_6b160637a201.txt   |  847 ++++
+ tool-results/read_1781328660359_8c664497a74d.txt   | 1149 +++++
+ tool-results/read_1781328660616_00f63d3a1b31.txt   |  906 ++++
+ tool-results/read_1781328660888_58467f984c13.txt   |  708 +++
+ tool-results/read_1781329021226_bf0985d22b7e.txt   |  784 ++++
+ tool-results/read_1781329021489_165e671078f0.txt   |  695 +++
+ tool-results/read_1781329021945_00f63d3a1b31.txt   |  906 ++++
+ tool-results/read_1781329022175_58467f984c13.txt   |  708 +++
+ tool-results/read_1781329022401_6b160637a201.txt   |  847 ++++
+ tool-results/read_1781329022630_8c664497a74d.txt   | 1149 +++++
+ tool-results/read_1781329023067_58467f984c13.txt   |  708 +++
+ tool-results/read_1781329023553_165e671078f0.txt   |  695 +++
+ tool-results/read_1781329023817_00f63d3a1b31.txt   |  906 ++++
+ tool-results/read_1781329024088_6b160637a201.txt   |  847 ++++
+ tool-results/read_1781329026361_f387b517c9b5.txt   | 2002 +++++++++
+ tool-results/read_1781329026617_8c664497a74d.txt   | 1149 +++++
+ tool-results/read_1781329026842_748289d9c15d.txt   |  730 ++++
+ tool-results/read_1781329027293_1ceb0a2b29dc.txt   | 1406 ++++++
+ tool-results/read_1781329027745_f387b517c9b5.txt   | 2002 +++++++++
+ tool-results/read_1781329028015_8c664497a74d.txt   | 1149 +++++
+ tool-results/read_1781329031036_2f1332825150.txt   | 1149 +++++
+ tool-results/read_1781329031294_0f132964d807.txt   | 2002 +++++++++
+ tool-results/read_1781329051608_00f63d3a1b31.txt   |  906 ++++
+ tool-results/read_1781329052570_bf0985d22b7e.txt   |  784 ++++
+ tool-results/read_1781329052848_1ceb0a2b29dc.txt   | 1406 ++++++
+ tool-results/read_1781329053105_58467f984c13.txt   |  708 +++
+ tool-results/read_1781329053357_6b160637a201.txt   |  847 ++++
+ tool-results/read_1781329058448_165e671078f0.txt   |  695 +++
+ tool-results/read_1781367346524_9684c0c9e137.txt   |  912 ++++
+ tool-results/read_1781367361654_c2006c70d6da.txt   | 2002 +++++++++
+ tool-results/read_1781367378163_d8ac1d912079.txt   |  713 +++
+ tool-results/read_1781367546252_fe5e47ad89f0.txt   |  730 ++++
+ tool-results/read_1781367631735_a9b7bd1e5dc2.txt   | 1397 ++++++
+ tool-results/read_1781367632168_9966bae214c6.txt   |  779 ++++
+ tool-results/read_1781367632613_608c8057a235.txt   |  908 ++++
+ tool-results/read_1781367632865_3b8e42a31d33.txt   | 1103 +++++
+ tool-results/read_1781367636764_097b6e69c54a.txt   |  698 +++
+ tool-results/read_1781367637495_336b1ce404d9.txt   |  846 ++++
+ tool-results/read_1781367637748_387d36142888.txt   | 1133 +++++
+ tool-results/read_1781367643052_56342d957224.txt   | 1397 ++++++
+ tool-results/read_1781367643490_207ab36ae278.txt   |  779 ++++
+ tool-results/read_1781367643751_05691e507cee.txt   |  908 ++++
+ tool-results/read_1781367644011_2aebddc792c2.txt   | 1103 +++++
+ tool-results/read_1781367673955_18c15130c396.txt   |  502 +++
+ tool-results/read_1781369307740_0c6329971a34.txt   |  659 +++
+ tool-results/read_1781369308585_0c6329971a34.txt   |  659 +++
+ tool-results/read_1781369308841_097b6e69c54a.txt   |  698 +++
+ tool-results/read_1781369309136_336b1ce404d9.txt   |  846 ++++
+ tool-results/read_1781369309680_c2006c70d6da.txt   | 2002 +++++++++
+ tool-results/read_1781369310781_a9b7bd1e5dc2.txt   | 1397 ++++++
+ tool-results/read_1781369311042_336b1ce404d9.txt   |  846 ++++
+ tool-results/read_1781369311348_3b8e42a31d33.txt   | 1103 +++++
+ tool-results/read_1781369317364_0c6329971a34.txt   |  659 +++
+ tool-results/read_1781369329711_a9b7bd1e5dc2.txt   | 1397 ++++++
+ tool-results/read_1781369329967_9966bae214c6.txt   |  779 ++++
+ tool-results/read_1781369330234_5fb58efa3607.txt   | 2002 +++++++++
+ tool-results/read_1781369330488_3b8e42a31d33.txt   | 1103 +++++
+ tool-results/read_1781369433729_097b6e69c54a.txt   |  698 +++
+ tool-results/read_1781369436084_122fa07901c9.txt   |  698 +++
+ tool-results/read_1781370061643_4c081d1f4252.txt   |  847 ++++
+ tool-results/read_1781370061906_6589ba044404.txt   | 1134 +++++
+ tool-results/read_1781370062167_cefad350000c.txt   |  770 ++++
+ tool-results/read_1781370063016_4c081d1f4252.txt   |  847 ++++
+ tool-results/read_1781370065848_4c081d1f4252.txt   |  847 ++++
+ tool-results/read_1781370070533_71fedc7d05b2.txt   |  829 ++++
+ tool-results/read_1781370070970_a442f930fee5.txt   | 1383 ++++++
+ tool-results/read_1781370071224_a8137e5e69e3.txt   | 1075 +++++
+ tool-results/read_1781370071498_cefad350000c.txt   |  770 ++++
+ tool-results/read_1781370072012_6d4008b25508.txt   |  902 ++++
+ tool-results/read_1781370458814_b918eccc4c4b.txt   |  910 ++++
+ tool-results/read_1781370460570_62e1845cf356.txt   |  829 ++++
+ tool-results/read_1781370460830_6cec4dde5e95.txt   |  791 ++++
+ tool-results/read_1781370461090_380d680cbe4b.txt   | 1068 +++++
+ tool-results/read_1781370461402_4d56509bf813.txt   | 1047 +++++
+ tool-results/read_1781370461663_84ecd0bbc541.txt   |  896 ++++
+ tool-results/read_1781370467219_c81570196223.txt   |  910 ++++
+ tool-results/read_1781370481644_b918eccc4c4b.txt   |  910 ++++
+ tool-results/read_1781370899145_68b9539872a4.txt   | 1133 +++++
+ tool-results/read_1781370901903_68b9539872a4.txt   | 1133 +++++
+ tool-results/read_1781371449563_8725e76939ad.txt   | 1246 ++++++
+ tool-results/read_1781375635641_b918eccc4c4b.txt   |  910 ++++
+ tool-results/read_1781375639616_4a22bae7c21f.txt   | 2002 +++++++++
+ tool-results/read_1781375652049_7a39f948b233.txt   | 2002 +++++++++
+ tool-results/read_1781375657311_613d2a80a9c3.txt   | 1502 +++++++
+ tool-results/read_1781375740275_613d2a80a9c3.txt   | 1502 +++++++
+ tool-results/read_1781375970902_1ced3fb0ad48.txt   | 1553 +++++++
+ tool-results/read_1781375971415_b918eccc4c4b.txt   |  910 ++++
+ tool-results/read_1781376190896_4b75b633086b.txt   |  654 +++
+ tsconfig.json                                      |    0
+ vitest.config.ts                                   |    0
+ worklog.md                                         | 1000 +++++
+ 1318 files changed, 410487 insertions(+), 690 deletions(-)
