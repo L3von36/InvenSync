@@ -1,7 +1,16 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({ request })
+  // 1. Refresh Supabase Auth session cookies (if Supabase is configured).
+  //    This ensures httpOnly session tokens are refreshed on every request,
+  //    preventing silent session expiry for Supabase-authenticated users.
+  //    When Supabase is NOT configured, updateSession() is a no-op.
+  const supabaseResponse = await updateSession(request)
+
+  // 2. Security headers — apply to the Supabase-aware response so that
+  //    any cookie updates from step 1 are preserved.
+  const response = supabaseResponse
 
   // Generate a unique request ID for tracing (using Web Crypto API — Edge Runtime compatible)
   const requestId = crypto.randomUUID()

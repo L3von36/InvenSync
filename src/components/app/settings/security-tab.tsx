@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { authFetch } from '@/lib/auth-fetch'
 import {
   Shield, ShieldCheck, ShieldOff, QrCode, KeyRound, Monitor, Smartphone,
   Tablet, Loader2, Trash2, AlertTriangle, RefreshCw, Copy, Check,
@@ -74,9 +75,7 @@ function TwoFactorSection() {
     setLoading(true)
     try {
       // Fetch user profile to check 2FA status
-      const res = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await authFetch('/api/auth/me')
       if (res.ok) {
         const data = await res.json()
         // The /me endpoint returns user data — we check twoFactorEnabled

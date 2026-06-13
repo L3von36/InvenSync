@@ -29,9 +29,16 @@ function getJwtSecret(): string {
     return _jwtSecret
   }
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET environment variable is required in production')
+    throw new Error(
+      'JWT_SECRET environment variable is required in production. ' +
+      'Set it in your Vercel project settings (Settings > Environment Variables). ' +
+      'Generate one with: openssl rand -hex 32'
+    )
   }
-  console.warn('[AUTH] WARNING: Using random JWT_SECRET. Set JWT_SECRET env var for production.')
+  console.warn(
+    '[AUTH] WARNING: Using random JWT_SECRET. This means all sessions will be invalidated on server restart. ' +
+    'Set JWT_SECRET env var for production. Generate one with: openssl rand -hex 32'
+  )
   _jwtSecret = crypto.randomBytes(32).toString('hex')
   return _jwtSecret
 }

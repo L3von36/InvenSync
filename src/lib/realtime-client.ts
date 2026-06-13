@@ -1,5 +1,31 @@
 'use client'
 
+// ============================================
+// Auth-aware fetch helper
+// ============================================
+
+/**
+ * Returns the JWT token from localStorage (client-side only).
+ * Centralizes token retrieval so all raw fetch calls use the same logic.
+ */
+function getAuthToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem('sb_token')
+}
+
+/**
+ * Returns fetch headers that include the Authorization Bearer token
+ * when a valid JWT is present. Returns empty headers otherwise.
+ * 
+ * This prevents sending `Authorization: Bearer null` which would
+ * cause 401 errors on every request.
+ */
+function getAuthHeaders(): Record<string, string> {
+  const token = getAuthToken()
+  if (!token) return {}
+  return { Authorization: `Bearer ${token}` }
+}
+
 export interface RealtimeNotification {
   id: string
   organizationId: string
@@ -143,13 +169,21 @@ class RealtimeClient {
   private async poll(): Promise<void> {
     if (!this.currentOrgId) return
 
+    // Don't poll if no auth token is available yet.
+    // This prevents 401 errors when the component mounts before
+    // the auth store has populated localStorage with the JWT.
+    const authHeaders = getAuthHeaders()
+    if (!authHeaders.Authorization) return
+
     try {
       const params = new URLSearchParams({ orgId: this.currentOrgId })
       if (this.lastPollTimestamp) {
         params.set('since', this.lastPollTimestamp)
       }
 
-      const response = await fetch(`/api/notifications?${params}`)
+      const response = await fetch(`/api/notifications?${params}`, {
+        headers: authHeaders,
+      })
       if (!response.ok) return
 
       const data = await response.json()

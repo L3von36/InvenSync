@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { authFetch } from '@/lib/auth-fetch'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -182,12 +183,8 @@ function OrganizationTab({ orgId }: { orgId: string }) {
     if (!orgId) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/organizations/${orgId}`, {
+      const res = await authFetch(`/api/organizations/${orgId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('sb_token')}`,
-        },
         body: JSON.stringify({
           name: data.orgName,
           currency: data.orgCurrency,

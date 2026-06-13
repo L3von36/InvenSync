@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { authFetch } from '@/lib/auth-fetch'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -92,8 +93,8 @@ export function AppHeader() {
   useEffect(() => {
     if (!currentOrg) return
     fetchNotifications(currentOrg.id, currentShop?.id)
-    // Trigger expiry check on mount
-    fetch('/api/cron/check-expiries', { method: 'GET' }).catch(() => {})
+    // Trigger expiry check on mount (authFetch sends JWT token)
+    authFetch('/api/cron/check-expiries', { method: 'GET' }).catch(() => {})
     const interval = setInterval(() => {
       fetchNotifications(currentOrg.id, currentShop?.id)
     }, 60000)

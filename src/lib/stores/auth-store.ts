@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import { api, type User, type Organization, type Shop } from '@/lib/api-client'
+import { authFetch } from '@/lib/auth-fetch'
 
 /**
  * Thrown when login succeeds but 2FA is required.
@@ -268,7 +269,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isLoading: false,
     })
     // 4. Fire-and-forget server-side logout (after state is cleared so it doesn't interfere)
-    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+    authFetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
   },
 
   setCurrentOrg: (org: Organization) => {

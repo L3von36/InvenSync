@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { authFetch } from '@/lib/auth-fetch'
 import { usePageSearch } from '@/hooks/use-page-search'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -993,11 +994,8 @@ export function ProductsPage() {
     setLoadingDetail(true)
     try {
       // Fetch detailed product with stock movements
-      const detailedProduct = await fetch(`/api/products/${product.id}?orgId=${currentOrg.id}${currentShop ? `&shopId=${currentShop.id}` : ''}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('sb_token')}`,
-        },
-      }).then((r) => r.json())
+      const detailedProduct = await authFetch(`/api/products/${product.id}?orgId=${currentOrg.id}${currentShop ? `&shopId=${currentShop.id}` : ''}`)
+        .then((r) => r.json())
       setViewingProduct(detailedProduct.product)
     } catch {
       // Fallback: show the product data we already have

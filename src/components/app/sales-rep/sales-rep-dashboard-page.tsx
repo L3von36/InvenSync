@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { authFetch, getAuthToken } from '@/lib/auth-fetch'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -366,13 +367,8 @@ function RegisterBusinessDialog({
   const handleSubmit = async (data: RegisterBusinessFormData) => {
     setSubmitting(true)
     try {
-      const token = localStorage.getItem('sb_token')
-      const response = await fetch('/api/sales-rep/register', {
+      const response = await authFetch('/api/sales-rep/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({
           name: data.name,
           email: data.email,
@@ -541,19 +537,14 @@ export function SalesRepDashboardPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const token = localStorage.getItem('sb_token')
+      const token = getAuthToken()
       if (!token) {
         setError('Not authenticated. Please log in again.')
         setLoading(false)
         return
       }
 
-      const response = await fetch('/api/sales-rep/dashboard', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
+      const response = await authFetch('/api/sales-rep/dashboard')
 
       if (response.status === 401) {
         setError('Your session has expired. Please log in again.')

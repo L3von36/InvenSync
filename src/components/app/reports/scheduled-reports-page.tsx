@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { authFetch } from '@/lib/auth-fetch'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -158,9 +159,7 @@ export function ScheduledReportsPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await fetch(`/api/scheduled-reports?organizationId=${currentOrg.id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('sb_token')}` },
-      })
+      const response = await authFetch(`/api/scheduled-reports?organizationId=${currentOrg.id}`)
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}))
         throw new Error(errData.error || 'Failed to fetch scheduled reports')
@@ -229,12 +228,8 @@ export function ScheduledReportsPage() {
         deliveryConfig,
       }
 
-      const res = await fetch('/api/scheduled-reports', {
+      const res = await authFetch('/api/scheduled-reports', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('sb_token')}`,
-        },
         body: JSON.stringify(payload),
       })
       if (!res.ok) {
@@ -255,12 +250,8 @@ export function ScheduledReportsPage() {
     if (!currentOrg) return
     setTogglingId(report.id)
     try {
-      const res = await fetch(`/api/scheduled-reports/${report.id}`, {
+      const res = await authFetch(`/api/scheduled-reports/${report.id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('sb_token')}`,
-        },
         body: JSON.stringify({
           organizationId: currentOrg.id,
           isActive: !report.isActive,
@@ -283,9 +274,8 @@ export function ScheduledReportsPage() {
     if (!currentOrg || !deleteTarget) return
     setIsDeleting(true)
     try {
-      const res = await fetch(`/api/scheduled-reports/${deleteTarget.id}?organizationId=${currentOrg.id}`, {
+      const res = await authFetch(`/api/scheduled-reports/${deleteTarget.id}?organizationId=${currentOrg.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('sb_token')}` },
       })
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
