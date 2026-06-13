@@ -1,0 +1,954 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import {
+     5→  Building2, Search, MapPin, Users, Store, CreditCard,
+     6→  Eye, Ban, CheckCircle2, ArrowRightLeft, Loader2,
+     7→  RefreshCw, ChevronRight, Package, Calendar,
+     8→  DollarSign, Globe2, AlertTriangle, Pencil, Trash2,
+     9→} from 'lucide-react'
+    10→import { toast } from 'sonner'
+    11→import { api } from '@/lib/api-client'
+    12→import { getNetworkErrorMessage } from '@/lib/validation'
+    13→import { businessTypeBadge, planBadge, statusBadge, moduleStatusBadge, formatDate } from '@/lib/admin-utils'
+    14→import { type AdminOrg } from '@/types/admin'
+    15→import { ErrorState, EmptyState } from '@/components/shared/error-states'
+    16→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    17→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    18→import { Button } from '@/components/ui/button'
+    19→import { Input } from '@/components/ui/input'
+    20→import { Badge } from '@/components/ui/badge'
+    21→import { Skeleton } from '@/components/ui/skeleton'
+    22→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    23→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+    24→import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+    25→import { Label } from '@/components/ui/label'
+    26→import { Textarea } from '@/components/ui/textarea'
+    27→import { swrFetch, invalidateKey } from '@/lib/client-cache'
+    28→import {
+    29→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    30→} from '@/components/ui/table'
+    31→
+    32→const PAGE_SIZE = 10
+    33→
+    34→// ============================================
+    35→// Tab 1: Organizations List
+    36→// ============================================
+    37→function OrganizationsListTab({
+    38→  onSelectOrg,
+    39→}: {
+    40→  onSelectOrg: (org: AdminOrg) => void
+    41→}) {
+    42→  const [orgs, setOrgs] = useState<AdminOrg[]>([])
+    43→  const [loading, setLoading] = useState(true)
+    44→  const [search, setSearch] = useState('')
+    45→  const [businessTypeFilter, setBusinessTypeFilter] = useState('all')
+    46→  const [planFilter, setPlanFilter] = useState('all')
+    47→  const [statusFilter, setStatusFilter] = useState('all')
+    48→  const [regionFilter, setRegionFilter] = useState('all')
+    49→  const [regions, setRegions] = useState<Array<{ id: string; name: string; orgCount?: number }>>([])
+    50→  const [page, setPage] = useState(1)
+    51→  const [totalPages, setTotalPages] = useState(1)
+    52→  const [total, setTotal] = useState(0)
+    53→  const [fetchError, setFetchError] = useState<string | null>(null)
+    54→  const [isRateLimited, setIsRateLimited] = useState(false)
+    55→  const [retryAfter, setRetryAfter] = useState<number | null>(null)
+    56→
+    57→  // Change plan dialog
+    58→  const [changePlanOrg, setChangePlanOrg] = useState<AdminOrg | null>(null)
+    59→  const [newPlan, setNewPlan] = useState('')
+    60→  const [changingPlan, setChangingPlan] = useState(false)
+    61→
+    62→  // Suspend/Activate dialog
+    63→  const [statusOrg, setStatusOrg] = useState<AdminOrg | null>(null)
+    64→  const [changingStatus, setChangingStatus] = useState(false)
+    65→
+    66→  // Edit org dialog
+    67→  const [editOrg, setEditOrg] = useState<AdminOrg | null>(null)
+    68→  const [editName, setEditName] = useState('')
+    69→  const [editBusinessType, setEditBusinessType] = useState('')
+    70→  const [editDescription, setEditDescription] = useState('')
+    71→  const [editAddress, setEditAddress] = useState('')
+    72→  const [editCity, setEditCity] = useState('')
+    73→  const [editPhone, setEditPhone] = useState('')
+    74→  const [editLoading, setEditLoading] = useState(false)
+    75→
+    76→  // Delete org dialog
+    77→  const [deleteOrg, setDeleteOrg] = useState<AdminOrg | null>(null)
+    78→  const [deleteLoading, setDeleteLoading] = useState(false)
+    79→
+    80→  // Fetch regions for filter
+    81→  useEffect(() => {
+    82→    api.getAdminRegions({ includeStats: true }).then(data => {
+    83→      setRegions(data.regions.map(r => ({ id: r.id, name: r.name, orgCount: r.orgCount })))
+    84→    }).catch(() => {})
+    85→  }, [])
+    86→
+    87→  const fetchOrgs = useCallback(async () => {
+    88→    setFetchError(null)
+    89→    setIsRateLimited(false)
+    90→    setRetryAfter(null)
+    91→    try {
+    92→      // Use client-side SWR cache for organization list (YouTube pattern)
+    93→      const cacheKey = `admin:orgs:${search}:${page}:${regionFilter}`
+    94→      const data = await swrFetch(
+    95→        cacheKey,
+    96→        () => api.getAdminOrganizations({
+    97→          search: search || undefined,
+    98→          page,
+    99→          limit: PAGE_SIZE,
+   100→          regionId: regionFilter !== 'all' ? regionFilter : undefined,
+   101→        }),
+   102→        { dedupingInterval: 15_000 }
+   103→      )
+   104→      const allOrgs = data.organizations || []
+   105→      // Client-side filters for businessType, plan, status
+   106→      const filtered = allOrgs.filter(org => {
+   107→        if (businessTypeFilter !== 'all' && org.businessType !== businessTypeFilter) return false
+   108→        if (planFilter !== 'all' && org.subscriptionPlan !== planFilter) return false
+   109→        if (statusFilter !== 'all' && org.subscriptionStatus !== statusFilter) return false
+   110→        return true
+   111→      })
+   112→      setOrgs(filtered)
+   113→      setTotalPages(data.pagination?.totalPages || 1)
+   114→      setTotal(data.pagination?.total || 0)
+   115→    } catch (err) {
+   116→      const msg = getNetworkErrorMessage(err)
+   117→      // Check if rate limited (429 error)
+   118→      if (msg.toLowerCase().includes('too many requests') || msg.toLowerCase().includes('rate limit')) {
+   119→        setIsRateLimited(true)
+   120→        setRetryAfter(60) // Default retry after 60 seconds
+   121→        setFetchError('Rate limit reached. Please wait before trying again.')
+   122→      } else {
+   123→        setFetchError(msg)
+   124→        toast.error(msg)
+   125→      }
+   126→    } finally {
+   127→      setLoading(false)
+   128→    }
+   129→  }, [search, page, businessTypeFilter, planFilter, statusFilter, regionFilter])
+   130→
+   131→  useEffect(() => {
+   132→    const timer = setTimeout(() => fetchOrgs(), 300)
+   133→    return () => clearTimeout(timer)
+   134→  }, [fetchOrgs])
+   135→
+   136→  // Rate limit countdown
+   137→  useEffect(() => {
+   138→    if (!isRateLimited || retryAfter === null) return
+   139→    if (retryAfter <= 0) {
+   140→      setIsRateLimited(false)
+   141→      setRetryAfter(null)
+   142→      return
+   143→    }
+   144→    const timer = setTimeout(() => setRetryAfter(prev => prev !== null ? prev - 1 : null), 1000)
+   145→    return () => clearTimeout(timer)
+   146→  }, [isRateLimited, retryAfter])
+   147→
+   148→  const handleChangePlan = async () => {
+   149→    if (!changePlanOrg || !newPlan) return
+   150→    setChangingPlan(true)
+   151→    try {
+   152→      await api.updateAdminOrgSubscription(changePlanOrg.id, { subscriptionPlan: newPlan })
+   153→      toast.success(`${changePlanOrg.name} plan changed to ${newPlan}`)
+   154→      setChangePlanOrg(null)
+   155→      setNewPlan('')
+   156→      invalidateKey('admin:orgs')
+   157→      fetchOrgs()
+   158→    } catch (err) {
+   159→      toast.error(getNetworkErrorMessage(err))
+   160→    } finally {
+   161→      setChangingPlan(false)
+   162→    }
+   163→  }
+   164→
+   165→  const handleToggleStatus = async () => {
+   166→    if (!statusOrg) return
+   167→    setChangingStatus(true)
+   168→    try {
+   169→      const newStatus = statusOrg.subscriptionStatus === 'suspended' ? 'active' : 'suspended'
+   170→      await api.updateAdminOrgStatus(statusOrg.id, { subscriptionStatus: newStatus })
+   171→      toast.success(`${statusOrg.name} ${newStatus === 'suspended' ? 'suspended' : 'activated'}`)
+   172→      setStatusOrg(null)
+   173→      invalidateKey('admin:orgs')
+   174→      fetchOrgs()
+   175→    } catch (err) {
+   176→      toast.error(getNetworkErrorMessage(err))
+   177→    } finally {
+   178→      setChangingStatus(false)
+   179→    }
+   180→  }
+   181→
+   182→  const openEditOrg = (org: AdminOrg) => {
+   183→    setEditOrg(org)
+   184→    setEditName(org.name)
+   185→    setEditBusinessType(org.businessType)
+   186→    setEditDescription('')
+   187→    setEditAddress('')
+   188→    setEditCity(org.city || '')
+   189→    setEditPhone('')
+   190→  }
+   191→
+   192→  const handleEditOrgSave = async () => {
+   193→    if (!editOrg) return
+   194→    setEditLoading(true)
+   195→    try {
+   196→      const data: Record<string, unknown> = {}
+   197→      if (editName.trim() !== editOrg.name) data.name = editName.trim()
+   198→      if (editBusinessType !== editOrg.businessType) data.businessType = editBusinessType
+   199→      if (editCity !== (editOrg.city || '')) data.city = editCity
+   200→      if (editDescription) data.description = editDescription
+   201→      if (editAddress) data.address = editAddress
+   202→      if (editPhone) data.phone = editPhone
+   203→
+   204→      if (Object.keys(data).length === 0) {
+   205→        setEditOrg(null)
+   206→        setEditLoading(false)
+   207→        return
+   208→      }
+   209→
+   210→      await api.updateAdminOrg(editOrg.id, data)
+   211→      toast.success(`Organization "${editName.trim()}" updated successfully`)
+   212→      setEditOrg(null)
+   213→      invalidateKey('admin:orgs')
+   214→      fetchOrgs()
+   215→    } catch (err) {
+   216→      toast.error(getNetworkErrorMessage(err))
+   217→    } finally {
+   218→      setEditLoading(false)
+   219→    }
+   220→  }
+   221→
+   222→  const handleDeleteOrg = async () => {
+   223→    if (!deleteOrg) return
+   224→    setDeleteLoading(true)
+   225→    try {
+   226→      const result = await api.deleteAdminOrg(deleteOrg.id)
+   227→      toast.success(result.message || 'Organization deleted successfully')
+   228→      setDeleteOrg(null)
+   229→      invalidateKey('admin:orgs')
+   230→      fetchOrgs()
+   231→    } catch (err) {
+   232→      toast.error(getNetworkErrorMessage(err))
+   233→    } finally {
+   234→      setDeleteLoading(false)
+   235→    }
+   236→  }
+   237→
+   238→  if (loading) {
+   239→    return (
+   240→      <div className="space-y-3">
+   241→        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+   242→      </div>
+   243→    )
+   244→  }
+   245→
+   246→  if (fetchError && orgs.length === 0) {
+   247→    return (
+   248→      <ErrorState
+   249→        title="Failed to load organizations"
+   250→        message={fetchError}
+   251→        onRetry={() => { setLoading(true); fetchOrgs() }}
+   252→      />
+   253→    )
+   254→  }
+   255→
+   256→  return (
+   257→    <div className="space-y-4">
+   258→      {/* Rate Limit Warning */}
+   259→      {isRateLimited && (
+   260→        <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-900/10">
+   261→          <CardContent className="p-4">
+   262→            <div className="flex items-center gap-3">
+   263→              <div className="size-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+   264→                <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
+   265→              </div>
+   266→              <div className="flex-1">
+   267→                <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+   268→                  Rate limit reached
+   269→                </p>
+   270→                <p className="text-xs text-amber-700 dark:text-amber-400">
+   271→                  Too many requests. {retryAfter !== null && retryAfter > 0
+   272→                    ? `Please wait ${retryAfter}s before trying again.`
+   273→                    : 'You can try again now.'}
+   274→                </p>
+   275→              </div>
+   276→              <div className="flex items-center gap-2 shrink-0">
+   277→
+   278→                {retryAfter !== null && retryAfter > 0 && (
+   279→                  <Button
+   280→                    variant="outline"
+   281→                    size="sm"
+   282→                    disabled
+   283→                    className="text-xs"
+   284→                  >
+   285→                    <Loader2 className="size-3 animate-spin mr-1" />
+   286→                    {retryAfter}s
+   287→                  </Button>
+   288→                )}
+   289→                {retryAfter !== null && retryAfter <= 0 && (
+   290→                  <Button
+   291→                    variant="outline"
+   292→                    size="sm"
+   293→                    className="text-xs"
+   294→                    onClick={() => { setIsRateLimited(false); setLoading(true); fetchOrgs() }}
+   295→                  >
+   296→                    <RefreshCw className="size-3 mr-1" />
+   297→                    Retry
+   298→                  </Button>
+   299→                )}
+   300→              </div>
+   301→            </div>
+   302→          </CardContent>
+   303→        </Card>
+   304→      )}
+   305→
+   306→      {/* Search & Filters */}
+   307→      <div className="flex flex-col sm:flex-row gap-3">
+   308→        <div className="relative flex-1">
+   309→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   310→          <Input
+   311→            placeholder="Search by name or city..."
+   312→            value={search}
+   313→            onChange={e => { setSearch(e.target.value); setPage(1) }}
+   314→            className="pl-9"
+   315→          />
+   316→        </div>
+   317→        <Select value={businessTypeFilter} onValueChange={v => { setBusinessTypeFilter(v); setPage(1) }}>
+   318→          <SelectTrigger className="w-full sm:w-36">
+   319→            <SelectValue placeholder="Type" />
+   320→          </SelectTrigger>
+   321→          <SelectContent>
+   322→            <SelectItem value="all">All Types</SelectItem>
+   323→            <SelectItem value="retail">Retail</SelectItem>
+   324→            <SelectItem value="service">Service</SelectItem>
+   325→            <SelectItem value="mixed">Mixed</SelectItem>
+   326→          </SelectContent>
+   327→        </Select>
+   328→        <Select value={planFilter} onValueChange={v => { setPlanFilter(v); setPage(1) }}>
+   329→          <SelectTrigger className="w-full sm:w-36">
+   330→            <SelectValue placeholder="Plan" />
+   331→          </SelectTrigger>
+   332→          <SelectContent>
+   333→            <SelectItem value="all">All Plans</SelectItem>
+   334→            <SelectItem value="starter">Starter</SelectItem>
+   335→            <SelectItem value="pro">Pro</SelectItem>
+   336→            <SelectItem value="enterprise">Enterprise</SelectItem>
+   337→          </SelectContent>
+   338→        </Select>
+   339→        <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1) }}>
+   340→          <SelectTrigger className="w-full sm:w-36">
+   341→            <SelectValue placeholder="Status" />
+   342→          </SelectTrigger>
+   343→          <SelectContent>
+   344→            <SelectItem value="all">All Status</SelectItem>
+   345→            <SelectItem value="active">Active</SelectItem>
+   346→            <SelectItem value="suspended">Suspended</SelectItem>
+   347→          </SelectContent>
+   348→        </Select>
+   349→        {regions.length > 0 && (
+   350→          <Select value={regionFilter} onValueChange={v => { setRegionFilter(v); setPage(1) }}>
+   351→            <SelectTrigger className="w-full sm:w-48">
+   352→              <SelectValue placeholder="Region" />
+   353→            </SelectTrigger>
+   354→            <SelectContent>
+   355→              <SelectItem value="all">
+   356→                <span className="font-medium">All Regions</span>
+   357→              </SelectItem>
+   358→              {regions.map(r => (
+   359→                <SelectItem key={r.id} value={r.id}>
+   360→                  <span className="flex items-center gap-2">
+   361→                    <Globe2 className="size-3 text-muted-foreground" />
+   362→                    <span>{r.name}</span>
+   363→                    <span className="text-muted-foreground text-xs">({r.orgCount ?? 0})</span>
+   364→                  </span>
+   365→                </SelectItem>
+   366→              ))}
+   367→            </SelectContent>
+   368→          </Select>
+   369→        )}
+   370→      </div>
+   371→
+   372→      {/* Results count */}
+   373→      <p className="text-xs text-muted-foreground">{orgs.length} organization(s) on this page</p>
+   374→
+   375→      {/* Orgs List */}
+   376→      {orgs.length === 0 ? (
+   377→        <EmptyState
+   378→          title="No organizations found"
+   379→          message="No organizations match your search criteria."
+   380→        />
+   381→      ) : (
+   382→        <div className="space-y-2 max-h-[calc(100vh-380px)] overflow-y-auto">
+   383→          {orgs.map(org => (
+   384→            <Card key={org.id} className="hover:shadow-md transition-shadow">
+   385→              <CardContent className="p-4">
+   386→                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+   387→                  {/* Info */}
+   388→                  <div
+   389→                    className="flex-1 min-w-0 cursor-pointer"
+   390→                    onClick={() => onSelectOrg(org)}
+   391→                    role="button"
+   392→                    tabIndex={0}
+   393→                    onKeyDown={e => { if (e.key === 'Enter') onSelectOrg(org) }}
+   394→                  >
+   395→                    <div className="flex items-center gap-2 flex-wrap">
+   396→                      <h4 className="font-semibold text-sm truncate">{org.name}</h4>
+   397→                      <Badge className={businessTypeBadge(org.businessType)} variant="outline">
+   398→                        {org.businessType}
+   399→                      </Badge>
+   400→                      <Badge className={planBadge(org.subscriptionPlan)} variant="outline">
+   401→                        {org.subscriptionPlan}
+   402→                      </Badge>
+   403→                      <Badge className={statusBadge(org.subscriptionStatus)} variant="outline">
+   404→                        {org.subscriptionStatus}
+   405→                      </Badge>
+   406→                    </div>
+   407→                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1 flex-wrap">
+   408→                      {org.city && <span className="flex items-center gap-1"><MapPin className="size-3" />{org.city}</span>}
+   409→                      {org.region && <span className="flex items-center gap-1"><Globe2 className="size-3" />{org.region.name}</span>}
+   410→                      <span className="flex items-center gap-1"><Users className="size-3" />{org.memberCount} members</span>
+   411→                      <span className="flex items-center gap-1"><Store className="size-3" />{org.shopCount} shops</span>
+   412→                      <span className="flex items-center gap-1"><DollarSign className="size-3" />{org.salesCount} sales</span>
+   413→                      <span className="flex items-center gap-1"><Calendar className="size-3" />{formatDate(org.createdAt)}</span>
+   414→                    </div>
+   415→                  </div>
+   416→
+   417→                  {/* Actions */}
+   418→                  <div className="flex gap-1.5 shrink-0">
+   419→                    <Button
+   420→                      variant="ghost"
+   421→                      size="sm"
+   422→                      className="h-8 text-xs gap-1"
+   423→                      onClick={() => onSelectOrg(org)}
+   424→                    >
+   425→                      <Eye className="size-3.5" />
+   426→                      <span className="hidden sm:inline">Details</span>
+   427→                    </Button>
+   428→                    <Button
+   429→                      variant="ghost"
+   430→                      size="sm"
+   431→                      className={`h-8 text-xs gap-1 ${org.subscriptionStatus === 'suspended' ? 'text-emerald-600 hover:text-emerald-700' : 'text-red-600 hover:text-red-700'}`}
+   432→                      onClick={() => setStatusOrg(org)}
+   433→                    >
+   434→                      {org.subscriptionStatus === 'suspended' ? <CheckCircle2 className="size-3.5" /> : <Ban className="size-3.5" />}
+   435→                      <span className="hidden sm:inline">{org.subscriptionStatus === 'suspended' ? 'Activate' : 'Suspend'}</span>
+   436→                    </Button>
+   437→                    <Button
+   438→                      variant="ghost"
+   439→                      size="sm"
+   440→                      className="h-8 text-xs gap-1 text-primary hover:text-primary"
+   441→                      onClick={() => { setChangePlanOrg(org); setNewPlan(org.subscriptionPlan) }}
+   442→                    >
+   443→                      <ArrowRightLeft className="size-3.5" />
+   444→                      <span className="hidden sm:inline">Plan</span>
+   445→                    </Button>
+   446→                    <Button
+   447→                      variant="ghost"
+   448→                      size="sm"
+   449→                      className="h-8 text-xs gap-1 text-muted-foreground hover:text-primary"
+   450→                      onClick={() => openEditOrg(org)}
+   451→                    >
+   452→                      <Pencil className="size-3.5" />
+   453→                      <span className="hidden sm:inline">Edit</span>
+   454→                    </Button>
+   455→                    <Button
+   456→                      variant="ghost"
+   457→                      size="sm"
+   458→                      className="h-8 text-xs gap-1 text-muted-foreground hover:text-red-600"
+   459→                      onClick={() => setDeleteOrg(org)}
+   460→                    >
+   461→                      <Trash2 className="size-3.5" />
+   462→                      <span className="hidden sm:inline">Delete</span>
+   463→                    </Button>
+   464→                  </div>
+   465→                </div>
+   466→              </CardContent>
+   467→            </Card>
+   468→          ))}
+   469→        </div>
+   470→      )}
+   471→
+   472→      {/* Pagination */}
+   473→      {totalPages > 1 && (
+   474→        <div className="flex items-center justify-between pt-2">
+   475→          <p className="text-xs text-muted-foreground">Page {page} of {totalPages}</p>
+   476→          <div className="flex gap-2">
+   477→            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
+   478→            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
+   479→          </div>
+   480→        </div>
+   481→      )}
+   482→
+   483→      {/* Change Plan Dialog */}
+   484→      <Dialog open={!!changePlanOrg} onOpenChange={open => { if (!open) setChangePlanOrg(null) }}>
+   485→        <DialogContent className="max-w-sm">
+   486→          <DialogHeader>
+   487→            <DialogTitle>Change Plan</DialogTitle>
+   488→            <DialogDescription>
+   489→              Change subscription plan for <strong>{changePlanOrg?.name}</strong>
+   490→            </DialogDescription>
+   491→          </DialogHeader>
+   492→          <Select value={newPlan} onValueChange={setNewPlan}>
+   493→            <SelectTrigger>
+   494→              <SelectValue placeholder="Select plan" />
+   495→            </SelectTrigger>
+   496→            <SelectContent>
+   497→              <SelectItem value="starter">Starter</SelectItem>
+   498→              <SelectItem value="pro">Pro</SelectItem>
+   499→              <SelectItem value="enterprise">Enterprise</SelectItem>
+   500→            </SelectContent>
+   501→          </Select>
+   502→          <DialogFooter>
+   503→            <Button variant="outline" onClick={() => setChangePlanOrg(null)}>Cancel</Button>
+   504→            <Button onClick={handleChangePlan} disabled={changingPlan || !newPlan || newPlan === changePlanOrg?.subscriptionPlan}>
+   505→              {changingPlan && <Loader2 className="size-4 animate-spin mr-1" />}
+   506→              Change Plan
+   507→            </Button>
+   508→          </DialogFooter>
+   509→        </DialogContent>
+   510→      </Dialog>
+   511→
+   512→      {/* Suspend/Activate Confirmation Dialog */}
+   513→      <Dialog open={!!statusOrg} onOpenChange={open => { if (!open) setStatusOrg(null) }}>
+   514→        <DialogContent className="max-w-sm">
+   515→          <DialogHeader>
+   516→            <DialogTitle>{statusOrg?.subscriptionStatus === 'suspended' ? 'Activate Organization' : 'Suspend Organization'}</DialogTitle>
+   517→            <DialogDescription>
+   518→              {statusOrg?.subscriptionStatus === 'suspended'
+   519→                ? `Are you sure you want to activate ${statusOrg?.name}? They will regain access to their account.`
+   520→                : `Are you sure you want to suspend ${statusOrg?.name}? They will lose access to their account.`}
+   521→            </DialogDescription>
+   522→          </DialogHeader>
+   523→          <DialogFooter>
+   524→            <Button variant="outline" onClick={() => setStatusOrg(null)}>Cancel</Button>
+   525→            <Button
+   526→              onClick={handleToggleStatus}
+   527→              disabled={changingStatus}
+   528→              variant={statusOrg?.subscriptionStatus === 'suspended' ? 'default' : 'destructive'}
+   529→            >
+   530→              {changingStatus && <Loader2 className="size-4 animate-spin mr-1" />}
+   531→              {statusOrg?.subscriptionStatus === 'suspended' ? 'Activate' : 'Suspend'}
+   532→            </Button>
+   533→          </DialogFooter>
+   534→        </DialogContent>
+   535→      </Dialog>
+   536→
+   537→      {/* Edit Organization Dialog */}
+   538→      <Dialog open={!!editOrg} onOpenChange={open => { if (!open) setEditOrg(null) }}>
+   539→        <DialogContent className="max-w-md">
+   540→          <DialogHeader>
+   541→            <DialogTitle>Edit Organization</DialogTitle>
+   542→            <DialogDescription>Update organization details.</DialogDescription>
+   543→          </DialogHeader>
+   544→          {editOrg && (
+   545→            <div className="space-y-4">
+   546→              <div className="space-y-2">
+   547→                <Label className="text-sm font-medium">Organization Name</Label>
+   548→                <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Organization name" />
+   549→              </div>
+   550→              <div className="space-y-2">
+   551→                <Label className="text-sm font-medium">Business Type</Label>
+   552→                <Select value={editBusinessType} onValueChange={setEditBusinessType}>
+   553→                  <SelectTrigger>
+   554→                    <SelectValue />
+   555→                  </SelectTrigger>
+   556→                  <SelectContent>
+   557→                    <SelectItem value="retail">Retail</SelectItem>
+   558→                    <SelectItem value="service">Service</SelectItem>
+   559→                    <SelectItem value="mixed">Mixed</SelectItem>
+   560→                  </SelectContent>
+   561→                </Select>
+   562→              </div>
+   563→              <div className="space-y-2">
+   564→                <Label className="text-sm font-medium">City</Label>
+   565→                <Input value={editCity} onChange={e => setEditCity(e.target.value)} placeholder="City" />
+   566→              </div>
+   567→              <div className="space-y-2">
+   568→                <Label className="text-sm font-medium">Address</Label>
+   569→                <Input value={editAddress} onChange={e => setEditAddress(e.target.value)} placeholder="Address" />
+   570→              </div>
+   571→              <div className="space-y-2">
+   572→                <Label className="text-sm font-medium">Phone</Label>
+   573→                <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone" />
+   574→              </div>
+   575→              <div className="space-y-2">
+   576→                <Label className="text-sm font-medium">Description</Label>
+   577→                <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} placeholder="Brief description..." rows={2} />
+   578→              </div>
+   579→              {/* Current plan/status (read-only) */}
+   580→              <div className="grid grid-cols-2 gap-3">
+   581→                <div className="p-3 rounded-lg border bg-muted/30">
+   582→                  <p className="text-xs text-muted-foreground">Current Plan</p>
+   583→                  <Badge className={planBadge(editOrg.subscriptionPlan)} variant="outline">{editOrg.subscriptionPlan}</Badge>
+   584→                </div>
+   585→                <div className="p-3 rounded-lg border bg-muted/30">
+   586→                  <p className="text-xs text-muted-foreground">Status</p>
+   587→                  <Badge className={statusBadge(editOrg.subscriptionStatus)} variant="outline">{editOrg.subscriptionStatus}</Badge>
+   588→                </div>
+   589→              </div>
+   590→            </div>
+   591→          )}
+   592→          <DialogFooter>
+   593→            <Button variant="outline" onClick={() => setEditOrg(null)} disabled={editLoading}>Cancel</Button>
+   594→            <Button onClick={handleEditOrgSave} disabled={editLoading}>
+   595→              {editLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+   596→              Save Changes
+   597→            </Button>
+   598→          </DialogFooter>
+   599→        </DialogContent>
+   600→      </Dialog>
+   601→
+   602→      {/* Delete Organization Confirmation */}
+   603→      <AlertDialog open={!!deleteOrg} onOpenChange={open => { if (!open) setDeleteOrg(null) }}>
+   604→        <AlertDialogContent>
+   605→          <AlertDialogHeader>
+   606→            <AlertDialogTitle className="flex items-center gap-2">
+   607→              <AlertTriangle className="size-5 text-red-500" />
+   608→              Delete Organization
+   609→            </AlertDialogTitle>
+   610→            <AlertDialogDescription asChild>
+   611→              <div className="space-y-3">
+   612→                <p>
+   613→                  Are you sure you want to delete <strong>{deleteOrg?.name}</strong>?
+   614→                  This action cannot be undone.
+   615→                </p>
+   616→                <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+   617→                  <strong>Warning:</strong> This will permanently delete all data including shops, members, products, sales, customers, debts, and all other records for this organization.
+   618→                </div>
+   619→              </div>
+   620→            </AlertDialogDescription>
+   621→          </AlertDialogHeader>
+   622→          <AlertDialogFooter>
+   623→            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+   624→            <AlertDialogAction
+   625→              onClick={handleDeleteOrg}
+   626→              disabled={deleteLoading}
+   627→              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+   628→            >
+   629→              {deleteLoading ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+   630→              Delete Organization
+   631→            </AlertDialogAction>
+   632→          </AlertDialogFooter>
+   633→        </AlertDialogContent>
+   634→      </AlertDialog>
+   635→    </div>
+   636→  )
+   637→}
+   638→
+   639→// ============================================
+   640→// Tab 2: Organization Detail
+   641→// ============================================
+   642→function OrgDetailTab({ org, onBack }: { org: AdminOrg; onBack: () => void }) {
+   643→  const [allModules, setAllModules] = useState<Array<{ key: string; name: string }>>([])
+   644→  const [assignModuleKey, setAssignModuleKey] = useState('')
+   645→  const [assigning, setAssigning] = useState(false)
+   646→
+   647→  useEffect(() => {
+   648→    api.getAdminModules().then(data => {
+   649→      setAllModules((data.modules || []).map(m => ({ key: m.key, name: m.name })))
+   650→    }).catch(() => {})
+   651→  }, [])
+   652→
+   653→  const handleAssignModule = async () => {
+   654→    if (!assignModuleKey) {
+   655→      toast.error('Select a module to assign')
+   656→      return
+   657→    }
+   658→    setAssigning(true)
+   659→    try {
+   660→      await api.assignModuleToOrg(org.id, { moduleKey: assignModuleKey, status: 'trial', durationDays: 30 })
+   661→      toast.success(`Module assigned with 30-day trial`)
+   662→      setAssignModuleKey('')
+   663→    } catch (err) {
+   664→      toast.error(getNetworkErrorMessage(err))
+   665→    } finally {
+   666→      setAssigning(false)
+   667→    }
+   668→  }
+   669→
+   670→  const assignedKeys = (org.modules || []).map(m => m.key)
+   671→  const availableModules = allModules.filter(m => !assignedKeys.includes(m.key))
+   672→
+   673→  return (
+   674→    <div className="space-y-4">
+   675→      {/* Back Button */}
+   676→      <Button variant="ghost" size="sm" className="gap-1.5" onClick={onBack}>
+   677→        <ChevronRight className="size-4 rotate-180" />
+   678→        Back to List
+   679→      </Button>
+   680→
+   681→      {/* Overview Card */}
+   682→      <Card>
+   683→        <CardHeader>
+   684→          <CardTitle className="text-base flex items-center gap-2">
+   685→            <Building2 className="size-5 text-primary" />
+   686→            {org.name}
+   687→          </CardTitle>
+   688→          <CardDescription>Organization overview</CardDescription>
+   689→        </CardHeader>
+   690→        <CardContent>
+   691→          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+   692→            <div className="p-3 rounded-lg border bg-muted/30">
+   693→              <p className="text-xs text-muted-foreground">Business Type</p>
+   694→              <Badge className={businessTypeBadge(org.businessType)} variant="outline">{org.businessType}</Badge>
+   695→            </div>
+   696→            <div className="p-3 rounded-lg border bg-muted/30">
+   697→              <p className="text-xs text-muted-foreground">City</p>
+   698→              <p className="text-sm font-medium">{org.city || 'N/A'}</p>
+   699→            </div>
+   700→            <div className="p-3 rounded-lg border bg-muted/30">
+   701→              <p className="text-xs text-muted-foreground">Plan</p>
+   702→              <Badge className={planBadge(org.subscriptionPlan)} variant="outline">{org.subscriptionPlan}</Badge>
+   703→            </div>
+   704→            <div className="p-3 rounded-lg border bg-muted/30">
+   705→              <p className="text-xs text-muted-foreground">Status</p>
+   706→              <Badge className={statusBadge(org.subscriptionStatus)} variant="outline">{org.subscriptionStatus}</Badge>
+   707→            </div>
+   708→            <div className="p-3 rounded-lg border bg-muted/30">
+   709→              <p className="text-xs text-muted-foreground">Members</p>
+   710→              <p className="text-sm font-medium">{org.memberCount}</p>
+   711→            </div>
+   712→            <div className="p-3 rounded-lg border bg-muted/30">
+   713→              <p className="text-xs text-muted-foreground">Created</p>
+   714→              <p className="text-sm font-medium">{formatDate(org.createdAt)}</p>
+   715→            </div>
+   716→          </div>
+   717→        </CardContent>
+   718→      </Card>
+   719→
+   720→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   721→        {/* Members List */}
+   722→        <Card>
+   723→          <CardHeader>
+   724→            <CardTitle className="text-sm flex items-center gap-2">
+   725→              <Users className="size-4 text-primary" />
+   726→              Members ({org.members?.length || 0})
+   727→            </CardTitle>
+   728→          </CardHeader>
+   729→          <CardContent>
+   730→            {(!org.members || org.members.length === 0) ? (
+   731→              <p className="text-xs text-muted-foreground text-center py-4">No members</p>
+   732→            ) : (
+   733→              <div className="space-y-2 max-h-60 overflow-y-auto">
+   734→                {org.members.map(member => (
+   735→                  <div key={member.id} className="flex items-center justify-between p-2 rounded-lg border bg-muted/20">
+   736→                    <div className="min-w-0">
+   737→                      <p className="text-sm font-medium truncate">{member.name}</p>
+   738→                      <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+   739→                    </div>
+   740→                    <Badge variant="outline" className="text-[10px] capitalize shrink-0 ml-2">{member.role}</Badge>
+   741→                  </div>
+   742→                ))}
+   743→              </div>
+   744→            )}
+   745→          </CardContent>
+   746→        </Card>
+   747→
+   748→        {/* Shops List */}
+   749→        <Card>
+   750→          <CardHeader>
+   751→            <CardTitle className="text-sm flex items-center gap-2">
+   752→              <Store className="size-4 text-primary" />
+   753→              Shops ({org.shops?.length || 0})
+   754→            </CardTitle>
+   755→          </CardHeader>
+   756→          <CardContent>
+   757→            {(!org.shops || org.shops.length === 0) ? (
+   758→              <p className="text-xs text-muted-foreground text-center py-4">No shops</p>
+   759→            ) : (
+   760→              <div className="space-y-2 max-h-60 overflow-y-auto">
+   761→                {org.shops.map(shop => (
+   762→                  <div key={shop.id} className="flex items-center justify-between p-2 rounded-lg border bg-muted/20">
+   763→                    <div className="min-w-0">
+   764→                      <p className="text-sm font-medium truncate">{shop.name}</p>
+   765→                      <p className="text-xs text-muted-foreground">{shop.city || 'No city'}</p>
+   766→                    </div>
+   767→                    <Badge
+   768→                      variant="outline"
+   769→                      className={`text-[10px] shrink-0 ml-2 ${shop.isActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400'}`}
+   770→                    >
+   771→                      {shop.isActive ? 'Active' : 'Inactive'}
+   772→                    </Badge>
+   773→                  </div>
+   774→                ))}
+   775→              </div>
+   776→            )}
+   777→          </CardContent>
+   778→        </Card>
+   779→      </div>
+   780→
+   781→      {/* Active Modules */}
+   782→      <Card>
+   783→        <CardHeader>
+   784→          <CardTitle className="text-sm flex items-center gap-2">
+   785→            <Package className="size-4 text-primary" />
+   786→            Active Modules ({org.modules?.length || 0})
+   787→          </CardTitle>
+   788→        </CardHeader>
+   789→        <CardContent>
+   790→          {(!org.modules || org.modules.length === 0) ? (
+   791→            <p className="text-xs text-muted-foreground text-center py-4">No active modules</p>
+   792→          ) : (
+   793→            <>
+   794→              {/* Desktop table view */}
+   795→              <div className="hidden md:block overflow-x-auto">
+   796→                <Table>
+   797→                  <TableHeader>
+   798→                    <TableRow>
+   799→                      <TableHead className="text-xs">Module</TableHead>
+   800→                      <TableHead className="text-xs">Status</TableHead>
+   801→                      <TableHead className="text-xs">Expires</TableHead>
+   802→                    </TableRow>
+   803→                  </TableHeader>
+   804→                  <TableBody>
+   805→                    {org.modules.map(mod => (
+   806→                      <TableRow key={mod.id}>
+   807→                        <TableCell className="text-sm font-medium">{mod.name}</TableCell>
+   808→                        <TableCell>
+   809→                          <Badge className={moduleStatusBadge(mod.status)} variant="outline">{mod.status}</Badge>
+   810→                        </TableCell>
+   811→                        <TableCell className="text-xs text-muted-foreground">
+   812→                          {mod.expiresAt ? formatDate(mod.expiresAt) : 'N/A'}
+   813→                        </TableCell>
+   814→                      </TableRow>
+   815→                    ))}
+   816→                  </TableBody>
+   817→                </Table>
+   818→              </div>
+   819→              {/* Mobile card view */}
+   820→              <div className="md:hidden space-y-2">
+   821→                {org.modules.map(mod => (
+   822→                  <div key={mod.id} className="p-3 rounded-lg border bg-muted/20">
+   823→                    <div className="flex items-center justify-between">
+   824→                      <span className="text-sm font-medium">{mod.name}</span>
+   825→                      <Badge className={moduleStatusBadge(mod.status)} variant="outline">{mod.status}</Badge>
+   826→                    </div>
+   827→                    <div className="text-xs text-muted-foreground mt-1">
+   828→                      Expires: {mod.expiresAt ? formatDate(mod.expiresAt) : 'N/A'}
+   829→                    </div>
+   830→                  </div>
+   831→                ))}
+   832→              </div>
+   833→            </>
+   834→          )}
+   835→        </CardContent>
+   836→      </Card>
+   837→
+   838→      {/* Revenue Summary */}
+   839→      <Card>
+   840→        <CardHeader>
+   841→          <CardTitle className="text-sm flex items-center gap-2">
+   842→            <DollarSign className="size-4 text-primary" />
+   843→            Sales Summary
+   844→          </CardTitle>
+   845→        </CardHeader>
+   846→        <CardContent>
+   847→          <div className="grid grid-cols-2 gap-3">
+   848→            <div className="p-3 rounded-lg border bg-muted/30 text-center">
+   849→              <p className="text-xs text-muted-foreground">Products</p>
+   850→              <p className="text-base font-semibold">{org.productCount}</p>
+   851→            </div>
+   852→            <div className="p-3 rounded-lg border bg-muted/30 text-center">
+   853→              <p className="text-xs text-muted-foreground">Total Sales</p>
+   854→              <p className="text-base font-semibold text-primary">{org.salesCount}</p>
+   855→            </div>
+   856→          </div>
+   857→        </CardContent>
+   858→      </Card>
+   859→
+   860→      {/* Quick Actions */}
+   861→      <Card>
+   862→        <CardHeader>
+   863→          <CardTitle className="text-sm">Quick Actions</CardTitle>
+   864→        </CardHeader>
+   865→        <CardContent className="space-y-3">
+   866→          {/* Assign Module */}
+   867→          <div className="flex flex-col sm:flex-row gap-2">
+   868→            <Select value={assignModuleKey} onValueChange={setAssignModuleKey}>
+   869→              <SelectTrigger className="flex-1">
+   870→                <SelectValue placeholder="Select module to assign..." />
+   871→              </SelectTrigger>
+   872→              <SelectContent>
+   873→                {availableModules.length === 0 ? (
+   874→                  <SelectItem value="_none" disabled>All modules already assigned</SelectItem>
+   875→                ) : (
+   876→                  availableModules.map(m => (
+   877→                    <SelectItem key={m.key} value={m.key}>{m.name}</SelectItem>
+   878→                  ))
+   879→                )}
+   880→              </SelectContent>
+   881→            </Select>
+   882→            <Button
+   883→              onClick={handleAssignModule}
+   884→              disabled={assigning || !assignModuleKey || assignModuleKey === '_none'}
+   885→              className="gap-1.5"
+   886→            >
+   887→              {assigning && <Loader2 className="size-4 animate-spin" />}
+   888→              <Package className="size-4" />
+   889→              Assign Module
+   890→            </Button>
+   891→          </div>
+   892→        </CardContent>
+   893→      </Card>
+   894→    </div>
+   895→  )
+   896→}
+   897→
+   898→// ============================================
+   899→// Main Page Component
+   900→// ============================================
+   901→export function AdminOrganizationsPage() {
+   902→  const [activeTab, setActiveTab] = useState('list')
+   903→  const [selectedOrg, setSelectedOrg] = useState<AdminOrg | null>(null)
+   904→
+   905→  const handleSelectOrg = (org: AdminOrg) => {
+   906→    setSelectedOrg(org)
+   907→    setActiveTab('detail')
+   908→  }
+   909→
+   910→  const handleBackToList = () => {
+   911→    setSelectedOrg(null)
+   912→    setActiveTab('list')
+   913→  }
+   914→
+   915→  return (
+   916→    <div className="space-y-6">
+   917→      {/* Header */}
+   918→      <div className="flex items-center justify-between">
+   919→        <div>
+   920→          <h1 className="text-base font-semibold tracking-tight">
+   921→            Organizations
+   922→          </h1>
+   923→          <p className="text-muted-foreground text-sm">Manage organizations, subscriptions, and modules</p>
+   924→        </div>
+   925→      </div>
+   926→
+   927→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   928→        <TabsList>
+   929→          <TabsTrigger value="list" className="gap-1.5 text-xs sm:text-sm">
+   930→            <Building2 className="size-4" />
+   931→            <span className="hidden sm:inline">All Organizations</span>
+   932→          </TabsTrigger>
+   933→          {selectedOrg && (
+   934→            <TabsTrigger value="detail" className="gap-1.5 text-xs sm:text-sm">
+   935→              <Eye className="size-4" />
+   936→              <span className="hidden sm:inline">Detail</span>
+   937→            </TabsTrigger>
+   938→          )}
+   939→        </TabsList>
+   940→
+   941→        <TabsContent value="list" className="mt-4">
+   942→          <OrganizationsListTab onSelectOrg={handleSelectOrg} />
+   943→        </TabsContent>
+   944→
+   945→        {selectedOrg && (
+   946→          <TabsContent value="detail" className="mt-4">
+   947→            <OrgDetailTab org={selectedOrg} onBack={handleBackToList} />
+   948→          </TabsContent>
+   949→        )}
+   950→      </Tabs>
+   951→    </div>
+   952→  )
+   953→}
+   954→

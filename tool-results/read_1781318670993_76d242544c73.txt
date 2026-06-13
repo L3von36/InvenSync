@@ -1,0 +1,673 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import {
+     5→  CreditCard, Search, Eye, Pencil, Lock, Unlock, AlertTriangle,
+     6→  Loader2, ChevronLeft, ChevronRight, DollarSign, ShieldAlert,
+     7→} from 'lucide-react'
+     8→import { useAuthStore } from '@/lib/stores/auth-store'
+     9→import { api } from '@/lib/api-client'
+    10→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    11→import { Button } from '@/components/ui/button'
+    12→import { Input } from '@/components/ui/input'
+    13→import { Badge } from '@/components/ui/badge'
+    14→import {
+    15→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+    16→} from '@/components/ui/table'
+    17→import {
+    18→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
+    19→} from '@/components/ui/dialog'
+    20→import { Separator } from '@/components/ui/separator'
+    21→import { Skeleton } from '@/components/ui/skeleton'
+    22→import { Label } from '@/components/ui/label'
+    23→import { Switch } from '@/components/ui/switch'
+    24→import { Progress } from '@/components/ui/progress'
+    25→import { toast } from 'sonner'
+    26→import { ErrorState, EmptyState } from '@/components/shared/error-states'
+    27→
+    28→// ============================================
+    29→// Types
+    30→// ============================================
+    31→
+    32→interface CreditLimitData {
+    33→  id: string
+    34→  customerId: string
+    35→  creditLimit: number
+    36→  usedCredit: number
+    37→  availableCredit: number
+    38→  alertThreshold: number
+    39→  isBlocked: boolean
+    40→  createdAt: string
+    41→  updatedAt: string
+    42→  customer: {
+    43→    id: string
+    44→    name: string
+    45→    email: string | null
+    46→    phone: string | null
+    47→  }
+    48→}
+    49→
+    50→interface CreditSummary {
+    51→  totalCreditExtended: number
+    52→  totalUsed: number
+    53→  totalAvailable: number
+    54→  blockedAccounts: number
+    55→}
+    56→
+    57→// ============================================
+    58→// Helpers
+    59→// ============================================
+    60→
+    61→function formatETB(amount: number): string {
+    62→  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    63→}
+    64→
+    65→function getUsagePercentage(used: number, limit: number): number {
+    66→  if (limit <= 0) return 0
+    67→  return Math.min(Math.round((used / limit) * 100), 100)
+    68→}
+    69→
+    70→function getUsageColor(percentage: number): string {
+    71→  if (percentage > 80) return 'text-red-600'
+    72→  if (percentage >= 60) return 'text-yellow-600'
+    73→  return 'text-emerald-600'
+    74→}
+    75→
+    76→function getUsageBarClass(percentage: number): string {
+    77→  if (percentage > 80) return '[&_[data-slot=progress-indicator]]:bg-red-500'
+    78→  if (percentage >= 60) return '[&_[data-slot=progress-indicator]]:bg-yellow-500'
+    79→  return '[&_[data-slot=progress-indicator]]:bg-emerald-500'
+    80→}
+    81→
+    82→function isAlertTriggered(used: number, limit: number, threshold: number): boolean {
+    83→  if (limit <= 0) return false
+    84→  return (used / limit) > threshold
+    85→}
+    86→
+    87→// ============================================
+    88→// Main Component
+    89→// ============================================
+    90→
+    91→export function CreditLimitsPage() {
+    92→  const { currentOrg } = useAuthStore()
+    93→  const orgId = currentOrg?.id || ''
+    94→
+    95→  const [creditLimits, setCreditLimits] = useState<CreditLimitData[]>([])
+    96→  const [summary, setSummary] = useState<CreditSummary>({
+    97→    totalCreditExtended: 0,
+    98→    totalUsed: 0,
+    99→    totalAvailable: 0,
+   100→    blockedAccounts: 0,
+   101→  })
+   102→  const [loading, setLoading] = useState(true)
+   103→  const [pageError, setPageError] = useState<string | null>(null)
+   104→  const [searchQuery, setSearchQuery] = useState('')
+   105→  const [page, setPage] = useState(1)
+   106→  const [totalPages, setTotalPages] = useState(1)
+   107→  const [total, setTotal] = useState(0)
+   108→  const limit = 10
+   109→
+   110→  // Set/Edit dialog
+   111→  const [showSetLimit, setShowSetLimit] = useState(false)
+   112→  const [editLimit, setEditLimit] = useState<CreditLimitData | null>(null)
+   113→  const [limitAmount, setLimitAmount] = useState('')
+   114→  const [alertThreshold, setAlertThreshold] = useState('80')
+   115→  const [formSubmitting, setFormSubmitting] = useState(false)
+   116→
+   117→  // Block toggle
+   118→  const [togglingBlock, setTogglingBlock] = useState<string | null>(null)
+   119→
+   120→  // ============================================
+   121→  // Fetch
+   122→  // ============================================
+   123→  const fetchCreditLimits = useCallback(async () => {
+   124→    if (!orgId) return
+   125→    setLoading(true)
+   126→    setPageError(null)
+   127→    try {
+   128→      const searchParams = new URLSearchParams({ organizationId: orgId, page: page.toString(), limit: limit.toString() })
+   129→      if (searchQuery) searchParams.set('search', searchQuery)
+   130→      const data = await api.request<{
+   131→        creditLimits: CreditLimitData[]
+   132→        pagination: { page: number; limit: number; total: number; totalPages: number }
+   133→        summary: CreditSummary
+   134→      }>(`/api/credit-limits?${searchParams.toString()}`)
+   135→      setCreditLimits(data.creditLimits)
+   136→      setTotalPages(data.pagination.totalPages)
+   137→      setTotal(data.pagination.total)
+   138→      setSummary(data.summary)
+   139→    } catch (err) {
+   140→      const msg = err instanceof Error ? err.message : 'Failed to load credit limits'
+   141→      setPageError(msg)
+   142→      toast.error(msg)
+   143→    } finally {
+   144→      setLoading(false)
+   145→    }
+   146→  }, [orgId, searchQuery, page])
+   147→
+   148→  useEffect(() => {
+   149→    fetchCreditLimits()
+   150→  }, [fetchCreditLimits])
+   151→
+   152→  useEffect(() => {
+   153→    setPage(1)
+   154→  }, [searchQuery])
+   155→
+   156→  // ============================================
+   157→  // Handlers
+   158→  // ============================================
+   159→
+   160→  const openSetLimit = (creditLimit?: CreditLimitData) => {
+   161→    if (creditLimit) {
+   162→      setEditLimit(creditLimit)
+   163→      setLimitAmount(creditLimit.creditLimit.toString())
+   164→      setAlertThreshold(Math.round(creditLimit.alertThreshold * 100).toString())
+   165→    } else {
+   166→      setEditLimit(null)
+   167→      setLimitAmount('')
+   168→      setAlertThreshold('80')
+   169→    }
+   170→    setShowSetLimit(true)
+   171→  }
+   172→
+   173→  const handleSaveLimit = async () => {
+   174→    if (!orgId) return
+   175→    const amount = parseFloat(limitAmount)
+   176→    if (isNaN(amount) || amount < 0) {
+   177→      toast.error('Please enter a valid credit limit amount')
+   178→      return
+   179→    }
+   180→    const threshold = parseFloat(alertThreshold)
+   181→    if (isNaN(threshold) || threshold < 0 || threshold > 100) {
+   182→      toast.error('Alert threshold must be between 0 and 100')
+   183→      return
+   184→    }
+   185→
+   186→    setFormSubmitting(true)
+   187→    try {
+   188→      if (editLimit) {
+   189→        // Update existing
+   190→        await api.request(`/api/credit-limits/${editLimit.id}`, {
+   191→          method: 'PUT',
+   192→          body: JSON.stringify({
+   193→            organizationId: orgId,
+   194→            creditLimit: amount,
+   195→            alertThreshold: threshold / 100,
+   196→          }),
+   197→        })
+   198→        toast.success('Credit limit updated successfully')
+   199→      } else {
+   200→        // Need to select a customer — this path is for the "add new" flow
+   201→        // For simplicity, the set dialog will always edit from the list
+   202→        toast.error('Please select a customer to set credit limit')
+   203→      }
+   204→      setShowSetLimit(false)
+   205→      fetchCreditLimits()
+   206→    } catch (err) {
+   207→      toast.error(err instanceof Error ? err.message : 'Failed to save credit limit')
+   208→    } finally {
+   209→      setFormSubmitting(false)
+   210→    }
+   211→  }
+   212→
+   213→  const handleToggleBlock = async (creditLimit: CreditLimitData) => {
+   214→    if (!orgId) return
+   215→    setTogglingBlock(creditLimit.id)
+   216→    try {
+   217→      await api.request(`/api/credit-limits/${creditLimit.id}`, {
+   218→        method: 'PUT',
+   219→        body: JSON.stringify({
+   220→          organizationId: orgId,
+   221→          isBlocked: !creditLimit.isBlocked,
+   222→        }),
+   223→      })
+   224→      toast.success(creditLimit.isBlocked ? 'Credit unblocked successfully' : 'Credit blocked successfully')
+   225→      fetchCreditLimits()
+   226→    } catch (err) {
+   227→      toast.error(err instanceof Error ? err.message : 'Failed to toggle block')
+   228→    } finally {
+   229→      setTogglingBlock(null)
+   230→    }
+   231→  }
+   232→
+   233→  // ============================================
+   234→  // Render
+   235→  // ============================================
+   236→
+   237→  return (
+   238→    <div className="space-y-6">
+   239→      {/* Header */}
+   240→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   241→        <div>
+   242→          <h1 className="text-base font-semibold tracking-tight">Credit Limits</h1>
+   243→          <p className="text-muted-foreground text-sm">Manage customer credit limits, usage tracking, and alerts</p>
+   244→        </div>
+   245→      </div>
+   246→
+   247→      {/* KPI Summary Cards */}
+   248→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+   249→        <Card>
+   250→          <CardContent className="p-4">
+   251→            <div className="flex items-center gap-3">
+   252→              <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
+   253→                <CreditCard className="size-5 text-primary" />
+   254→              </div>
+   255→              <div>
+   256→                <p className="text-sm text-muted-foreground">Total Extended</p>
+   257→                <p className="text-base font-semibold">{formatETB(summary.totalCreditExtended)}</p>
+   258→              </div>
+   259→            </div>
+   260→          </CardContent>
+   261→        </Card>
+   262→        <Card>
+   263→          <CardContent className="p-4">
+   264→            <div className="flex items-center gap-3">
+   265→              <div className="size-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+   266→                <DollarSign className="size-5 text-red-600" />
+   267→              </div>
+   268→              <div>
+   269→                <p className="text-sm text-muted-foreground">Total Used</p>
+   270→                <p className="text-base font-semibold">{formatETB(summary.totalUsed)}</p>
+   271→              </div>
+   272→            </div>
+   273→          </CardContent>
+   274→        </Card>
+   275→        <Card>
+   276→          <CardContent className="p-4">
+   277→            <div className="flex items-center gap-3">
+   278→              <div className="size-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+   279→                <DollarSign className="size-5 text-emerald-600" />
+   280→              </div>
+   281→              <div>
+   282→                <p className="text-sm text-muted-foreground">Total Available</p>
+   283→                <p className="text-base font-semibold">{formatETB(summary.totalAvailable)}</p>
+   284→              </div>
+   285→            </div>
+   286→          </CardContent>
+   287→        </Card>
+   288→        <Card>
+   289→          <CardContent className="p-4">
+   290→            <div className="flex items-center gap-3">
+   291→              <div className="size-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+   292→                <ShieldAlert className="size-5 text-orange-600" />
+   293→              </div>
+   294→              <div>
+   295→                <p className="text-sm text-muted-foreground">Blocked Accounts</p>
+   296→                <p className="text-base font-semibold">{summary.blockedAccounts}</p>
+   297→              </div>
+   298→            </div>
+   299→          </CardContent>
+   300→        </Card>
+   301→      </div>
+   302→
+   303→      {/* Search */}
+   304→      <div className="relative">
+   305→        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   306→        <Input
+   307→          placeholder="Search by customer name..."
+   308→          value={searchQuery}
+   309→          onChange={(e) => setSearchQuery(e.target.value)}
+   310→          className="pl-9"
+   311→        />
+   312→      </div>
+   313→
+   314→      {/* Content */}
+   315→      {pageError ? (
+   316→        <ErrorState title="Failed to load credit limits" message={pageError} onRetry={fetchCreditLimits} />
+   317→      ) : loading ? (
+   318→        <Card>
+   319→          <CardContent className="p-6">
+   320→            <div className="space-y-4">
+   321→              {[...Array(5)].map((_, i) => (
+   322→                <div key={i} className="flex items-center gap-4">
+   323→                  <Skeleton className="size-10 rounded-full" />
+   324→                  <div className="flex-1 space-y-2">
+   325→                    <Skeleton className="h-4 w-40" />
+   326→                    <Skeleton className="h-3 w-24" />
+   327→                  </div>
+   328→                  <Skeleton className="h-4 w-24" />
+   329→                  <Skeleton className="h-2 w-32" />
+   330→                </div>
+   331→              ))}
+   332→            </div>
+   333→          </CardContent>
+   334→        </Card>
+   335→      ) : creditLimits.length === 0 ? (
+   336→        <EmptyState
+   337→          title="No credit limits found"
+   338→          message={searchQuery ? 'Try adjusting your search query' : 'Credit limits will appear here when set for customers'}
+   339→          icon={<CreditCard className="size-7 text-muted-foreground" />}
+   340→        />
+   341→      ) : (
+   342→        <>
+   343→          {/* Desktop Table */}
+   344→          <div className="hidden lg:block">
+   345→            <Card>
+   346→              <Table>
+   347→                <TableHeader>
+   348→                  <TableRow>
+   349→                    <TableHead>Customer</TableHead>
+   350→                    <TableHead className="text-right">Credit Limit</TableHead>
+   351→                    <TableHead className="text-right">Used</TableHead>
+   352→                    <TableHead className="text-right">Available</TableHead>
+   353→                    <TableHead>Usage</TableHead>
+   354→                    <TableHead>Status</TableHead>
+   355→                    <TableHead className="text-right">Actions</TableHead>
+   356→                  </TableRow>
+   357→                </TableHeader>
+   358→                <TableBody>
+   359→                  {creditLimits.map((cl) => {
+   360→                    const usagePct = getUsagePercentage(cl.usedCredit, cl.creditLimit)
+   361→                    const alertTriggered = isAlertTriggered(cl.usedCredit, cl.creditLimit, cl.alertThreshold)
+   362→                    return (
+   363→                      <TableRow key={cl.id}>
+   364→                        <TableCell>
+   365→                          <div>
+   366→                            <p className="font-medium">{cl.customer.name}</p>
+   367→                            {cl.customer.phone && (
+   368→                              <p className="text-xs text-muted-foreground">{cl.customer.phone}</p>
+   369→                            )}
+   370→                          </div>
+   371→                        </TableCell>
+   372→                        <TableCell className="text-right font-medium">
+   373→                          {formatETB(cl.creditLimit)}
+   374→                        </TableCell>
+   375→                        <TableCell className="text-right">
+   376→                          <span className={getUsageColor(usagePct)}>
+   377→                            {formatETB(cl.usedCredit)}
+   378→                          </span>
+   379→                        </TableCell>
+   380→                        <TableCell className="text-right">
+   381→                          {formatETB(cl.availableCredit)}
+   382→                        </TableCell>
+   383→                        <TableCell>
+   384→                          <div className="flex items-center gap-2 min-w-[120px]">
+   385→                            <Progress
+   386→                              value={usagePct}
+   387→                              className={`h-2 flex-1 ${getUsageBarClass(usagePct)}`}
+   388→                            />
+   389→                            <span className={`text-xs font-medium w-9 text-right ${getUsageColor(usagePct)}`}>
+   390→                              {usagePct}%
+   391→                            </span>
+   392→                          </div>
+   393→                        </TableCell>
+   394→                        <TableCell>
+   395→                          <div className="flex items-center gap-1.5">
+   396→                            {cl.isBlocked && (
+   397→                              <Badge variant="destructive" className="text-xs gap-1">
+   398→                                <Lock className="size-3" />
+   399→                                Blocked
+   400→                              </Badge>
+   401→                            )}
+   402→                            {alertTriggered && !cl.isBlocked && (
+   403→                              <Badge variant="outline" className="text-xs gap-1 border-yellow-300 text-yellow-600 bg-yellow-50">
+   404→                                <AlertTriangle className="size-3" />
+   405→                                Alert
+   406→                              </Badge>
+   407→                            )}
+   408→                            {!cl.isBlocked && !alertTriggered && (
+   409→                              <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-600 bg-emerald-50">
+   410→                                Active
+   411→                              </Badge>
+   412→                            )}
+   413→                          </div>
+   414→                        </TableCell>
+   415→                        <TableCell className="text-right">
+   416→                          <div className="flex items-center justify-end gap-1">
+   417→                            <Button
+   418→                              variant="ghost"
+   419→                              size="icon"
+   420→                              className="size-8"
+   421→                              onClick={() => openSetLimit(cl)}
+   422→                              title="Edit credit limit"
+   423→                            >
+   424→                              <Pencil className="size-4" />
+   425→                            </Button>
+   426→                            <Button
+   427→                              variant="ghost"
+   428→                              size="icon"
+   429→                              className="size-8"
+   430→                              disabled={togglingBlock === cl.id}
+   431→                              onClick={() => handleToggleBlock(cl)}
+   432→                              title={cl.isBlocked ? 'Unblock credit' : 'Block credit'}
+   433→                            >
+   434→                              {togglingBlock === cl.id ? (
+   435→                                <Loader2 className="size-4 animate-spin" />
+   436→                              ) : cl.isBlocked ? (
+   437→                                <Unlock className="size-4 text-emerald-600" />
+   438→                              ) : (
+   439→                                <Lock className="size-4 text-red-600" />
+   440→                              )}
+   441→                            </Button>
+   442→                          </div>
+   443→                        </TableCell>
+   444→                      </TableRow>
+   445→                    )
+   446→                  })}
+   447→                </TableBody>
+   448→              </Table>
+   449→            </Card>
+   450→          </div>
+   451→
+   452→          {/* Mobile/Tablet Cards */}
+   453→          <div className="lg:hidden space-y-3">
+   454→            {creditLimits.map((cl) => {
+   455→              const usagePct = getUsagePercentage(cl.usedCredit, cl.creditLimit)
+   456→              const alertTriggered = isAlertTriggered(cl.usedCredit, cl.creditLimit, cl.alertThreshold)
+   457→              return (
+   458→                <Card key={cl.id}>
+   459→                  <CardContent className="p-4">
+   460→                    <div className="flex items-start justify-between mb-3">
+   461→                      <div className="flex-1 min-w-0">
+   462→                        <div className="flex items-center gap-2 mb-0.5">
+   463→                          <p className="font-medium truncate">{cl.customer.name}</p>
+   464→                          {cl.isBlocked && (
+   465→                            <Badge variant="destructive" className="text-xs gap-0.5 shrink-0">
+   466→                              <Lock className="size-3" />
+   467→                              Blocked
+   468→                            </Badge>
+   469→                          )}
+   470→                        </div>
+   471→                        {cl.customer.phone && (
+   472→                          <p className="text-xs text-muted-foreground">{cl.customer.phone}</p>
+   473→                        )}
+   474→                      </div>
+   475→                      {alertTriggered && !cl.isBlocked && (
+   476→                        <Badge variant="outline" className="text-xs gap-0.5 border-yellow-300 text-yellow-600 bg-yellow-50 shrink-0 ml-2">
+   477→                          <AlertTriangle className="size-3" />
+   478→                          Alert
+   479→                        </Badge>
+   480→                      )}
+   481→                    </div>
+   482→
+   483→                    {/* Usage Bar */}
+   484→                    <div className="mb-3">
+   485→                      <div className="flex items-center justify-between mb-1">
+   486→                        <span className="text-xs text-muted-foreground">
+   487→                          {formatETB(cl.usedCredit)} of {formatETB(cl.creditLimit)}
+   488→                        </span>
+   489→                        <span className={`text-xs font-medium ${getUsageColor(usagePct)}`}>{usagePct}%</span>
+   490→                      </div>
+   491→                      <Progress
+   492→                        value={usagePct}
+   493→                        className={`h-2 ${getUsageBarClass(usagePct)}`}
+   494→                      />
+   495→                    </div>
+   496→
+   497→                    {/* Amounts Grid */}
+   498→                    <div className="grid grid-cols-3 gap-2 mb-3 text-center">
+   499→                      <div>
+   500→                        <p className="text-xs text-muted-foreground">Limit</p>
+   501→                        <p className="text-sm font-medium">{formatETB(cl.creditLimit)}</p>
+   502→                      </div>
+   503→                      <div>
+   504→                        <p className="text-xs text-muted-foreground">Used</p>
+   505→                        <p className={`text-sm font-medium ${getUsageColor(usagePct)}`}>{formatETB(cl.usedCredit)}</p>
+   506→                      </div>
+   507→                      <div>
+   508→                        <p className="text-xs text-muted-foreground">Available</p>
+   509→                        <p className="text-sm font-medium text-emerald-600">{formatETB(cl.availableCredit)}</p>
+   510→                      </div>
+   511→                    </div>
+   512→
+   513→                    {/* Actions */}
+   514→                    <div className="flex items-center gap-2">
+   515→                      <Button
+   516→                        variant="outline"
+   517→                        size="sm"
+   518→                        className="h-8 text-xs gap-1 flex-1"
+   519→                        onClick={() => openSetLimit(cl)}
+   520→                      >
+   521→                        <Pencil className="size-3.5" />
+   522→                        Edit Limit
+   523→                      </Button>
+   524→                      <Button
+   525→                        variant="outline"
+   526→                        size="sm"
+   527→                        className={`h-8 text-xs gap-1 ${cl.isBlocked ? 'text-emerald-600' : 'text-red-600'}`}
+   528→                        disabled={togglingBlock === cl.id}
+   529→                        onClick={() => handleToggleBlock(cl)}
+   530→                      >
+   531→                        {togglingBlock === cl.id ? (
+   532→                          <Loader2 className="size-3.5 animate-spin" />
+   533→                        ) : cl.isBlocked ? (
+   534→                          <Unlock className="size-3.5" />
+   535→                        ) : (
+   536→                          <Lock className="size-3.5" />
+   537→                        )}
+   538→                        {cl.isBlocked ? 'Unblock' : 'Block'}
+   539→                      </Button>
+   540→                    </div>
+   541→                  </CardContent>
+   542→                </Card>
+   543→              )
+   544→            })}
+   545→          </div>
+   546→
+   547→          {/* Pagination */}
+   548→          {totalPages > 1 && (
+   549→            <div className="flex items-center justify-between">
+   550→              <p className="text-sm text-muted-foreground">
+   551→                Page {page} of {totalPages} ({total} accounts)
+   552→              </p>
+   553→              <div className="flex items-center gap-2">
+   554→                <Button
+   555→                  variant="outline"
+   556→                  size="sm"
+   557→                  disabled={page <= 1}
+   558→                  onClick={() => setPage(p => p - 1)}
+   559→                >
+   560→                  <ChevronLeft className="size-4" />
+   561→                </Button>
+   562→                <Button
+   563→                  variant="outline"
+   564→                  size="sm"
+   565→                  disabled={page >= totalPages}
+   566→                  onClick={() => setPage(p => p + 1)}
+   567→                >
+   568→                  <ChevronRight className="size-4" />
+   569→                </Button>
+   570→              </div>
+   571→            </div>
+   572→          )}
+   573→        </>
+   574→      )}
+   575→
+   576→      {/* ============================================ */}
+   577→      {/* Set/Edit Credit Limit Dialog */}
+   578→      {/* ============================================ */}
+   579→      <Dialog open={showSetLimit} onOpenChange={setShowSetLimit}>
+   580→        <DialogContent className="max-w-md">
+   581→          <DialogHeader>
+   582→            <DialogTitle className="flex items-center gap-2">
+   583→              <CreditCard className="size-5" />
+   584→              {editLimit ? 'Edit Credit Limit' : 'Set Credit Limit'}
+   585→            </DialogTitle>
+   586→            <DialogDescription>
+   587→              {editLimit && `For ${editLimit.customer.name}`}
+   588→            </DialogDescription>
+   589→          </DialogHeader>
+   590→
+   591→          <div className="space-y-4">
+   592→            {editLimit && (
+   593→              <div className="rounded-lg bg-muted/50 p-3">
+   594→                <div className="grid grid-cols-3 gap-2 text-center text-sm">
+   595→                  <div>
+   596→                    <p className="text-xs text-muted-foreground">Current Limit</p>
+   597→                    <p className="font-medium">{formatETB(editLimit.creditLimit)}</p>
+   598→                  </div>
+   599→                  <div>
+   600→                    <p className="text-xs text-muted-foreground">Used</p>
+   601→                    <p className="font-medium">{formatETB(editLimit.usedCredit)}</p>
+   602→                  </div>
+   603→                  <div>
+   604→                    <p className="text-xs text-muted-foreground">Available</p>
+   605→                    <p className="font-medium text-emerald-600">{formatETB(editLimit.availableCredit)}</p>
+   606→                  </div>
+   607→                </div>
+   608→              </div>
+   609→            )}
+   610→
+   611→            <div className="space-y-2">
+   612→              <Label>Credit Limit (ETB)</Label>
+   613→              <Input
+   614→                type="number"
+   615→                min={0}
+   616→                step={100}
+   617→                placeholder="e.g. 10000"
+   618→                value={limitAmount}
+   619→                onChange={(e) => setLimitAmount(e.target.value)}
+   620→              />
+   621→              <p className="text-xs text-muted-foreground">Maximum credit allowed for this customer in ETB</p>
+   622→            </div>
+   623→
+   624→            <div className="space-y-2">
+   625→              <Label>Alert Threshold (%)</Label>
+   626→              <Input
+   627→                type="number"
+   628→                min={0}
+   629→                max={100}
+   630→                step={5}
+   631→                placeholder="e.g. 80"
+   632→                value={alertThreshold}
+   633→                onChange={(e) => setAlertThreshold(e.target.value)}
+   634→              />
+   635→              <p className="text-xs text-muted-foreground">
+   636→                An alert will show when credit usage exceeds this percentage (0-100%)
+   637→              </p>
+   638→            </div>
+   639→
+   640→            {editLimit?.isBlocked && (
+   641→              <div className="rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800 p-3 flex items-center gap-2">
+   642→                <AlertTriangle className="size-4 text-orange-600" />
+   643→                <p className="text-sm text-orange-700 dark:text-orange-400">
+   644→                  This account is currently blocked. You can unblock it from the credit limits list.
+   645→                </p>
+   646→              </div>
+   647→            )}
+   648→          </div>
+   649→
+   650→          <DialogFooter>
+   651→            <Button variant="outline" onClick={() => setShowSetLimit(false)} disabled={formSubmitting}>
+   652→              Cancel
+   653→            </Button>
+   654→            <Button
+   655→              onClick={handleSaveLimit}
+   656→              disabled={formSubmitting || !limitAmount}
+   657→            >
+   658→              {formSubmitting ? (
+   659→                <>
+   660→                  <Loader2 className="size-4 animate-spin" />
+   661→                  Saving...
+   662→                </>
+   663→              ) : (
+   664→                'Save Credit Limit'
+   665→              )}
+   666→            </Button>
+   667→          </DialogFooter>
+   668→        </DialogContent>
+   669→      </Dialog>
+   670→    </div>
+   671→  )
+   672→}
+   673→

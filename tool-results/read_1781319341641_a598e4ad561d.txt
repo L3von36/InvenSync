@@ -1,0 +1,502 @@
+     1→   600→   600→          <CardHeader>
+     2→   601→   601→            <Skeleton className="h-5 w-32" />
+     3→   602→   602→            <Skeleton className="h-3 w-48" />
+     4→   603→   603→          </CardHeader>
+     5→   604→   604→          <CardContent>
+     6→   605→   605→            <Skeleton className="h-[300px] w-full rounded-lg" />
+     7→   606→   606→          </CardContent>
+     8→   607→   607→        </Card>
+     9→   608→   608→      </div>
+    10→   609→   609→      <Card>
+    11→   610→   610→        <CardHeader>
+    12→   611→   611→          <Skeleton className="h-5 w-32" />
+    13→   612→   612→        </CardHeader>
+    14→   613→   613→        <CardContent>
+    15→   614→   614→          <div className="space-y-3">
+    16→   615→   615→            {Array.from({ length: 5 }).map((_, i) => (
+    17→   616→   616→              <Skeleton key={i} className="h-12 w-full rounded" />
+    18→   617→   617→            ))}
+    19→   618→   618→          </div>
+    20→   619→   619→        </CardContent>
+    21→   620→   620→      </Card>
+    22→   621→   621→    </div>
+    23→   622→   622→  )
+    24→   623→   623→}
+    25→   624→   624→
+    26→   625→   625→// DashboardError replaced by shared ErrorState component
+    27→   626→   626→
+    28→   627→   627→// ============================================
+    29→   628→   628→// OWNER DASHBOARD — Multi-shop overview
+    30→   629→   629→// ============================================
+    31→   630→   630→
+    32→   631→   631→interface ShopData {
+    33→   632→   632→  id: string
+    34→   633→   633→  name: string
+    35→   634→   634→  address?: string | null
+    36→   635→   635→  city?: string | null
+    37→   636→   636→  phone?: string | null
+    38→   637→   637→  isActive: boolean
+    39→   638→   638→  members: Array<{ id: string; userId: string; role: string; user: { id: string; name: string; email: string; avatarUrl?: string | null } }>
+    40→   639→   639→  _count: { products: number; sales: number }
+    41→   640→   640→}
+    42→   641→   641→
+    43→   642→   642→function OwnerDashboard({
+    44→   643→   643→  dashboardData,
+    45→   644→   644→  inventoryData,
+    46→   645→   645→  revenueChartData,
+    47→   646→   646→  isRefreshing,
+    48→   647→   647→  onRefresh,
+    49→   648→   648→  dateRangePreset,
+    50→   649→   649→  onDateRangePresetChange,
+    51→   650→   650→  customFrom,
+    52→   651→   651→  customTo,
+    53→   652→   652→  onCustomFromChange,
+    54→   653→   653→  onCustomToChange,
+    55→   654→   654→}: {
+    56→   655→   655→  dashboardData: EnhancedDashboardData
+    57→   656→   656→  inventoryData: InventoryStats | null
+    58→   657→   657→  revenueChartData: Array<{ date: string; revenue: number }>
+    59→   658→   658→  isRefreshing: boolean
+    60→   659→   659→  onRefresh: () => void
+    61→   660→   660→  dateRangePreset: DateRangePreset
+    62→   661→   661→  onDateRangePresetChange: (preset: DateRangePreset) => void
+    63→   662→   662→  customFrom: string
+    64→   663→   663→  customTo: string
+    65→   664→   664→  onCustomFromChange: (value: string) => void
+    66→   665→   665→  onCustomToChange: (value: string) => void
+    67→   666→   666→}) {
+    68→   667→   667→  const { currentOrg, currentShop } = useAuthStore()
+    69→   668→   668→  const { setPage } = useAppStore()
+    70→   669→   669→  const isMobile = useIsMobile()
+    71→   670→   670→  const [shops, setShops] = useState<ShopData[]>([])
+    72→   671→   671→  const [shopsLoading, setShopsLoading] = useState(true)
+    73→   672→   672→
+    74→   673→   673→  useEffect(() => {
+    75→   674→   674→    if (!currentOrg) return
+    76→   675→   675→    api.getShops(currentOrg.id)
+    77→   676→   676→      .then(data => setShops(data.shops as unknown as ShopData[]))
+    78→   677→   677→      .catch(() => {
+    79→   678→   678→        setShops([])
+    80→   679→   679→      })
+    81→   680→   680→      .finally(() => setShopsLoading(false))
+    82→   681→   681→  }, [currentOrg])
+    83→   682→   682→
+    84→   683→   683→  const { stats, recentSales, topProducts, comparison, anomalies } = dashboardData
+    85→   684→   684→  const lowStockProducts = inventoryData?.lowStockProducts || []
+    86→   685→   685→  const hasMultipleShops = shops.length > 1
+    87→   686→   686→
+    88→   687→   687→  const topProductsChartData = [...topProducts]
+    89→   688→   688→    .slice(0, 5)
+    90→   689→   689→    .reverse()
+    91→   690→   690→    .map((p) => ({
+    92→   691→   691→      name: p.name.length > (isMobile ? 10 : 18) ? p.name.slice(0, isMobile ? 10 : 18) + '...' : p.name,
+    93→   692→   692→      revenue: p.totalRevenue,
+    94→   693→   693→    }))
+    95→   694→   694→
+    96→   695→   695→  // Build shop comparison data
+    97→   696→   696→  const shopComparisonData = useMemo(() => {
+    98→   697→   697→    if (!hasMultipleShops) return []
+    99→   698→   698→    return shops.map(shop => ({
+   100→   699→   699→      name: shop.name.length > 12 ? shop.name.slice(0, 12) + '...' : shop.name,
+   101→   700→   700→      products: shop._count.products,
+   102→   701→   701→      members: shop.members.length,
+   103→   702→   702→    }))
+   104→   703→   703→  }, [shops, hasMultipleShops])
+   105→   704→   704→
+   106→   705→   705→  return (
+   107→   706→   706→    <div className="space-y-6">
+   108→   707→   707→      <DashboardHeader
+   109→   708→   708→        title="Owner Dashboard"
+   110→   709→   709→        subtitle={hasMultipleShops ? `Overview across ${shops.length} shops` : 'Overview of your business performance and inventory'}
+   111→   710→   710→        isRefreshing={isRefreshing}
+   112→   711→   711→        onRefresh={onRefresh}
+   113→   712→   712→        dateRangePicker={
+   114→   713→   713→          <DateRangePicker
+   115→   714→   714→            selectedPreset={dateRangePreset}
+   116→   715→   715→            onPresetChange={onDateRangePresetChange}
+   117→   716→   716→            customFrom={customFrom}
+   118→   717→   717→            customTo={customTo}
+   119→   718→   718→            onCustomFromChange={onCustomFromChange}
+   120→   719→   719→            onCustomToChange={onCustomToChange}
+   121→   720→   720→          />
+   122→   721→   721→        }
+   123→   722→   722→      />
+   124→   723→   723→
+   125→   724→   724→      {/* Anomaly Alerts */}
+   126→   725→   725→      {anomalies && anomalies.length > 0 && (
+   127→   726→   726→        <AnomalyAlertWidget anomalies={anomalies} />
+   128→   727→   727→      )}
+   129→   728→   728→
+   130→   729→   729→      {/* Summary Stats */}
+   131→   730→   730→      <div className="grid grid-cols-2 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
+   132→   731→   731→        <StatCard
+   133→   732→   732→          title="Period Revenue"
+   134→   733→   733→          value={formatCurrency(stats.periodRevenue ?? stats.monthRevenue)}
+   135→   734→   734→          subtitle={`Today: ${formatCurrency(stats.todayRevenue)}`}
+   136→   735→   735→          icon={<TrendingUp className="size-5" />}
+   137→   736→   736→          iconBgClass="bg-brand-50 dark:bg-brand-900/20"
+   138→   737→   737→          iconTextClass="text-primary"
+   139→   738→   738→          comparisonBadge={comparison ? <ComparisonBadge value={comparison.revenueChange} /> : undefined}
+   140→   739→   739→        />
+   141→   740→   740→        <StatCard
+   142→   741→   741→          title="Total Products"
+   143→   742→   742→          value={formatNumber(stats.totalProducts)}
+   144→   743→   743→          subtitle={`${stats.outOfStockCount} out of stock`}
+   145→   744→   744→          icon={<Package className="size-5" />}
+   146→   745→   745→          iconBgClass="bg-sky-100 dark:bg-sky-900/30"
+   147→   746→   746→          iconTextClass="text-sky-600 dark:text-sky-400"
+   148→   747→   747→        />
+   149→   748→   748→        <StatCard
+   150→   749→   749→          title="Expenses"
+   151→   750→   750→          value={formatCurrency(stats.periodExpenses ?? 0)}
+   152→   751→   751→          subtitle="Period expenses"
+   153→   752→   752→          icon={<Receipt className="size-5" />}
+   154→   753→   753→          iconBgClass="bg-rose-100 dark:bg-rose-900/30"
+   155→   754→   754→          iconTextClass="text-rose-600 dark:text-rose-400"
+   156→   755→   755→          comparisonBadge={comparison ? <ComparisonBadge value={comparison.expenseChange} /> : undefined}
+   157→   756→   756→        />
+   158→   757→   757→        <StatCard
+   159→   758→   758→          title="Net Profit"
+   160→   759→   759→          value={formatCurrency(stats.periodNetProfit ?? 0)}
+   161→   760→   760→          subtitle={stats.periodNetProfit !== undefined && stats.periodNetProfit >= 0 ? 'Profitable' : 'Loss'}
+   162→   761→   761→          icon={<PiggyBank className="size-5" />}
+   163→   762→   762→          iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
+   164→   763→   763→          iconTextClass="text-emerald-600 dark:text-emerald-400"
+   165→   764→   764→          comparisonBadge={comparison ? <ComparisonBadge value={comparison.netProfitChange} /> : undefined}
+   166→   765→   765→        />
+   167→   766→   766→        <StatCard
+   168→   767→   767→          title="Active Shops"
+   169→   768→   768→          value={hasMultipleShops ? formatNumber(shops.filter(s => s.isActive).length) : '1'}
+   170→   769→   769→          subtitle={hasMultipleShops ? `${shops.length} total shops` : 'Single shop'}
+   171→   770→   770→          icon={<Store className="size-5" />}
+   172→   771→   771→          iconBgClass="bg-amber-100 dark:bg-amber-900/30"
+   173→   772→   772→          iconTextClass="text-amber-600 dark:text-amber-400"
+   174→   773→   773→        />
+   175→   774→   774→        <StatCard
+   176→   775→   775→          title="Customer Debts"
+   177→   776→   776→          value={formatCurrency(stats.totalCustomerDebt)}
+   178→   777→   777→          subtitle={stats.totalCustomerDebt > 0 ? 'Outstanding balance' : 'No outstanding debts'}
+   179→   778→   778→          icon={<CreditCard className="size-5" />}
+   180→   779→   779→          iconBgClass="bg-red-100 dark:bg-red-900/30"
+   181→   780→   780→          iconTextClass="text-red-600 dark:text-red-400"
+   182→   781→   781→        />
+   183→   782→   782→      </div>
+   184→   783→   783→
+   185→   784→   784→      {/* Multi-shop comparison if applicable */}
+   186→   785→   785→      {hasMultipleShops && !shopsLoading && shopComparisonData.length > 0 && (
+   187→   786→   786→        <Card>
+   188→   787→   787→          <CardHeader>
+   189→   788→   788→            <CardTitle className="text-sm">Shop Comparison</CardTitle>
+   190→   789→   789→            <CardDescription>Product count per shop</CardDescription>
+   191→   790→   790→          </CardHeader>
+   192→   791→   791→          <CardContent>
+   193→   792→   792→            <ChartContainer config={shopComparisonChartConfig} className="h-[280px] w-full">
+   194→   793→   793→              <BarChart
+   195→   794→   794→                data={shopComparisonData}
+   196→   795→   795→                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+   197→   796→   796→              >
+   198→   797→   797→                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+   199→   798→   798→                <XAxis
+   200→   799→   799→                  dataKey="name"
+   201→   800→   800→                  tickLine={false}
+   202→   801→   801→                  axisLine={false}
+   203→   802→   802→                  tickMargin={8}
+   204→   803→   803→                  fontSize={12}
+   205→   804→   804→                />
+   206→   805→   805→                <YAxis
+   207→   806→   806→                  tickLine={false}
+   208→   807→   807→                  axisLine={false}
+   209→   808→   808→                  tickMargin={8}
+   210→   809→   809→                  fontSize={12}
+   211→   810→   810→                />
+   212→   811→   811→                <ChartTooltip content={<ChartTooltipContent />} />
+   213→   812→   812→                <Bar
+   214→   813→   813→                  dataKey="products"
+   215→   814→   814→                  fill="#0284c7"
+   216→   815→   815→                  radius={[4, 4, 0, 0]}
+   217→   816→   816→                  maxBarSize={48}
+   218→   817→   817→                />
+   219→   818→   818→              </BarChart>
+   220→   819→   819→            </ChartContainer>
+   221→   820→   820→          </CardContent>
+   222→   821→   821→        </Card>
+   223→   822→   822→      )}
+   224→   823→   823→
+   225→   824→   824→      {/* Per-shop cards if multiple shops */}
+   226→   825→   825→      {hasMultipleShops && !shopsLoading && (
+   227→   826→   826→        <div>
+   228→   827→   827→          <h3 className="text-sm font-semibold text-muted-foreground mb-3">Your Shops</h3>
+   229→   828→   828→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   230→   829→   829→            {shops.map(shop => (
+   231→   830→   830→              <Card key={shop.id} className="hover:shadow-md transition-shadow cursor-pointer">
+   232→   831→   831→                <CardHeader className="pb-2">
+   233→   832→   832→                  <div className="flex items-center justify-between">
+   234→   833→   833→                    <CardTitle className="text-sm">{shop.name}</CardTitle>
+   235→   834→   834→                    <Badge variant="outline" className="text-xs">
+   236→   835→   835→                      {shop._count.products} products
+   237→   836→   836→                    </Badge>
+   238→   837→   837→                  </div>
+   239→   838→   838→                  <CardDescription className="text-xs">
+   240→   839→   839→                    {shop.city || shop.address || 'No address'} · {shop.members.length} staff
+   241→   840→   840→                  </CardDescription>
+   242→   841→   841→                </CardHeader>
+   243→   842→   842→                <CardContent className="pt-0">
+   244→   843→   843→                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+   245→   844→   844→                    <span className="flex items-center gap-1">
+   246→   845→   845→                      <Package className="size-3" />
+   247→   846→   846→                      {shop._count.products} products
+   248→   847→   847→                    </span>
+   249→   848→   848→                    <span className="flex items-center gap-1">
+   250→   849→   849→                      <ShoppingCart className="size-3" />
+   251→   850→   850→                      {shop._count.sales} sales
+   252→   851→   851→                    </span>
+   253→   852→   852→                  </div>
+   254→   853→   853→                </CardContent>
+   255→   854→   854→              </Card>
+   256→   855→   855→            ))}
+   257→   856→   856→          </div>
+   258→   857→   857→        </div>
+   259→   858→   858→      )}
+   260→   859→   859→
+   261→   860→   860→      {/* Charts */}
+   262→   861→   861→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+   263→   862→   862→        <Card>
+   264→   863→   863→          <CardHeader>
+   265→   864→   864→            <CardTitle className="text-sm">Revenue Trend</CardTitle>
+   266→   865→   865→            <CardDescription>Daily revenue for the last 30 days</CardDescription>
+   267→   866→   866→          </CardHeader>
+   268→   867→   867→          <CardContent>
+   269→   868→   868→            <ChartContainer config={revenueChartConfig} className="h-[220px] sm:h-[300px] w-full">
+   270→   869→   869→              <AreaChart data={revenueChartData} margin={{ top: 10, right: 10, left: isMobile ? -10 : 0, bottom: 0 }}>
+   271→   870→   870→                <defs>
+   272→   871→   871→                  <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+   273→   872→   872→                    <stop offset="5%" stopColor="#ea580c" stopOpacity={0.3} />
+   274→   873→   873→                    <stop offset="95%" stopColor="#ea580c" stopOpacity={0.05} />
+   275→   874→   874→                  </linearGradient>
+   276→   875→   875→                </defs>
+   277→   876→   876→                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+   278→   877→   877→                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} interval="preserveStartEnd" fontSize={isMobile ? 10 : 12} />
+   279→   878→   878→                <YAxis
+   280→   879→   879→                  tickLine={false}
+   281→   880→   880→                  axisLine={false}
+   282→   881→   881→                  tickMargin={8}
+   283→   882→   882→                  fontSize={isMobile ? 10 : 12}
+   284→   883→   883→                  width={isMobile ? 35 : 50}
+   285→   884→   884→                  tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
+   286→   885→   885→                />
+   287→   886→   886→                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+   288→   887→   887→                <Area type="monotone" dataKey="revenue" stroke="#ea580c" fill="url(#fillRevenue)" strokeWidth={2} />
+   289→   888→   888→              </AreaChart>
+   290→   889→   889→            </ChartContainer>
+   291→   890→   890→          </CardContent>
+   292→   891→   891→        </Card>
+   293→   892→   892→
+   294→   893→   893→        <Card>
+   295→   894→   894→          <CardHeader>
+   296→   895→   895→            <CardTitle className="text-sm">Top Products by Revenue</CardTitle>
+   297→   896→   896→            <CardDescription>Best performing products in the last 30 days</CardDescription>
+   298→   897→   897→          </CardHeader>
+   299→   898→   898→          <CardContent>
+   300→   899→   899→            {topProductsChartData.length > 0 ? (
+   301→   900→   900→              <ChartContainer config={topProductsChartConfig} className="h-[220px] sm:h-[300px] w-full">
+   302→   901→   901→                <BarChart data={topProductsChartData} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+   303→   902→   902→                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+   304→   903→   903→                  <XAxis
+   305→   904→   904→                    type="number"
+   306→   905→   905→                    tickLine={false}
+   307→   906→   906→                    axisLine={false}
+   308→   907→   907→                    tickMargin={8}
+   309→   908→   908→                    fontSize={isMobile ? 10 : 12}
+   310→   909→   909→                    tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
+   311→   910→   910→                  />
+   312→   911→   911→                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={isMobile ? 60 : 120} fontSize={isMobile ? 9 : 12} />
+   313→   912→   912→                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+   314→   913→   913→                  <Bar dataKey="revenue" fill="#ea580c" radius={[0, 4, 4, 0]} maxBarSize={32} />
+   315→   914→   914→                </BarChart>
+   316→   915→   915→              </ChartContainer>
+   317→   916→   916→            ) : (
+   318→   917→   917→              <div className="flex flex-col items-center justify-center h-[220px] sm:h-[300px] text-muted-foreground">
+   319→   918→   918→                <Package className="size-10 mb-2 opacity-50" />
+   320→   919→   919→                <p className="text-sm">No sales data yet</p>
+   321→   920→   920→              </div>
+   322→   921→   921→            )}
+   323→   922→   922→          </CardContent>
+   324→   923→   923→        </Card>
+   325→   924→   924→      </div>
+   326→   925→   925→
+   327→   926→   926→      {/* Recent Sales */}
+   328→   927→   927→      <Card>
+   329→   928→   928→        <CardHeader className="flex flex-row items-center justify-between gap-2">
+   330→   929→   929→          <div className="min-w-0">
+   331→   930→   930→            <CardTitle className="text-sm">Recent Sales</CardTitle>
+   332→   931→   931→            <CardDescription>All shops aggregated — latest transactions</CardDescription>
+   333→   932→   932→          </div>
+   334→   933→   933→          <Button variant="ghost" size="sm" onClick={() => setPage('sales')} className="text-primary hover:text-primary/80 shrink-0">
+   335→   934→   934→            View All
+   336→   935→   935→            <ChevronRight className="size-4 ml-1" />
+   337→   936→   936→          </Button>
+   338→   937→   937→        </CardHeader>
+   339→   938→   938→        <CardContent>
+   340→   939→   939→          {recentSales.length > 0 ? (
+   341→   940→   940→            <>
+   342→   941→   941→              <div className="hidden md:block overflow-x-auto">
+   343→   942→   942→                <Table>
+   344→   943→   943→                  <TableHeader>
+   345→   944→   944→                    <TableRow>
+   346→   945→   945→                      <TableHead>Invoice #</TableHead>
+   347→   946→   946→                      <TableHead>Customer</TableHead>
+   348→   947→   947→                      <TableHead>Items</TableHead>
+   349→   948→   948→                      <TableHead>Total</TableHead>
+   350→   949→   949→                      <TableHead>Date</TableHead>
+   351→   950→   950→                      <TableHead>Status</TableHead>
+   352→   951→   951→                    </TableRow>
+   353→   952→   952→                  </TableHeader>
+   354→   953→   953→                  <TableBody>
+   355→   954→   954→                    {recentSales.map((sale) => (
+   356→   955→   955→                      <TableRow key={sale.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setPage('sales', { saleId: sale.id })}>
+   357→   956→   956→                        <TableCell className="font-medium font-mono text-sm">{sale.invoiceNumber}</TableCell>
+   358→   957→   957→                        <TableCell>{sale.customer?.name || <span className="text-muted-foreground italic">Walk-in</span>}</TableCell>
+   359→   958→   958→                        <TableCell className="text-muted-foreground">{sale.items?.length || 0} item{(sale.items?.length || 0) !== 1 ? 's' : ''}</TableCell>
+   360→   959→   959→                        <TableCell className="font-semibold">{formatCurrency(sale.total)}</TableCell>
+   361→   960→   960→                        <TableCell className="text-muted-foreground">{formatDate(sale.saleDate)}</TableCell>
+   362→   961→   961→                        <TableCell><StatusBadge status={sale.status} /></TableCell>
+   363→   962→   962→                      </TableRow>
+   364→   963→   963→                    ))}
+   365→   964→   964→                  </TableBody>
+   366→   965→   965→                </Table>
+   367→   966→   966→              </div>
+   368→   967→   967→              <div className="md:hidden space-y-3">
+   369→   968→   968→                {recentSales.map((sale) => (
+   370→   969→   969→                  <Card key={sale.id} className="p-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setPage('sales', { saleId: sale.id })}>
+   371→   970→   970→                    <div className="flex items-start justify-between mb-2">
+   372→   971→   971→                      <div>
+   373→   972→   972→                        <p className="font-semibold text-sm">{sale.invoiceNumber}</p>
+   374→   973→   973→                        <p className="text-xs text-muted-foreground">{sale.customer?.name || 'Walk-in'} · {sale.items?.length || 0} item{(sale.items?.length || 0) !== 1 ? 's' : ''}</p>
+   375→   974→   974→                      </div>
+   376→   975→   975→                      <StatusBadge status={sale.status} />
+   377→   976→   976→                    </div>
+   378→   977→   977→                    <div className="flex items-center justify-between">
+   379→   978→   978→                      <span className="text-xs text-muted-foreground">{formatDate(sale.saleDate)}</span>
+   380→   979→   979→                      <span className="font-bold text-sm">{formatCurrency(sale.total)}</span>
+   381→   980→   980→                    </div>
+   382→   981→   981→                  </Card>
+   383→   982→   982→                ))}
+   384→   983→   983→              </div>
+   385→   984→   984→            </>
+   386→   985→   985→          ) : (
+   387→   986→   986→            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+   388→   987→   987→              <CreditCard className="size-10 mb-2 opacity-50" />
+   389→   988→   988→              <p className="text-sm">No sales recorded yet</p>
+   390→   989→   989→            </div>
+   391→   990→   990→          )}
+   392→   991→   991→        </CardContent>
+   393→   992→   992→      </Card>
+   394→   993→   993→
+   395→   994→   994→      {/* Low Stock Alert */}
+   396→   995→   995→      {lowStockProducts.length > 0 && (
+   397→   996→   996→        <Card className="border-orange-200 dark:border-orange-900/50">
+   398→   997→   997→          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+   399→   998→   998→            <div className="flex items-center gap-2">
+   400→   999→   999→              <div className="flex items-center justify-center size-8 rounded-lg bg-orange-100 dark:bg-orange-900/30">
+   401→  1000→  1000→                <AlertTriangle className="size-4 text-orange-600 dark:text-orange-400" />
+   402→  1001→  1001→              </div>
+   403→  1002→  1002→              <div>
+   404→  1003→  1003→                <CardTitle className="text-sm">Low Stock Alert</CardTitle>
+   405→  1004→  1004→                <CardDescription>{lowStockProducts.length} product{lowStockProducts.length !== 1 ? 's' : ''} below threshold</CardDescription>
+   406→  1005→  1005→              </div>
+   407→  1006→  1006→            </div>
+   408→  1007→  1007→            <Button variant="outline" size="sm" onClick={() => setPage('inventory')} className="border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20 shrink-0">
+   409→  1008→  1008→              View Inventory
+   410→  1009→  1009→              <ArrowRight className="size-4 ml-1" />
+   411→  1010→  1010→            </Button>
+   412→  1011→  1011→          </CardHeader>
+   413→  1012→  1012→          <CardContent>
+   414→  1013→  1013→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto custom-scrollbar">
+   415→  1014→  1014→              {lowStockProducts.map((product) => (
+   416→  1015→  1015→                <div key={product.id} className="flex items-center justify-between p-3 rounded-lg border border-orange-200 bg-orange-50/50 dark:border-orange-900/30 dark:bg-orange-900/10">
+   417→  1016→  1016→                  <div className="min-w-0 flex-1">
+   418→  1017→  1017→                    <p className="text-sm font-medium truncate">{product.name}</p>
+   419→  1018→  1018→                    <p className="text-xs text-muted-foreground">Threshold: {product.lowStockThreshold}</p>
+   420→  1019→  1019→                  </div>
+   421→  1020→  1020→                  <div className="flex items-center gap-2 ml-3 shrink-0">
+   422→  1021→  1021→                    <span className="text-sm font-bold text-orange-600 dark:text-orange-400">{product.quantity}</span>
+   423→  1022→  1022→                    <span className="text-xs text-muted-foreground">left</span>
+   424→  1023→  1023→                  </div>
+   425→  1024→  1024→                </div>
+   426→  1025→  1025→              ))}
+   427→  1026→  1026→            </div>
+   428→  1027→  1027→          </CardContent>
+   429→  1028→  1028→        </Card>
+   430→  1029→  1029→      )}
+   431→  1030→  1030→    </div>
+   432→  1031→  1031→  )
+   433→  1032→  1032→}
+   434→  1033→  1033→
+   435→  1034→  1034→// ============================================
+   436→  1035→  1035→// MANAGER DASHBOARD — Full analytics
+   437→  1036→  1036→// ============================================
+   438→  1037→  1037→
+   439→  1038→  1038→function ManagerDashboard({
+   440→  1039→  1039→  dashboardData,
+   441→  1040→  1040→  inventoryData,
+   442→  1041→  1041→  revenueChartData,
+   443→  1042→  1042→  isRefreshing,
+   444→  1043→  1043→  onRefresh,
+   445→  1044→  1044→  dateRangePreset,
+   446→  1045→  1045→  onDateRangePresetChange,
+   447→  1046→  1046→  customFrom,
+   448→  1047→  1047→  customTo,
+   449→  1048→  1048→  onCustomFromChange,
+   450→  1049→  1049→  onCustomToChange,
+   451→  1050→  1050→}: {
+   452→  1051→  1051→  dashboardData: EnhancedDashboardData
+   453→  1052→  1052→  inventoryData: InventoryStats | null
+   454→  1053→  1053→  revenueChartData: Array<{ date: string; revenue: number }>
+   455→  1054→  1054→  isRefreshing: boolean
+   456→  1055→  1055→  onRefresh: () => void
+   457→  1056→  1056→  dateRangePreset: DateRangePreset
+   458→  1057→  1057→  onDateRangePresetChange: (preset: DateRangePreset) => void
+   459→  1058→  1058→  customFrom: string
+   460→  1059→  1059→  customTo: string
+   461→  1060→  1060→  onCustomFromChange: (value: string) => void
+   462→  1061→  1061→  onCustomToChange: (value: string) => void
+   463→  1062→  1062→}) {
+   464→  1063→  1063→  const { setPage } = useAppStore()
+   465→  1064→  1064→  const isMobile = useIsMobile()
+   466→  1065→  1065→  const { stats, recentSales, topProducts, comparison, anomalies } = dashboardData
+   467→  1066→  1066→  const lowStockProducts = inventoryData?.lowStockProducts || []
+   468→  1067→  1067→
+   469→  1068→  1068→  const topProductsChartData = [...topProducts]
+   470→  1069→  1069→    .slice(0, 5)
+   471→  1070→  1070→    .reverse()
+   472→  1071→  1071→    .map((p) => ({
+   473→  1072→  1072→      name: p.name.length > (isMobile ? 10 : 18) ? p.name.slice(0, isMobile ? 10 : 18) + '...' : p.name,
+   474→  1073→  1073→      revenue: p.totalRevenue,
+   475→  1074→  1074→    }))
+   476→  1075→  1075→
+   477→  1076→  1076→  return (
+   478→  1077→  1077→    <div className="space-y-6">
+   479→  1078→  1078→      <DashboardHeader
+   480→  1079→  1079→        title="Dashboard"
+   481→  1080→  1080→        subtitle="Overview of your business performance and inventory"
+   482→  1081→  1081→        isRefreshing={isRefreshing}
+   483→  1082→  1082→        onRefresh={onRefresh}
+   484→  1083→  1083→        dateRangePicker={
+   485→  1084→  1084→          <DateRangePicker
+   486→  1085→  1085→            selectedPreset={dateRangePreset}
+   487→  1086→  1086→            onPresetChange={onDateRangePresetChange}
+   488→  1087→  1087→            customFrom={customFrom}
+   489→  1088→  1088→            customTo={customTo}
+   490→  1089→  1089→            onCustomFromChange={onCustomFromChange}
+   491→  1090→  1090→            onCustomToChange={onCustomToChange}
+   492→  1091→  1091→          />
+   493→  1092→  1092→        }
+   494→  1093→  1093→      />
+   495→  1094→  1094→
+   496→  1095→  1095→      {/* Anomaly Alerts */}
+   497→  1096→  1096→      {anomalies && anomalies.length > 0 && (
+   498→  1097→  1097→        <AnomalyAlertWidget anomalies={anomalies} />
+   499→  1098→  1098→      )}
+   500→  1099→  1099→
+
+[showing lines 1-500 of 602; use offset=501 with limit to continue reading]

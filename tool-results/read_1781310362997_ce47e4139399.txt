@@ -1,0 +1,886 @@
+     1→generator client {
+     2→  provider = "prisma-client-js"
+     3→}
+     4→
+     5→datasource db {
+     6→  provider  = "postgresql"
+     7→  url       = env("DATABASE_URL")
+     8→  directUrl = env("DIRECT_URL")
+     9→}
+    10→
+    11→// ============================================
+    12→// AUTH & MULTI-TENANT
+    13→// ============================================
+    14→
+    15→model User {
+    16→  id            String   @id @default(cuid())
+    17→  email         String   @unique
+    18→  name          String
+    19→  passwordHash  String   @default("") //bcrypt hash — empty if not yet set (e.g. Supabase-only users)
+    20→  avatarUrl     String?
+    21→  role          String   @default("user") // user, admin, sales_rep
+    22→  createdAt     DateTime @default(now())
+    23→  updatedAt     DateTime @updatedAt
+    24→
+    25→  // Supabase Auth integration — links to auth.users table
+    26→  supabaseUid   String?  @unique // Supabase Auth user ID (auth.users.id)
+    27→
+    28→  // Two-Factor Authentication
+    29→  twoFactorSecret  String?  // TOTP secret (encrypted)
+    30→  twoFactorEnabled Boolean  @default(false)
+    31→  backupCodes      String?  // JSON array of hashed backup codes
+    32→
+    33→  memberships      OrganizationMember[]
+    34→  sessions         Session[]
+    35→  shopMemberships  ShopMember[]
+    36→  salesRep         SalesRep?
+    37→  auditLogs        AuditLog[]
+    38→  devices          UserDevice[]
+    39→}
+    40→
+    41→model Session {
+    42→  id            String   @id @default(cuid())
+    43→  userId        String
+    44→  token         String   @unique
+    45→  expiresAt     DateTime
+    46→  createdAt     DateTime @default(now())
+    47→
+    48→  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    49→
+    50→  @@index([token])
+    51→  @@index([userId])
+    52→}
+    53→
+    54→// ============================================
+    55→// REGION / CITY SYSTEM
+    56→// ============================================
+    57→
+    58→model Region {
+    59→  id            String   @id @default(cuid())
+    60→  name          String   @unique    // e.g. "Addis Ababa", "Adama", "Hawassa"
+    61→  slug          String   @unique    // e.g. "addis-ababa", "adama", "hawassa"
+    62→  country       String   @default("Ethiopia")
+    63→  latitude      Float?              // Center point for map
+    64→  longitude     Float?
+    65→  population    Int?                // For prioritization
+    66→  description   String?
+    67→  isActive      Boolean  @default(true)
+    68→  order         Int      @default(0) // Display order
+    69→  createdAt     DateTime @default(now())
+    70→  updatedAt     DateTime @updatedAt
+    71→
+    72→  organizations Organization[]
+    73→  salesReps     SalesRep[]
+    74→}
+    75→
+    76→model Organization {
+    77→  id            String   @id @default(cuid())
+    78→  name          String
+    79→  slug          String   @unique
+    80→  logoUrl       String?
+    81→  currency      String   @default("ETB")
+    82→  country       String   @default("Ethiopia")
+    83→  businessType  String   @default("retail") // retail, service, mixed
+    84→  description   String?
+    85→  address       String?
+    86→  city          String?
+    87→  latitude      Float?
+    88→  longitude     Float?
+    89→  phone         String?
+    90→  subscriptionPlan    String @default("starter")
+    91→  subscriptionStatus  String @default("active")
+    92→  subscriptionExpiresAt DateTime?
+    93→  createdAt     DateTime @default(now())
+    94→  updatedAt     DateTime @updatedAt
+    95→
+    96→  regionId      String?
+    97→  region        Region?  @relation(fields: [regionId], references: [id], onDelete: SetNull)
+    98→
+    99→  members            OrganizationMember[]
+   100→  shops              Shop[]
+   101→  productTypes       ProductType[]
+   102→  serviceTypes       ServiceType[]
+   103→  customers          Customer[]
+   104→  suppliers          Supplier[]
+   105→  sales              Sale[]
+   106→  debts              Debt[]
+   107→  stockMovements     StockMovement[]
+   108→  integrationConfigs IntegrationConfig[]
+   109→  serviceBookings    ServiceBooking[]
+   110→  activeModules      OrganizationModule[]
+   111→  notifications      Notification[]
+   112→  referredBy         SalesRep?   @relation(fields: [referredById], references: [id])
+   113→  referredById       String?
+   114→  commission         SalesCommission[]
+   115→  expenses           Expense[]
+   116→  auditLogs          AuditLog[]
+   117→  scheduledReports   ScheduledReport[]
+   118→  stockTransfers     StockTransfer[]
+   119→  purchaseOrders     PurchaseOrder[]
+   120→
+   121→  @@index([regionId])
+   122→}
+   123→
+   124→model OrganizationMember {
+   125→  id             String   @id @default(cuid())
+   126→  userId         String
+   127→  organizationId String
+   128→  role           String   @default("employee") // owner, manager, employee
+   129→  joinedAt       DateTime @default(now())
+   130→
+   131→  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+   132→  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   133→
+   134→  @@unique([userId, organizationId])
+   135→  @@index([organizationId])
+   136→}
+   137→
+   138→// ============================================
+   139→// MULTI-SHOP SYSTEM
+   140→// ============================================
+   141→
+   142→model Shop {
+   143→  id             String   @id @default(cuid())
+   144→  organizationId String
+   145→  name           String
+   146→  address        String?
+   147→  city           String?
+   148→  latitude       Float?
+   149→  longitude      Float?
+   150→  phone          String?
+   151→  isActive       Boolean  @default(true)
+   152→  createdAt      DateTime @default(now())
+   153→  updatedAt      DateTime @updatedAt
+   154→
+   155→  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   156→  members        ShopMember[]
+   157→  products       Product[]
+   158→  sales          Sale[]
+   159→  stockMovements StockMovement[]
+   160→  serviceBookings ServiceBooking[]
+   161→  customers      Customer[]
+   162→  suppliers      Supplier[]
+   163→  debts          Debt[]
+   164→  notifications  Notification[]
+   165→  expenses       Expense[]
+   166→  transfersFrom  StockTransfer[] @relation("TransfersFrom")
+   167→  transfersTo    StockTransfer[] @relation("TransfersTo")
+   168→  purchaseOrders PurchaseOrder[]
+   169→
+   170→  @@index([organizationId])
+   171→}
+   172→
+   173→model ShopMember {
+   174→  id        String   @id @default(cuid())
+   175→  userId    String
+   176→  shopId    String
+   177→  role      String   @default("cashier") // manager, cashier, warehouse, sales
+   178→  joinedAt  DateTime @default(now())
+   179→
+   180→  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+   181→  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+   182→
+   183→  @@unique([userId, shopId])
+   184→  @@index([shopId])
+   185→}
+   186→
+   187→// ============================================
+   188→// MODULAR FEATURE SYSTEM
+   189→// ============================================
+   190→
+   191→model Module {
+   192→  id             String   @id @default(cuid())
+   193→  key            String   @unique // e.g. "inventory", "sales", "debts", "ai-assistant", "multi-shop"
+   194→  name           String
+   195→  description    String
+   196→  icon           String   // Lucide icon name
+   197→  category       String   @default("core") // core, analytics, integration, ai
+   198→  priceETB       Float    @default(0) // Monthly price in ETB (0 = free/included)
+   199→  isFree         Boolean  @default(false) // Whether this module is always free
+   200→  freeTrialDays  Int      @default(30) // Free trial period in days for paid modules
+   201→  billingCycle   String   @default("monthly") // monthly, yearly
+   202→  isActive       Boolean  @default(true) // Platform-wide availability
+   203→  order          Int      @default(0)
+   204→  createdAt      DateTime @default(now())
+   205→  updatedAt      DateTime @updatedAt
+   206→
+   207→  orgModules     OrganizationModule[]
+   208→}
+   209→
+   210→model OrganizationModule {
+   211→  id               String    @id @default(cuid())
+   212→  organizationId   String
+   213→  moduleId         String
+   214→  status           String    @default("trial") // trial, active, expired, cancelled, requested
+   215→  isActive         Boolean   @default(true)
+   216→  activatedAt      DateTime  @default(now())
+   217→  expiresAt        DateTime?
+   218→  priceAtActivation Float     @default(0) // Snapshot of module price when activated
+   219→  autoRenew        Boolean   @default(false)
+   220→
+   221→  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   222→  module           Module       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+   223→
+   224→  @@unique([organizationId, moduleId])
+   225→  @@index([organizationId])
+   226→}
+   227→
+   228→// ============================================
+   229→// DYNAMIC PRODUCT SYSTEM
+   230→// ============================================
+   231→
+   232→model ProductType {
+   233→  id             String   @id @default(cuid())
+   234→  organizationId String
+   235→  name           String
+   236→  icon           String?
+   237→  createdAt      DateTime @default(now())
+   238→  updatedAt      DateTime @updatedAt
+   239→
+   240→  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   241→  attributes     AttributeDefinition[]
+   242→  products       Product[]
+   243→
+   244→  @@index([organizationId])
+   245→}
+   246→
+   247→model AttributeDefinition {
+   248→  id             String   @id @default(cuid())
+   249→  productTypeId  String
+   250→  name           String
+   251→  fieldType      String   @default("text") // text, number, boolean, select, image, date
+   252→  options        String?  // JSON string for select options: ["Red","Blue","Green"]
+   253→  required       Boolean  @default(false)
+   254→  order          Int      @default(0)
+   255→  createdAt      DateTime @default(now())
+   256→  updatedAt      DateTime @updatedAt
+   257→
+   258→  productType    ProductType          @relation(fields: [productTypeId], references: [id], onDelete: Cascade)
+   259→  attributeValues ProductAttributeValue[]
+   260→
+   261→  @@index([productTypeId])
+   262→}
+   263→
+   264→model Product {
+   265→  id             String   @id @default(cuid())
+   266→  productTypeId  String
+   267→  organizationId String
+   268→  shopId         String?  // Optional - if null, product is shared across all shops
+   269→  sku            String?
+   270→  name           String
+   271→  description    String?
+   272→  imageUrl       String?
+   273→  quantity       Int      @default(0)
+   274→  costPrice      Float    @default(0)
+   275→  sellingPrice   Float    @default(0)
+   276→  lowStockThreshold Int   @default(10)
+   277→  isActive       Boolean  @default(true)
+   278→  createdAt      DateTime @default(now())
+   279→  updatedAt      DateTime @updatedAt
+   280→
+   281→  productType    ProductType          @relation(fields: [productTypeId], references: [id], onDelete: Cascade)
+   282→  shop           Shop?                @relation(fields: [shopId], references: [id], onDelete: SetNull)
+   283→  attributeValues ProductAttributeValue[]
+   284→  saleItems      SaleItem[]
+   285→  stockMovements StockMovement[]
+   286→  stockTransfers StockTransfer[]
+   287→  purchaseOrderItems PurchaseOrderItem[]
+   288→
+   289→  @@index([productTypeId])
+   290→  @@index([organizationId])
+   291→  @@index([shopId])
+   292→  @@index([organizationId, isActive])
+   293→  @@index([organizationId, isActive, shopId])
+   294→  @@index([organizationId, isActive, productTypeId])
+   295→  @@index([sku])
+   296→}
+   297→
+   298→model ProductAttributeValue {
+   299→  id                   String   @id @default(cuid())
+   300→  productId            String
+   301→  attributeDefinitionId String
+   302→  value                String   // Stored as string, parsed based on fieldType
+   303→  createdAt            DateTime @default(now())
+   304→  updatedAt            DateTime @updatedAt
+   305→
+   306→  product              Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+   307→  attributeDefinition  AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+   308→
+   309→  @@unique([productId, attributeDefinitionId])
+   310→  @@index([productId])
+   311→}
+   312→
+   313→// ============================================
+   314→// CUSTOMERS & SUPPLIERS
+   315→// ============================================
+   316→
+   317→model Customer {
+   318→  id             String   @id @default(cuid())
+   319→  organizationId String
+   320→  shopId         String?  // Optional - which shop/branch this customer belongs to
+   321→  name           String
+   322→  email          String?
+   323→  phone          String?
+   324→  address        String?
+   325→  createdAt      DateTime @default(now())
+   326→  updatedAt      DateTime @updatedAt
+   327→
+   328→  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   329→  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+   330→  sales          Sale[]
+   331→  debts          Debt[]
+   332→  bookings       ServiceBooking[]
+   333→  loyaltyAccount LoyaltyAccount?
+   334→  creditLimit    CreditLimit?
+   335→
+   336→  @@index([organizationId])
+   337→  @@index([shopId])
+   338→  @@index([organizationId, email])
+   339→  @@index([organizationId, name])
+   340→  @@index([organizationId, shopId])
+   341→}
+   342→
+   343→model Supplier {
+   344→  id             String   @id @default(cuid())
+   345→  organizationId String
+   346→  shopId         String?  // Optional - which shop/branch this supplier belongs to
+   347→  name           String
+   348→  email          String?
+   349→  phone          String?
+   350→  address        String?
+   351→  createdAt      DateTime @default(now())
+   352→  updatedAt      DateTime @updatedAt
+   353→
+   354→  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   355→  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+   356→  debts          Debt[]
+   357→  purchaseOrders PurchaseOrder[]
+   358→
+   359→  @@index([organizationId])
+   360→  @@index([shopId])
+   361→  @@index([organizationId, email])
+   362→}
+   363→
+   364→// ============================================
+   365→// SALES
+   366→// ============================================
+   367→
+   368→model Sale {
+   369→  id             String   @id @default(cuid())
+   370→  organizationId String
+   371→  shopId         String?  // Optional - which shop made the sale
+   372→  customerId     String?
+   373→  invoiceNumber  String
+   374→  status         String   @default("completed") // completed, pending, cancelled
+   375→  paymentMethod  String   @default("cash") // cash, card, mobile_money, credit
+   376→  subtotal       Float    @default(0)
+   377→  discount       Float    @default(0)
+   378→  tax            Float    @default(0)
+   379→  total          Float    @default(0)
+   380→  amountPaid     Float    @default(0)
+   381→  notes          String?
+   382→  saleDate       DateTime @default(now())
+   383→  createdAt      DateTime @default(now())
+   384→  updatedAt      DateTime @updatedAt
+   385→
+   386→  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   387→  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+   388→  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+   389→  items          SaleItem[]
+   390→
+   391→  @@index([organizationId])
+   392→  @@index([shopId])
+   393→  @@index([saleDate])
+   394→  @@index([organizationId, status])
+   395→  @@index([organizationId, status, saleDate])
+   396→}
+   397→
+   398→model SaleItem {
+   399→  id             String   @id @default(cuid())
+   400→  saleId         String
+   401→  productId      String?  // Nullable so product can be deleted after nullifying the reference
+   402→  quantity       Int
+   403→  unitPrice      Float
+   404→  costPrice      Float
+   405→  total          Float
+   406→  createdAt      DateTime @default(now())
+   407→
+   408→  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+   409→  product        Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+   410→
+   411→  @@index([saleId])
+   412→  @@index([productId])
+   413→}
+   414→
+   415→// ============================================
+   416→// INVENTORY / STOCK MOVEMENTS
+   417→// ============================================
+   418→
+   419→model StockMovement {
+   420→  id             String   @id @default(cuid())
+   421→  organizationId String
+   422→  shopId         String?  // Optional - which shop
+   423→  productId      String
+   424→  type           String   // in, out, transfer, adjustment
+   425→  quantity       Int
+   426→  previousStock  Int
+   427→  newStock       Int
+   428→  reason         String?
+   429→  reference      String?  // Reference to sale, purchase order, etc.
+   430→  createdAt      DateTime @default(now())
+   431→
+   432→  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   433→  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+   434→  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+   435→
+   436→  @@index([organizationId])
+   437→  @@index([shopId])
+   438→  @@index([productId])
+   439→  @@index([createdAt])
+   440→  @@index([organizationId, createdAt])
+   441→}
+   442→
+   443→// ============================================
+   444→// DEBTS & CREDIT TRACKING
+   445→// ============================================
+   446→
+   447→model Debt {
+   448→  id             String   @id @default(cuid())
+   449→  organizationId String
+   450→  shopId         String?  // Optional - which shop/branch this debt belongs to
+   451→  customerId     String?
+   452→  supplierId     String?
+   453→  type           String   // customer_debt, supplier_debt
+   454→  amount         Float
+   455→  paidAmount     Float    @default(0)
+   456→  dueDate        DateTime?
+   457→  status         String   @default("pending") // pending, partial, paid, overdue
+   458→  description    String?
+   459→  createdAt      DateTime @default(now())
+   460→  updatedAt      DateTime @updatedAt
+   461→
+   462→  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   463→  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+   464→  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+   465→  supplier       Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+   466→  payments       DebtPayment[]
+   467→
+   468→  @@index([organizationId])
+   469→  @@index([shopId])
+   470→  @@index([customerId])
+   471→  @@index([supplierId])
+   472→  @@index([organizationId, type, status])
+   473→}
+   474→
+   475→model DebtPayment {
+   476→  id             String   @id @default(cuid())
+   477→  debtId         String
+   478→  amount         Float
+   479→  paymentMethod  String   @default("cash")
+   480→  notes          String?
+   481→  paidAt         DateTime @default(now())
+   482→
+   483→  debt           Debt     @relation(fields: [debtId], references: [id], onDelete: Cascade)
+   484→
+   485→  @@index([debtId])
+   486→}
+   487→
+   488→// ============================================
+   489→// INTEGRATION CONFIGS
+   490→// ============================================
+   491→
+   492→model IntegrationConfig {
+   493→  id             String   @id @default(cuid())
+   494→  organizationId String
+   495→  type           String   // telegram, whatsapp
+   496→  config         String   // JSON string with bot token, api keys, etc.
+   497→  isActive       Boolean  @default(false)
+   498→  createdAt      DateTime @default(now())
+   499→  updatedAt      DateTime @updatedAt
+   500→
+   501→  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   502→
+   503→  @@index([organizationId])
+   504→}
+   505→
+   506→// ============================================
+   507→// SERVICE PROVIDER SYSTEM (Barbershops, Salons, etc.)
+   508→// ============================================
+   509→
+   510→model ServiceType {
+   511→  id             String   @id @default(cuid())
+   512→  organizationId String
+   513→  name           String
+   514→  description    String?
+   515→  duration       Int      @default(30) // Duration in minutes
+   516→  price          Float    @default(0)
+   517→  imageUrl       String?
+   518→  isActive       Boolean  @default(true)
+   519→  createdAt      DateTime @default(now())
+   520→  updatedAt      DateTime @updatedAt
+   521→
+   522→  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   523→  bookings       ServiceBooking[]
+   524→
+   525→  @@index([organizationId])
+   526→}
+   527→
+   528→model ServiceBooking {
+   529→  id             String   @id @default(cuid())
+   530→  organizationId String
+   531→  shopId         String?  // Optional - which shop/location
+   532→  serviceTypeId  String
+   533→  customerId     String?
+   534→  customerName   String
+   535→  customerPhone  String?
+   536→  status         String   @default("scheduled") // scheduled, completed, cancelled, no_show
+   537→  bookingDate    DateTime
+   538→  startTime      String   // "09:00"
+   539→  endTime        String   // "09:30"
+   540→  notes          String?
+   541→  createdAt      DateTime @default(now())
+   542→  updatedAt      DateTime @updatedAt
+   543→
+   544→  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   545→  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+   546→  serviceType    ServiceType  @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+   547→  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+   548→
+   549→  @@index([organizationId])
+   550→  @@index([shopId])
+   551→  @@index([serviceTypeId])
+   552→  @@index([bookingDate])
+   553→}
+   554→
+   555→// ============================================
+   556→// NOTIFICATION SYSTEM
+   557→// ============================================
+   558→
+   559→model Notification {
+   560→  id             String   @id @default(cuid())
+   561→  organizationId String
+   562→  shopId         String?  // Optional - which shop/branch this notification belongs to
+   563→  userId         String?  // null = all org members, specific user = targeted
+   564→  type           String   // module_expiry, module_expired, trial_ending, subscription, low_stock, debt_reminder, system
+   565→  title          String
+   566→  message        String
+   567→  isRead         Boolean  @default(false)
+   568→  actionUrl      String?  // e.g. "/modules" for module-related notifications
+   569→  metadata       String?  // JSON string for extra data (moduleKey, daysUntilExpiry, etc.)
+   570→  createdAt      DateTime @default(now())
+   571→
+   572→  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   573→  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+   574→
+   575→  @@index([organizationId])
+   576→  @@index([shopId])
+   577→  @@index([userId])
+   578→  @@index([isRead])
+   579→  @@index([createdAt])
+   580→  @@index([organizationId, isRead])
+   581→  @@index([organizationId, userId, isRead])
+   582→}
+   583→
+   584→// ============================================
+   585→// SALES TEAM SYSTEM
+   586→// ============================================
+   587→
+   588→model SalesRep {
+   589→  id              String   @id @default(cuid())
+   590→  userId          String   @unique
+   591→  phone           String?
+   592→  targetCity      String?  // Assigned territory/city
+   593→  commissionRate  Float    @default(0) // Commission percentage per registration (e.g. 10 = 10%)
+   594→  commissionPerReg Float  @default(0) // Fixed commission amount per registration in ETB
+   595→  isActive        Boolean  @default(true)
+   596→  joinedAt        DateTime @default(now())
+   597→  createdAt       DateTime @default(now())
+   598→  updatedAt       DateTime @updatedAt
+   599→
+   600→  regionId        String?
+   601→  region          Region?  @relation(fields: [regionId], references: [id], onDelete: SetNull)
+   602→
+   603→  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+   604→  goals           SalesGoal[]
+   605→  commissions     SalesCommission[]
+   606→  registrations   Organization[] // Shops this rep has registered
+   607→
+   608→  @@index([userId])
+   609→  @@index([targetCity])
+   610→  @@index([isActive])
+   611→  @@index([regionId])
+   612→}
+   613→
+   614→model SalesGoal {
+   615→  id              String   @id @default(cuid())
+   616→  salesRepId      String
+   617→  period          String   // "2025-03" (month), "2025-Q1" (quarter)
+   618→  targetCount     Int      @default(0) // Number of shops to register
+   619→  achievedCount   Int      @default(0) // How many registered so far
+   620→  bonusAmount     Float    @default(0) // Bonus if target is met (ETB)
+   621→  isAchieved      Boolean  @default(false)
+   622→  createdAt       DateTime @default(now())
+   623→  updatedAt       DateTime @updatedAt
+   624→
+   625→  salesRep        SalesRep @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+   626→
+   627→  @@unique([salesRepId, period])
+   628→  @@index([salesRepId])
+   629→  @@index([period])
+   630→}
+   631→
+   632→model SalesCommission {
+   633→  id              String   @id @default(cuid())
+   634→  salesRepId      String
+   635→  organizationId  String   // Which shop was registered
+   636→  amount          Float    @default(0) // Commission amount in ETB
+   637→  status          String   @default("pending") // pending, paid, cancelled
+   638→  paidAt          DateTime?
+   639→  createdAt       DateTime @default(now())
+   640→  updatedAt       DateTime @updatedAt
+   641→
+   642→  salesRep        SalesRep     @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+   643→  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   644→
+   645→  @@index([salesRepId])
+   646→  @@index([organizationId])
+   647→  @@index([status])
+   648→}
+   649→
+   650→// ============================================
+   651→// AUDIT / ACTIVITY LOG
+   652→// ============================================
+   653→
+   654→model AuditLog {
+   655→  id             String   @id @default(cuid())
+   656→  organizationId String?
+   657→  userId         String?
+   658→  action         String   // create, update, delete, login, logout, etc.
+   659→  entity         String   // Product, Sale, Customer, User, etc.
+   660→  entityId       String?  // ID of the affected entity
+   661→  details        String?  // JSON string with before/after snapshot
+   662→  ipAddress      String?
+   663→  userAgent      String?
+   664→  createdAt      DateTime @default(now())
+   665→
+   666→  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   667→  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+   668→
+   669→  @@index([organizationId])
+   670→  @@index([userId])
+   671→  @@index([entity])
+   672→  @@index([action])
+   673→  @@index([createdAt])
+   674→}
+   675→
+   676→// ============================================
+   677→// EXPENSE TRACKING
+   678→// ============================================
+   679→
+   680→model Expense {
+   681→  id             String   @id @default(cuid())
+   682→  organizationId String
+   683→  shopId         String?
+   684→  category       String   // rent, salary, utilities, marketing, supplies, transport, other
+   685→  amount         Float
+   686→  description    String?
+   687→  expenseDate    DateTime @default(now())
+   688→  receiptUrl     String?
+   689→  isRecurring    Boolean  @default(false)
+   690→  recurringPeriod String? // monthly, weekly, yearly
+   691→  createdAt      DateTime @default(now())
+   692→  updatedAt      DateTime @updatedAt
+   693→
+   694→  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   695→  shop           Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+   696→
+   697→  @@index([organizationId])
+   698→  @@index([shopId])
+   699→  @@index([category])
+   700→  @@index([expenseDate])
+   701→  @@index([organizationId, expenseDate])
+   702→  @@index([organizationId, category])
+   703→}
+   704→
+   705→// ============================================
+   706→// CUSTOMER LOYALTY / POINTS SYSTEM
+   707→// ============================================
+   708→
+   709→model LoyaltyAccount {
+   710→  id             String   @id @default(cuid())
+   711→  customerId     String   @unique
+   712→  points         Int      @default(0)
+   713→  totalEarned    Int      @default(0)
+   714→  totalRedeemed  Int      @default(0)
+   715→  tier           String   @default("bronze") // bronze, silver, gold, platinum
+   716→  createdAt      DateTime @default(now())
+   717→  updatedAt      DateTime @updatedAt
+   718→
+   719→  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+   720→  transactions   LoyaltyTransaction[]
+   721→
+   722→  @@index([customerId])
+   723→  @@index([tier])
+   724→}
+   725→
+   726→model LoyaltyTransaction {
+   727→  id              String   @id @default(cuid())
+   728→  loyaltyAccountId String
+   729→  type            String   // earn, redeem, expire, adjust
+   730→  points          Int      // positive for earn, negative for redeem
+   731→  saleId          String?  // Linked sale for earning
+   732→  description     String?
+   733→  expiresAt       DateTime?
+   734→  createdAt       DateTime @default(now())
+   735→
+   736→  loyaltyAccount  LoyaltyAccount @relation(fields: [loyaltyAccountId], references: [id], onDelete: Cascade)
+   737→
+   738→  @@index([loyaltyAccountId])
+   739→  @@index([type])
+   740→  @@index([createdAt])
+   741→}
+   742→
+   743→// ============================================
+   744→// CREDIT LIMIT MANAGEMENT
+   745→// ============================================
+   746→
+   747→model CreditLimit {
+   748→  id             String   @id @default(cuid())
+   749→  customerId     String   @unique
+   750→  creditLimit    Float    @default(0) // Maximum credit allowed in ETB
+   751→  usedCredit     Float    @default(0) // Currently outstanding credit
+   752→  availableCredit Float   @default(0) // creditLimit - usedCredit
+   753→  alertThreshold Float    @default(0.8) // Alert when usedCredit/creditLimit exceeds this
+   754→  isBlocked      Boolean  @default(false) // Block sales on credit when true
+   755→  createdAt      DateTime @default(now())
+   756→  updatedAt      DateTime @updatedAt
+   757→
+   758→  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+   759→
+   760→  @@index([customerId])
+   761→  @@index([isBlocked])
+   762→}
+   763→
+   764→// ============================================
+   765→// STOCK TRANSFER
+   766→// ============================================
+   767→
+   768→model StockTransfer {
+   769→  id              String   @id @default(cuid())
+   770→  organizationId  String
+   771→  fromShopId      String
+   772→  toShopId        String
+   773→  productId       String
+   774→  quantity        Int
+   775→  status          String   @default("pending") // pending, approved, in_transit, completed, cancelled
+   776→  requestedById   String?  // User who initiated
+   777→  approvedById    String?  // User who approved
+   778→  notes           String?
+   779→  createdAt       DateTime @default(now())
+   780→  updatedAt       DateTime @updatedAt
+   781→  completedAt     DateTime?
+   782→
+   783→  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   784→  fromShop        Shop         @relation("TransfersFrom", fields: [fromShopId], references: [id], onDelete: Cascade)
+   785→  toShop          Shop         @relation("TransfersTo", fields: [toShopId], references: [id], onDelete: Cascade)
+   786→  product         Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+   787→
+   788→  @@index([organizationId])
+   789→  @@index([fromShopId])
+   790→  @@index([toShopId])
+   791→  @@index([productId])
+   792→  @@index([status])
+   793→}
+   794→
+   795→// ============================================
+   796→// PURCHASE ORDER (Auto Reorder)
+   797→// ============================================
+   798→
+   799→model PurchaseOrder {
+   800→  id              String   @id @default(cuid())
+   801→  organizationId  String
+   802→  shopId          String?
+   803→  supplierId      String?
+   804→  status          String   @default("draft") // draft, sent, confirmed, received, cancelled
+   805→  totalAmount     Float    @default(0)
+   806→  notes           String?
+   807→  orderDate       DateTime @default(now())
+   808→  expectedDate    DateTime?
+   809→  createdAt       DateTime @default(now())
+   810→  updatedAt       DateTime @updatedAt
+   811→
+   812→  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   813→  shop            Shop?        @relation(fields: [shopId], references: [id], onDelete: SetNull)
+   814→  supplier        Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+   815→  items           PurchaseOrderItem[]
+   816→
+   817→  @@index([organizationId])
+   818→  @@index([shopId])
+   819→  @@index([supplierId])
+   820→  @@index([status])
+   821→}
+   822→
+   823→model PurchaseOrderItem {
+   824→  id              String   @id @default(cuid())
+   825→  purchaseOrderId String
+   826→  productId       String
+   827→  quantity        Int
+   828→  unitCost        Float
+   829→  totalCost       Float
+   830→  receivedQty     Int      @default(0)
+   831→  createdAt       DateTime @default(now())
+   832→
+   833→  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+   834→  product         Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+   835→
+   836→  @@index([purchaseOrderId])
+   837→  @@index([productId])
+   838→}
+   839→
+   840→// ============================================
+   841→// USER SESSION MANAGEMENT (Enhanced)
+   842→// ============================================
+   843→
+   844→model UserDevice {
+   845→  id             String   @id @default(cuid())
+   846→  userId         String
+   847→  deviceName     String?
+   848→  deviceType     String?  // desktop, mobile, tablet
+   849→  browser        String?
+   850→  os             String?
+   851→  ipAddress      String?
+   852→  lastActiveAt   DateTime @default(now())
+   853→  isActive       Boolean  @default(true)
+   854→  createdAt      DateTime @default(now())
+   855→
+   856→  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+   857→
+   858→  @@index([userId])
+   859→  @@index([isActive])
+   860→}
+   861→
+   862→// ============================================
+   863→// SCHEDULED REPORTS
+   864→// ============================================
+   865→
+   866→model ScheduledReport {
+   867→  id              String   @id @default(cuid())
+   868→  organizationId  String
+   869→  name            String
+   870→  reportType      String   // daily_sales, weekly_summary, monthly_pnl, inventory_status
+   871→  frequency       String   // daily, weekly, monthly
+   872→  deliveryMethod  String   // email, telegram, whatsapp
+   873→  deliveryConfig  String   // JSON: {email, chatId, etc.}
+   874→  isActive        Boolean  @default(true)
+   875→  lastSentAt      DateTime?
+   876→  nextSendAt      DateTime?
+   877→  createdAt       DateTime @default(now())
+   878→  updatedAt       DateTime @updatedAt
+   879→
+   880→  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+   881→
+   882→  @@index([organizationId])
+   883→  @@index([isActive])
+   884→  @@index([nextSendAt])
+   885→}
+   886→

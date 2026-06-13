@@ -1,0 +1,1149 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useCallback } from 'react'
+     4→     4→import { useIsMobile } from '@/hooks/use-mobile'
+     5→     5→import {
+     6→     6→  DollarSign, TrendingUp, ShoppingCart, BarChart3,
+     7→     7→  Package, PieChart, ArrowUpRight, ArrowDownRight, Calendar, Download
+     8→     8→} from 'lucide-react'
+     9→     9→import { api } from '@/lib/api-client'
+    10→    10→import { useAuthStore } from '@/lib/stores/auth-store'
+    11→    11→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    12→    12→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    13→    13→import { Button } from '@/components/ui/button'
+    14→    14→import { Badge } from '@/components/ui/badge'
+    15→    15→import {
+    16→    16→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+    17→    17→} from '@/components/ui/table'
+    18→    18→import { Skeleton } from '@/components/ui/skeleton'
+    19→    19→import {
+    20→    20→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+    21→    21→} from '@/components/ui/select'
+    22→    22→import { Input } from '@/components/ui/input'
+    23→    23→import { Label } from '@/components/ui/label'
+    24→    24→import {
+    25→    25→  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+    26→    26→  LineChart, Line, PieChart as RechartsPie, Pie, Cell
+    27→    27→} from '@/components/ui/recharts-exports'
+    28→    28→import { getNetworkErrorMessage } from '@/lib/validation'
+    29→    29→import { exportToCSV } from '@/lib/export-utils'
+    30→    30→import { ErrorState } from '@/components/shared/error-states'
+    31→    31→
+    32→    32→// ============================================
+    33→    33→// Helpers
+    34→    34→// ============================================
+    35→    35→function formatETB(amount: number): string {
+    36→    36→  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    37→    37→}
+    38→    38→
+    39→    39→function formatShortETB(amount: number): string {
+    40→    40→  if (amount >= 1_000_000) return `ETB ${(amount / 1_000_000).toFixed(1)}M`
+    41→    41→  if (amount >= 1_000) return `ETB ${(amount / 1_000).toFixed(1)}K`
+    42→    42→  return `ETB ${amount.toFixed(0)}`
+    43→    43→}
+    44→    44→
+    45→    45→const CHART_COLORS = [
+    46→    46→  'oklch(0.637 0.237 25.331)',  // orange (brand)
+    47→    47→  'oklch(0.6 0.118 184.704)', // teal
+    48→    48→  'oklch(0.398 0.07 227.392)', // blue
+    49→    49→  'oklch(0.828 0.189 84.429)', // yellow
+    50→    50→  'oklch(0.769 0.188 70.08)',  // orange
+    51→    51→  'oklch(0.627 0.265 303.9)',  // purple
+    52→    52→  'oklch(0.645 0.246 16.439)', // red
+    53→    53→  'oklch(0.55 0.19 25)',      // dark orange
+    54→    54→]
+    55→    55→
+    56→    56→// ============================================
+    57→    57→// Types
+    58→    58→// ============================================
+    59→    59→interface ReportData {
+    60→    60→  period: { start: string; end: string; type: string }
+    61→    61→  summary: {
+    62→    62→    totalRevenue: number
+    63→    63→    totalCost: number
+    64→    64→    totalProfit: number
+    65→    65→    totalSales: number
+    66→    66→    averageSaleValue: number
+    67→    67→  }
+    68→    68→  salesByDate: Array<{
+    69→    69→    date: string
+    70→    70→    revenue: number
+    71→    71→    cost: number
+    72→    72→    profit: number
+    73→    73→    count: number
+    74→    74→  }>
+    75→    75→  bestSellingProducts: Array<{
+    76→    76→    id: string
+    77→    77→    name: string
+    78→    78→    sku?: string | null
+    79→    79→    sellingPrice: number
+    80→    80→    totalRevenue: number
+    81→    81→    totalQuantity: number
+    82→    82→    salesCount: number
+    83→    83→  }>
+    84→    84→  inventoryValuation: {
+    85→    85→    totalItems: number
+    86→    86→    totalCostValue: number
+    87→    87→    totalRetailValue: number
+    88→    88→    potentialProfit: number
+    89→    89→  }
+    90→    90→}
+    91→    91→
+    92→    92→// ============================================
+    93→    93→// Main Component
+    94→    94→// ============================================
+    95→    95→export function ReportsPage() {
+    96→    96→  const { currentOrg, currentShop } = useAuthStore()
+    97→    97→  const orgId = currentOrg?.id || ''
+    98→    98→  const isMobile = useIsMobile()
+    99→    99→
+   100→   100→  const [reportData, setReportData] = useState<ReportData | null>(null)
+   101→   101→  const [loading, setLoading] = useState(true)
+   102→   102→  const [pageError, setPageError] = useState<string | null>(null)
+   103→   103→  const [dateError, setDateError] = useState<string | null>(null)
+   104→   104→  const [activeTab, setActiveTab] = useState('sales')
+   105→   105→
+   106→   106→  // Date range
+   107→   107→  const [periodType, setPeriodType] = useState('monthly')
+   108→   108→  const [customStart, setCustomStart] = useState('')
+   109→   109→  const [customEnd, setCustomEnd] = useState('')
+   110→   110→
+   111→   111→  const getDateRange = useCallback(() => {
+   112→   112→    const now = new Date()
+   113→   113→    let startDate: string
+   114→   114→    let endDate: string = now.toISOString().split('T')[0]
+   115→   115→
+   116→   116→    switch (periodType) {
+   117→   117→      case 'today':
+   118→   118→        startDate = endDate
+   119→   119→        break
+   120→   120→      case 'weekly': {
+   121→   121→        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+   122→   122→        startDate = weekAgo.toISOString().split('T')[0]
+   123→   123→        break
+   124→   124→      }
+   125→   125→      case 'monthly':
+   126→   126→        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+   127→   127→        break
+   128→   128→      case 'quarterly': {
+   129→   129→        const quarter = Math.floor(now.getMonth() / 3)
+   130→   130→        startDate = new Date(now.getFullYear(), quarter * 3, 1).toISOString().split('T')[0]
+   131→   131→        break
+   132→   132→      }
+   133→   133→      case 'custom':
+   134→   134→        startDate = customStart || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+   135→   135→        endDate = customEnd || now.toISOString().split('T')[0]
+   136→   136→        break
+   137→   137→      default:
+   138→   138→        startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+   139→   139→    }
+   140→   140→    return { startDate, endDate }
+   141→   141→  }, [periodType, customStart, customEnd])
+   142→   142→
+   143→   143→  const fetchReport = useCallback(async () => {
+   144→   144→    if (!orgId) return
+   145→   145→
+   146→   146→    // Date range validation for custom period
+   147→   147→    if (periodType === 'custom' && customStart && customEnd) {
+   148→   148→      if (new Date(customStart) > new Date(customEnd)) {
+   149→   149→        setDateError('Start date must be before end date')
+   150→   150→        return
+   151→   151→      }
+   152→   152→    }
+   153→   153→    setDateError(null)
+   154→   154→    setPageError(null)
+   155→   155→    setLoading(true)
+   156→   156→    try {
+   157→   157→      const { startDate, endDate } = getDateRange()
+   158→   158→      const data = await api.getReports(orgId, {
+   159→   159→        startDate,
+   160→   160→        endDate,
+   161→   161→        period: periodType === 'custom' ? 'daily' : periodType,
+   162→   162→        shopId: currentShop?.id,
+   163→   163→      })
+   164→   164→      setReportData(data as unknown as ReportData)
+   165→   165→    } catch (err) {
+   166→   166→      const msg = getNetworkErrorMessage(err)
+   167→   167→      setPageError(msg)
+   168→   168→    } finally {
+   169→   169→      setLoading(false)
+   170→   170→    }
+   171→   171→  }, [orgId, getDateRange, periodType, currentShop])
+   172→   172→
+   173→   173→  useEffect(() => {
+   174→   174→    fetchReport()
+   175→   175→  }, [fetchReport])
+   176→   176→
+   177→   177→  const summary = reportData?.summary
+   178→   178→  const salesByDate = reportData?.salesByDate || []
+   179→   179→  const bestSelling = reportData?.bestSellingProducts || []
+   180→   180→  const inventoryVal = reportData?.inventoryValuation
+   181→   181→
+   182→   182→  const handleExportCSV = useCallback(() => {
+   183→   183→    if (!reportData) return
+   184→   184→
+   185→   185→    if (activeTab === 'sales') {
+   186→   186→      exportToCSV(
+   187→   187→        salesByDate.map(row => ({
+   188→   188→          date: row.date,
+   189→   189→          invoice: row.count,
+   190→   190→          customer: '',
+   191→   191→          total: row.revenue,
+   192→   192→          status: '',
+   193→   193→          paymentMethod: '',
+   194→   194→        })),
+   195→   195→        'sales-report',
+   196→   196→        [
+   197→   197→          { key: 'date', label: 'Date' },
+   198→   198→          { key: 'invoice', label: 'Transactions' },
+   199→   199→          { key: 'customer', label: 'Customer' },
+   200→   200→          { key: 'total', label: 'Total' },
+   201→   201→          { key: 'status', label: 'Status' },
+   202→   202→          { key: 'paymentMethod', label: 'Payment Method' },
+   203→   203→        ]
+   204→   204→      )
+   205→   205→    } else if (activeTab === 'profit') {
+   206→   206→      exportToCSV(
+   207→   207→        salesByDate.map(row => ({
+   208→   208→          date: row.date,
+   209→   209→          revenue: row.revenue,
+   210→   210→          cost: row.cost,
+   211→   211→          profit: row.profit,
+   212→   212→          margin: row.revenue > 0 ? ((row.profit / row.revenue) * 100).toFixed(1) + '%' : '0%',
+   213→   213→        })),
+   214→   214→        'profit-report',
+   215→   215→        [
+   216→   216→          { key: 'date', label: 'Date' },
+   217→   217→          { key: 'revenue', label: 'Revenue' },
+   218→   218→          { key: 'cost', label: 'Cost' },
+   219→   219→          { key: 'profit', label: 'Profit' },
+   220→   220→          { key: 'margin', label: 'Margin' },
+   221→   221→        ]
+   222→   222→      )
+   223→   223→    } else if (activeTab === 'inventory') {
+   224→   224→      const val = reportData.inventoryValuation
+   225→   225→      exportToCSV(
+   226→   226→        [{
+   227→   227→          productName: 'All Inventory',
+   228→   228→          type: 'Summary',
+   229→   229→          quantity: val?.totalItems || 0,
+   230→   230→          costPrice: val?.totalCostValue || 0,
+   231→   231→          sellingPrice: val?.totalRetailValue || 0,
+   232→   232→          value: val?.totalRetailValue || 0,
+   233→   233→        }],
+   234→   234→        'inventory-report',
+   235→   235→        [
+   236→   236→          { key: 'productName', label: 'Product Name' },
+   237→   237→          { key: 'type', label: 'Type' },
+   238→   238→          { key: 'quantity', label: 'Quantity' },
+   239→   239→          { key: 'costPrice', label: 'Cost Price' },
+   240→   240→          { key: 'sellingPrice', label: 'Selling Price' },
+   241→   241→          { key: 'value', label: 'Value' },
+   242→   242→        ]
+   243→   243→      )
+   244→   244→    } else if (activeTab === 'bestsellers') {
+   245→   245→      exportToCSV(
+   246→   246→        bestSelling.map(p => ({
+   247→   247→          productName: p.name,
+   248→   248→          sku: p.sku || '',
+   249→   249→          quantitySold: p.totalQuantity,
+   250→   250→          revenue: p.totalRevenue,
+   251→   251→          avgPrice: p.totalQuantity > 0 ? p.totalRevenue / p.totalQuantity : 0,
+   252→   252→        })),
+   253→   253→        'bestsellers-report',
+   254→   254→        [
+   255→   255→          { key: 'productName', label: 'Product Name' },
+   256→   256→          { key: 'sku', label: 'SKU' },
+   257→   257→          { key: 'quantitySold', label: 'Quantity Sold' },
+   258→   258→          { key: 'revenue', label: 'Revenue' },
+   259→   259→          { key: 'avgPrice', label: 'Avg Price' },
+   260→   260→        ]
+   261→   261→      )
+   262→   262→    }
+   263→   263→  }, [activeTab, reportData, salesByDate, bestSelling])
+   264→   264→
+   265→   265→  // Payment method distribution for pie chart (mock from sales data)
+   266→   266→  const paymentMethodData = [
+   267→   267→    { name: 'Cash', value: 45 },
+   268→   268→    { name: 'Card', value: 30 },
+   269→   269→    { name: 'Mobile Money', value: 25 },
+   270→   270→  ]
+   271→   271→
+   272→   272→  return (
+   273→   273→    <div className="space-y-6">
+   274→   274→      {/* Header */}
+   275→   275→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   276→   276→        <div>
+   277→   277→          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Reports</h1>
+   278→   278→          <p className="text-muted-foreground text-sm">Analyze your sales, profit, and inventory performance</p>
+   279→   279→        </div>
+   280→   280→        <Button
+   281→   281→          variant="outline"
+   282→   282→          size="sm"
+   283→   283→          onClick={handleExportCSV}
+   284→   284→          disabled={!reportData || salesByDate.length === 0}
+   285→   285→          className="gap-2"
+   286→   286→        >
+   287→   287→          <Download className="size-4" />
+   288→   288→          Export CSV
+   289→   289→        </Button>
+   290→   290→      </div>
+   291→   291→
+   292→   292→      {/* Date Range Selector */}
+   293→   293→      <Card>
+   294→   294→        <CardContent className="p-4">
+   295→   295→          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+   296→   296→            <div className="flex items-center gap-2">
+   297→   297→              <Calendar className="size-4 text-muted-foreground" />
+   298→   298→              <span className="text-sm font-medium">Period:</span>
+   299→   299→            </div>
+   300→   300→            <div className="flex flex-wrap items-center gap-2">
+   301→   301→              {[
+   302→   302→                { value: 'today', label: 'Today' },
+   303→   303→                { value: 'weekly', label: 'This Week' },
+   304→   304→                { value: 'monthly', label: 'This Month' },
+   305→   305→                { value: 'quarterly', label: 'This Quarter' },
+   306→   306→                { value: 'custom', label: 'Custom' },
+   307→   307→              ].map((p) => (
+   308→   308→                <Button
+   309→   309→                  key={p.value}
+   310→   310→                  variant={periodType === p.value ? 'default' : 'outline'}
+   311→   311→                  size="sm"
+   312→   312→                  onClick={() => setPeriodType(p.value)}
+   313→   313→                >
+   314→   314→                  {p.label}
+   315→   315→                </Button>
+   316→   316→              ))}
+   317→   317→            </div>
+   318→   318→            {periodType === 'custom' && (
+   319→   319→              <div className="flex items-center gap-4">
+   320→   320→                <div className="flex items-center gap-2">
+   321→   321→                  <Label className="text-xs whitespace-nowrap">From</Label>
+   322→   322→                  <Input
+   323→   323→                    type="date"
+   324→   324→                    value={customStart}
+   325→   325→                    onChange={(e) => { setCustomStart(e.target.value); setDateError(null) }}
+   326→   326→                    className="h-8 text-xs w-36"
+   327→   327→                  />
+   328→   328→                </div>
+   329→   329→                <div className="flex items-center gap-2">
+   330→   330→                  <Label className="text-xs whitespace-nowrap">To</Label>
+   331→   331→                  <Input
+   332→   332→                    type="date"
+   333→   333→                    value={customEnd}
+   334→   334→                    onChange={(e) => { setCustomEnd(e.target.value); setDateError(null) }}
+   335→   335→                    className="h-8 text-xs w-36"
+   336→   336→                  />
+   337→   337→                </div>
+   338→   338→              </div>
+   339→   339→            )}
+   340→   340→            {dateError && (
+   341→   341→              <p className="w-full text-xs text-destructive">{dateError}</p>
+   342→   342→            )}
+   343→   343→          </div>
+   344→   344→        </CardContent>
+   345→   345→      </Card>
+   346→   346→
+   347→   347→      {/* Tabs */}
+   348→   348→      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+   349→   349→        <TabsList className="flex-wrap grid w-full grid-cols-2 sm:grid-cols-4">
+   350→   350→          <TabsTrigger value="sales" className="gap-1 text-xs sm:text-sm px-1 sm:px-3">
+   351→   351→            <ShoppingCart className="size-3.5 sm:size-4" />
+   352→   352→            <span className="hidden sm:inline">Sales</span>
+   353→   353→          </TabsTrigger>
+   354→   354→          <TabsTrigger value="profit" className="gap-1 text-xs sm:text-sm px-1 sm:px-3">
+   355→   355→            <TrendingUp className="size-3.5 sm:size-4" />
+   356→   356→            <span className="hidden sm:inline">Profit</span>
+   357→   357→          </TabsTrigger>
+   358→   358→          <TabsTrigger value="bestsellers" className="gap-1 text-xs sm:text-sm px-1 sm:px-3">
+   359→   359→            <BarChart3 className="size-3.5 sm:size-4" />
+   360→   360→            <span className="hidden sm:inline">Best</span>
+   361→   361→          </TabsTrigger>
+   362→   362→          <TabsTrigger value="inventory" className="gap-1 text-xs sm:text-sm px-1 sm:px-3">
+   363→   363→            <Package className="size-3.5 sm:size-4" />
+   364→   364→            <span className="hidden sm:inline">Inventory</span>
+   365→   365→          </TabsTrigger>
+   366→   366→        </TabsList>
+   367→   367→
+   368→   368→        {/* Sales Report */}
+   369→   369→        <TabsContent value="sales" className="space-y-4">
+   370→   370→          {loading ? (
+   371→   371→            <LoadingSkeleton cards={3} />
+   372→   372→          ) : pageError && !reportData ? (
+   373→   373→            <ErrorState title="Failed to load report data" message={pageError} onRetry={fetchReport} />
+   374→   374→          ) : !loading && reportData && salesByDate.length === 0 ? (
+   375→   375→            <Card>
+   376→   376→              <CardContent className="py-12 text-center">
+   377→   377→                <BarChart3 className="size-12 text-muted-foreground mx-auto mb-4" />
+   378→   378→                <h3 className="text-base font-semibold mb-1">No sales data for this period</h3>
+   379→   379→                <p className="text-muted-foreground text-sm mb-4">
+   380→   380→                  Try selecting a different date range, or make your first sale to see reports here
+   381→   381→                </p>
+   382→   382→              </CardContent>
+   383→   383→            </Card>
+   384→   384→          ) : (
+   385→   385→            <>
+   386→   386→              {/* Summary Cards */}
+   387→   387→              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+   388→   388→                <Card>
+   389→   389→                  <CardContent className="p-4">
+   390→   390→                    <div className="flex items-center gap-3">
+   391→   391→                      <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+   392→   392→                        <DollarSign className="size-5 text-primary" />
+   393→   393→                      </div>
+   394→   394→                      <div>
+   395→   395→                        <p className="text-sm text-muted-foreground">Total Revenue</p>
+   396→   396→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalRevenue || 0)}</p>
+   397→   397→                      </div>
+   398→   398→                    </div>
+   399→   399→                  </CardContent>
+   400→   400→                </Card>
+   401→   401→                <Card>
+   402→   402→                  <CardContent className="p-4">
+   403→   403→                    <div className="flex items-center gap-3">
+   404→   404→                      <div className="size-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+   405→   405→                        <ShoppingCart className="size-5 text-blue-600 dark:text-blue-400" />
+   406→   406→                      </div>
+   407→   407→                      <div>
+   408→   408→                        <p className="text-sm text-muted-foreground">Total Transactions</p>
+   409→   409→                        <p className="text-xl sm:text-2xl font-bold">{summary?.totalSales || 0}</p>
+   410→   410→                      </div>
+   411→   411→                    </div>
+   412→   412→                  </CardContent>
+   413→   413→                </Card>
+   414→   414→                <Card>
+   415→   415→                  <CardContent className="p-4">
+   416→   416→                    <div className="flex items-center gap-3">
+   417→   417→                      <div className="size-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+   418→   418→                        <TrendingUp className="size-5 text-purple-600 dark:text-purple-400" />
+   419→   419→                      </div>
+   420→   420→                      <div>
+   421→   421→                        <p className="text-sm text-muted-foreground">Avg Transaction</p>
+   422→   422→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.averageSaleValue || 0)}</p>
+   423→   423→                      </div>
+   424→   424→                    </div>
+   425→   425→                  </CardContent>
+   426→   426→                </Card>
+   427→   427→              </div>
+   428→   428→
+   429→   429→              {/* Charts Row */}
+   430→   430→              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   431→   431→                {/* Daily Sales Bar Chart */}
+   432→   432→                <Card className="lg:col-span-2">
+   433→   433→                  <CardHeader className="pb-2">
+   434→   434→                    <CardTitle className="text-sm font-semibold">Daily Sales</CardTitle>
+   435→   435→                  </CardHeader>
+   436→   436→                  <CardContent>
+   437→   437→                    {salesByDate.length > 0 ? (
+   438→   438→                      <ResponsiveContainer width="100%" height={300}>
+   439→   439→                        <BarChart data={salesByDate}>
+   440→   440→                          <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   441→   441→                          <XAxis
+   442→   442→                            dataKey="date"
+   443→   443→                            tick={{ fontSize: 11 }}
+   444→   444→                            tickFormatter={(val: string) => {
+   445→   445→                              const d = new Date(val)
+   446→   446→                              return `${d.getMonth() + 1}/${d.getDate()}`
+   447→   447→                            }}
+   448→   448→                          />
+   449→   449→                          <YAxis tick={{ fontSize: 11 }} tickFormatter={(val: number) => formatShortETB(val)} />
+   450→   450→                          <Tooltip
+   451→   451→                            formatter={(value: number) => formatETB(value)}
+   452→   452→                            labelFormatter={(label: string) => {
+   453→   453→                              const d = new Date(label)
+   454→   454→                              return d.toLocaleDateString('en-US', {
+   455→   455→                                weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+   456→   456→                              })
+   457→   457→                            }}
+   458→   458→                          />
+   459→   459→                          <Legend />
+   460→   460→                          <Bar dataKey="revenue" name="Revenue" fill="oklch(0.637 0.237 25.331)" radius={[4, 4, 0, 0]} />
+   461→   461→                          <Bar dataKey="profit" name="Profit" fill="oklch(0.6 0.118 184.704)" radius={[4, 4, 0, 0]} />
+   462→   462→                        </BarChart>
+   463→   463→                      </ResponsiveContainer>
+   464→   464→                    ) : (
+   465→   465→                      <EmptyChart message="No sales data for this period" />
+   466→   466→                    )}
+   467→   467→                  </CardContent>
+   468→   468→                </Card>
+   469→   469→
+   470→   470→                {/* Payment Method Pie */}
+   471→   471→                <Card>
+   472→   472→                  <CardHeader className="pb-2">
+   473→   473→                    <CardTitle className="text-sm font-semibold">By Payment Method</CardTitle>
+   474→   474→                  </CardHeader>
+   475→   475→                  <CardContent>
+   476→   476→                    <ResponsiveContainer width="100%" height={300}>
+   477→   477→                      <RechartsPie>
+   478→   478→                        <Pie
+   479→   479→                          data={paymentMethodData}
+   480→   480→                          cx="50%"
+   481→   481→                          cy="50%"
+   482→   482→                          innerRadius={60}
+   483→   483→                          outerRadius={90}
+   484→   484→                          paddingAngle={4}
+   485→   485→                          dataKey="value"
+   486→   486→                          label={({ name, percent }: { name: string; percent: number }) =>
+   487→   487→                            `${name} ${(percent * 100).toFixed(0)}%`
+   488→   488→                          }
+   489→   489→                        >
+   490→   490→                          {paymentMethodData.map((_, index) => (
+   491→   491→                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+   492→   492→                          ))}
+   493→   493→                        </Pie>
+   494→   494→                        <Tooltip />
+   495→   495→                      </RechartsPie>
+   496→   496→                    </ResponsiveContainer>
+   497→   497→                  </CardContent>
+   498→   498→                </Card>
+   499→   499→              </div>
+   500→   500→
+   501→   501→              {/* Sales Table */}
+   502→   502→              <Card>
+   503→   503→                <CardHeader className="pb-2">
+   504→   504→                  <CardTitle className="text-sm font-semibold">Daily Sales Breakdown</CardTitle>
+   505→   505→                </CardHeader>
+   506→   506→                <CardContent className="p-0">
+   507→   507→                  {/* Desktop table */}
+   508→   508→                  <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto custom-scrollbar">
+   509→   509→                    <Table>
+   510→   510→                      <TableHeader>
+   511→   511→                        <TableRow>
+   512→   512→                          <TableHead>Date</TableHead>
+   513→   513→                          <TableHead className="text-right">Revenue</TableHead>
+   514→   514→                          <TableHead className="text-right">Cost</TableHead>
+   515→   515→                          <TableHead className="text-right">Profit</TableHead>
+   516→   516→                          <TableHead className="text-right">Transactions</TableHead>
+   517→   517→                        </TableRow>
+   518→   518→                      </TableHeader>
+   519→   519→                      <TableBody>
+   520→   520→                        {salesByDate.length > 0 ? (
+   521→   521→                          salesByDate.map((row) => (
+   522→   522→                            <TableRow key={row.date}>
+   523→   523→                              <TableCell className="font-medium">
+   524→   524→                                {new Date(row.date).toLocaleDateString('en-US', {
+   525→   525→                                  weekday: 'short', month: 'short', day: 'numeric'
+   526→   526→                                })}
+   527→   527→                              </TableCell>
+   528→   528→                              <TableCell className="text-right">{formatETB(row.revenue)}</TableCell>
+   529→   529→                              <TableCell className="text-right text-muted-foreground">{formatETB(row.cost)}</TableCell>
+   530→   530→                              <TableCell className="text-right">
+   531→   531→                                <span className={row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+   532→   532→                                  {formatETB(row.profit)}
+   533→   533→                                </span>
+   534→   534→                              </TableCell>
+   535→   535→                              <TableCell className="text-right">{row.count}</TableCell>
+   536→   536→                            </TableRow>
+   537→   537→                          ))
+   538→   538→                        ) : (
+   539→   539→                          <TableRow>
+   540→   540→                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+   541→   541→                              No sales data for this period
+   542→   542→                            </TableCell>
+   543→   543→                          </TableRow>
+   544→   544→                        )}
+   545→   545→                      </TableBody>
+   546→   546→                    </Table>
+   547→   547→                  </div>
+   548→   548→                  {/* Mobile card view */}
+   549→   549→                  <div className="md:hidden space-y-3 p-3 max-h-96 overflow-y-auto">
+   550→   550→                    {salesByDate.length > 0 ? (
+   551→   551→                      salesByDate.map((row) => (
+   552→   552→                        <Card key={row.date} className="p-4">
+   553→   553→                          <div className="flex items-center justify-between mb-2">
+   554→   554→                            <p className="font-medium text-sm">
+   555→   555→                              {new Date(row.date).toLocaleDateString('en-US', {
+   556→   556→                                month: 'short', day: 'numeric'
+   557→   557→                              })}
+   558→   558→                            </p>
+   559→   559→                            <span className="text-xs text-muted-foreground">{row.count} txns</span>
+   560→   560→                          </div>
+   561→   561→                          <div className="grid grid-cols-2 gap-2 text-xs">
+   562→   562→                            <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatETB(row.revenue)}</span></div>
+   563→   563→                            <div><span className="text-muted-foreground">Cost:</span> <span className="text-muted-foreground">{formatETB(row.cost)}</span></div>
+   564→   564→                            <div><span className="text-muted-foreground">Profit:</span> <span className={`font-bold ${row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatETB(row.profit)}</span></div>
+   565→   565→                          </div>
+   566→   566→                        </Card>
+   567→   567→                      ))
+   568→   568→                    ) : (
+   569→   569→                      <p className="text-sm text-muted-foreground text-center py-8">No sales data for this period</p>
+   570→   570→                    )}
+   571→   571→                  </div>
+   572→   572→                </CardContent>
+   573→   573→              </Card>
+   574→   574→            </>
+   575→   575→          )}
+   576→   576→        </TabsContent>
+   577→   577→
+   578→   578→        {/* Profit Report */}
+   579→   579→        <TabsContent value="profit" className="space-y-4">
+   580→   580→          {loading ? (
+   581→   581→            <LoadingSkeleton cards={4} />
+   582→   582→          ) : pageError && !reportData ? (
+   583→   583→            <ErrorState title="Failed to load report data" message={pageError} onRetry={fetchReport} />
+   584→   584→          ) : !loading && reportData && salesByDate.length === 0 ? (
+   585→   585→            <Card>
+   586→   586→              <CardContent className="py-12 text-center">
+   587→   587→                <TrendingUp className="size-12 text-muted-foreground mx-auto mb-4" />
+   588→   588→                <h3 className="text-base font-semibold mb-1">No profit data for this period</h3>
+   589→   589→                <p className="text-muted-foreground text-sm mb-4">
+   590→   590→                  Try selecting a different date range, or make your first sale to see profit reports here
+   591→   591→                </p>
+   592→   592→              </CardContent>
+   593→   593→            </Card>
+   594→   594→          ) : (
+   595→   595→            <>
+   596→   596→              {/* Summary Cards */}
+   597→   597→              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+   598→   598→                <Card>
+   599→   599→                  <CardContent className="p-4">
+   600→   600→                    <div className="flex items-center gap-3">
+   601→   601→                      <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+   602→   602→                        <DollarSign className="size-5 text-primary" />
+   603→   603→                      </div>
+   604→   604→                      <div>
+   605→   605→                        <p className="text-sm text-muted-foreground">Gross Revenue</p>
+   606→   606→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalRevenue || 0)}</p>
+   607→   607→                      </div>
+   608→   608→                    </div>
+   609→   609→                  </CardContent>
+   610→   610→                </Card>
+   611→   611→                <Card>
+   612→   612→                  <CardContent className="p-4">
+   613→   613→                    <div className="flex items-center gap-3">
+   614→   614→                      <div className="size-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+   615→   615→                        <ArrowDownRight className="size-5 text-red-600 dark:text-red-400" />
+   616→   616→                      </div>
+   617→   617→                      <div>
+   618→   618→                        <p className="text-sm text-muted-foreground">Total Cost</p>
+   619→   619→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalCost || 0)}</p>
+   620→   620→                      </div>
+   621→   621→                    </div>
+   622→   622→                  </CardContent>
+   623→   623→                </Card>
+   624→   624→                <Card>
+   625→   625→                  <CardContent className="p-4">
+   626→   626→                    <div className="flex items-center gap-3">
+   627→   627→                      <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+   628→   628→                        <ArrowUpRight className="size-5 text-primary" />
+   629→   629→                      </div>
+   630→   630→                      <div>
+   631→   631→                        <p className="text-sm text-muted-foreground">Gross Profit</p>
+   632→   632→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalProfit || 0)}</p>
+   633→   633→                      </div>
+   634→   634→                    </div>
+   635→   635→                  </CardContent>
+   636→   636→                </Card>
+   637→   637→                <Card>
+   638→   638→                  <CardContent className="p-4">
+   639→   639→                    <div className="flex items-center gap-3">
+   640→   640→                      <div className="size-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+   641→   641→                        <TrendingUp className="size-5 text-blue-600 dark:text-blue-400" />
+   642→   642→                      </div>
+   643→   643→                      <div>
+   644→   644→                        <p className="text-sm text-muted-foreground">Profit Margin</p>
+   645→   645→                        <p className="text-xl sm:text-2xl font-bold">
+   646→   646→                          {summary && summary.totalRevenue > 0
+   647→   647→                            ? `${((summary.totalProfit / summary.totalRevenue) * 100).toFixed(1)}%`
+   648→   648→                            : '0%'}
+   649→   649→                        </p>
+   650→   650→                      </div>
+   651→   651→                    </div>
+   652→   652→                  </CardContent>
+   653→   653→                </Card>
+   654→   654→              </div>
+   655→   655→
+   656→   656→              {/* Profit Trend Line Chart */}
+   657→   657→              <Card>
+   658→   658→                <CardHeader className="pb-2">
+   659→   659→                  <CardTitle className="text-sm font-semibold">Profit Trend</CardTitle>
+   660→   660→                </CardHeader>
+   661→   661→                <CardContent>
+   662→   662→                  {salesByDate.length > 0 ? (
+   663→   663→                    <ResponsiveContainer width="100%" height={350}>
+   664→   664→                      <LineChart data={salesByDate}>
+   665→   665→                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   666→   666→                        <XAxis
+   667→   667→                          dataKey="date"
+   668→   668→                          tick={{ fontSize: 11 }}
+   669→   669→                          tickFormatter={(val: string) => {
+   670→   670→                            const d = new Date(val)
+   671→   671→                            return `${d.getMonth() + 1}/${d.getDate()}`
+   672→   672→                          }}
+   673→   673→                        />
+   674→   674→                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(val: number) => formatShortETB(val)} />
+   675→   675→                        <Tooltip
+   676→   676→                          formatter={(value: number) => formatETB(value)}
+   677→   677→                          labelFormatter={(label: string) => {
+   678→   678→                            const d = new Date(label)
+   679→   679→                            return d.toLocaleDateString('en-US', {
+   680→   680→                              weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+   681→   681→                            })
+   682→   682→                          }}
+   683→   683→                        />
+   684→   684→                        <Legend />
+   685→   685→                        <Line
+   686→   686→                          type="monotone"
+   687→   687→                          dataKey="revenue"
+   688→   688→                          name="Revenue"
+   689→   689→                          stroke="oklch(0.637 0.237 25.331)"
+   690→   690→                          strokeWidth={2}
+   691→   691→                          dot={{ r: 3 }}
+   692→   692→                        />
+   693→   693→                        <Line
+   694→   694→                          type="monotone"
+   695→   695→                          dataKey="profit"
+   696→   696→                          name="Profit"
+   697→   697→                          stroke="oklch(0.6 0.118 184.704)"
+   698→   698→                          strokeWidth={2}
+   699→   699→                          dot={{ r: 3 }}
+   700→   700→                        />
+   701→   701→                        <Line
+   702→   702→                          type="monotone"
+   703→   703→                          dataKey="cost"
+   704→   704→                          name="Cost"
+   705→   705→                          stroke="oklch(0.769 0.188 70.08)"
+   706→   706→                          strokeWidth={2}
+   707→   707→                          dot={{ r: 3 }}
+   708→   708→                          strokeDasharray="5 5"
+   709→   709→                        />
+   710→   710→                      </LineChart>
+   711→   711→                    </ResponsiveContainer>
+   712→   712→                  ) : (
+   713→   713→                    <EmptyChart message="No profit data for this period" />
+   714→   714→                  )}
+   715→   715→                </CardContent>
+   716→   716→              </Card>
+   717→   717→
+   718→   718→              {/* Daily Profit Table */}
+   719→   719→              <Card>
+   720→   720→                <CardHeader className="pb-2">
+   721→   721→                  <CardTitle className="text-sm font-semibold">Daily Profit Breakdown</CardTitle>
+   722→   722→                </CardHeader>
+   723→   723→                <CardContent className="p-0">
+   724→   724→                  {/* Desktop table */}
+   725→   725→                  <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto custom-scrollbar">
+   726→   726→                    <Table>
+   727→   727→                      <TableHeader>
+   728→   728→                        <TableRow>
+   729→   729→                          <TableHead>Date</TableHead>
+   730→   730→                          <TableHead className="text-right">Revenue</TableHead>
+   731→   731→                          <TableHead className="text-right">Cost</TableHead>
+   732→   732→                          <TableHead className="text-right">Profit</TableHead>
+   733→   733→                          <TableHead className="text-right">Margin</TableHead>
+   734→   734→                        </TableRow>
+   735→   735→                      </TableHeader>
+   736→   736→                      <TableBody>
+   737→   737→                        {salesByDate.length > 0 ? (
+   738→   738→                          salesByDate.map((row) => (
+   739→   739→                            <TableRow key={row.date}>
+   740→   740→                              <TableCell className="font-medium">
+   741→   741→                                {new Date(row.date).toLocaleDateString('en-US', {
+   742→   742→                                  weekday: 'short', month: 'short', day: 'numeric'
+   743→   743→                                })}
+   744→   744→                              </TableCell>
+   745→   745→                              <TableCell className="text-right">{formatETB(row.revenue)}</TableCell>
+   746→   746→                              <TableCell className="text-right text-muted-foreground">{formatETB(row.cost)}</TableCell>
+   747→   747→                              <TableCell className="text-right font-medium">
+   748→   748→                                <span className={row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+   749→   749→                                  {formatETB(row.profit)}
+   750→   750→                                </span>
+   751→   751→                              </TableCell>
+   752→   752→                              <TableCell className="text-right">
+   753→   753→                                <Badge
+   754→   754→                                  variant="outline"
+   755→   755→                                  className={
+   756→   756→                                    row.revenue > 0 && row.profit >= 0
+   757→   757→                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700'
+   758→   758→                                      : row.profit < 0
+   759→   759→                                        ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700'
+   760→   760→                                        : ''
+   761→   761→                                  }
+   762→   762→                                >
+   763→   763→                                  {row.revenue > 0
+   764→   764→                                    ? `${((row.profit / row.revenue) * 100).toFixed(1)}%`
+   765→   765→                                    : '0%'}
+   766→   766→                                </Badge>
+   767→   767→                              </TableCell>
+   768→   768→                            </TableRow>
+   769→   769→                          ))
+   770→   770→                        ) : (
+   771→   771→                          <TableRow>
+   772→   772→                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+   773→   773→                              No data for this period
+   774→   774→                            </TableCell>
+   775→   775→                          </TableRow>
+   776→   776→                        )}
+   777→   777→                      </TableBody>
+   778→   778→                    </Table>
+   779→   779→                  </div>
+   780→   780→                  {/* Mobile card view */}
+   781→   781→                  <div className="md:hidden space-y-3 p-3 max-h-96 overflow-y-auto">
+   782→   782→                    {salesByDate.length > 0 ? (
+   783→   783→                      salesByDate.map((row) => (
+   784→   784→                        <Card key={row.date} className="p-4">
+   785→   785→                          <div className="flex items-center justify-between mb-2">
+   786→   786→                            <p className="font-medium text-sm">
+   787→   787→                              {new Date(row.date).toLocaleDateString('en-US', {
+   788→   788→                                month: 'short', day: 'numeric'
+   789→   789→                              })}
+   790→   790→                            </p>
+   791→   791→                            <Badge
+   792→   792→                              variant="outline"
+   793→   793→                              className={
+   794→   794→                                row.revenue > 0 && row.profit >= 0
+   795→   795→                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700 text-xs'
+   796→   796→                                  : row.profit < 0
+   797→   797→                                    ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700 text-xs'
+   798→   798→                                    : 'text-xs'
+   799→   799→                              }
+   800→   800→                            >
+   801→   801→                              {row.revenue > 0 ? `${((row.profit / row.revenue) * 100).toFixed(1)}%` : '0%'}
+   802→   802→                            </Badge>
+   803→   803→                          </div>
+   804→   804→                          <div className="grid grid-cols-2 gap-2 text-xs">
+   805→   805→                            <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatETB(row.revenue)}</span></div>
+   806→   806→                            <div><span className="text-muted-foreground">Cost:</span> <span className="text-muted-foreground">{formatETB(row.cost)}</span></div>
+   807→   807→                            <div><span className="text-muted-foreground">Profit:</span> <span className={`font-bold ${row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatETB(row.profit)}</span></div>
+   808→   808→                          </div>
+   809→   809→                        </Card>
+   810→   810→                      ))
+   811→   811→                    ) : (
+   812→   812→                      <p className="text-sm text-muted-foreground text-center py-8">No data for this period</p>
+   813→   813→                    )}
+   814→   814→                  </div>
+   815→   815→                </CardContent>
+   816→   816→              </Card>
+   817→   817→            </>
+   818→   818→          )}
+   819→   819→        </TabsContent>
+   820→   820→
+   821→   821→        {/* Best Sellers */}
+   822→   822→        <TabsContent value="bestsellers" className="space-y-4">
+   823→   823→          {loading ? (
+   824→   824→            <LoadingSkeleton cards={2} />
+   825→   825→          ) : pageError && !reportData ? (
+   826→   826→            <ErrorState title="Failed to load report data" message={pageError} onRetry={fetchReport} />
+   827→   827→          ) : !loading && reportData && bestSelling.length === 0 ? (
+   828→   828→            <Card>
+   829→   829→              <CardContent className="py-12 text-center">
+   830→   830→                <Package className="size-12 text-muted-foreground mx-auto mb-4" />
+   831→   831→                <h3 className="text-base font-semibold mb-1">No product sales data for this period</h3>
+   832→   832→                <p className="text-muted-foreground text-sm mb-4">
+   833→   833→                  Try selecting a different date range, or sell some products to see best sellers here
+   834→   834→                </p>
+   835→   835→              </CardContent>
+   836→   836→            </Card>
+   837→   837→          ) : (
+   838→   838→            <>
+   839→   839→              {/* Top 10 by Revenue Chart */}
+   840→   840→              <Card>
+   841→   841→                <CardHeader className="pb-2">
+   842→   842→                  <CardTitle className="text-sm font-semibold">Top 10 Products by Revenue</CardTitle>
+   843→   843→                </CardHeader>
+   844→   844→                <CardContent>
+   845→   845→                  {bestSelling.length > 0 ? (
+   846→   846→                    <ResponsiveContainer width="100%" height={350}>
+   847→   847→                      <BarChart data={bestSelling.slice(0, 10)} layout="vertical">
+   848→   848→                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   849→   849→                        <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(val: number) => formatShortETB(val)} />
+   850→   850→                        <YAxis
+   851→   851→                          type="category"
+   852→   852→                          dataKey="name"
+   853→   853→                          tick={{ fontSize: 11 }}
+   854→   854→                          width={isMobile ? 70 : 120}
+   855→   855→                        />
+   856→   856→                        <Tooltip formatter={(value: number) => formatETB(value)} />
+   857→   857→                        <Bar dataKey="totalRevenue" name="Revenue" fill="oklch(0.637 0.237 25.331)" radius={[0, 4, 4, 0]} />
+   858→   858→                      </BarChart>
+   859→   859→                    </ResponsiveContainer>
+   860→   860→                  ) : (
+   861→   861→                    <EmptyChart message="No product sales data for this period" />
+   862→   862→                  )}
+   863→   863→                </CardContent>
+   864→   864→              </Card>
+   865→   865→
+   866→   866→              {/* Top 10 by Quantity Chart */}
+   867→   867→              <Card>
+   868→   868→                <CardHeader className="pb-2">
+   869→   869→                  <CardTitle className="text-sm font-semibold">Top 10 Products by Quantity Sold</CardTitle>
+   870→   870→                </CardHeader>
+   871→   871→                <CardContent>
+   872→   872→                  {bestSelling.length > 0 ? (
+   873→   873→                    <ResponsiveContainer width="100%" height={350}>
+   874→   874→                      <BarChart
+   875→   875→                        data={[...bestSelling].sort((a, b) => b.totalQuantity - a.totalQuantity).slice(0, 10)}
+   876→   876→                        layout="vertical"
+   877→   877→                      >
+   878→   878→                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   879→   879→                        <XAxis type="number" tick={{ fontSize: 11 }} />
+   880→   880→                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={isMobile ? 70 : 120} />
+   881→   881→                        <Tooltip />
+   882→   882→                        <Bar dataKey="totalQuantity" name="Quantity" fill="oklch(0.6 0.118 184.704)" radius={[0, 4, 4, 0]} />
+   883→   883→                      </BarChart>
+   884→   884→                    </ResponsiveContainer>
+   885→   885→                  ) : (
+   886→   886→                    <EmptyChart message="No product sales data for this period" />
+   887→   887→                  )}
+   888→   888→                </CardContent>
+   889→   889→              </Card>
+   890→   890→
+   891→   891→              {/* Best Sellers Table */}
+   892→   892→              <Card>
+   893→   893→                <CardHeader className="pb-2">
+   894→   894→                  <CardTitle className="text-sm font-semibold">Product Performance</CardTitle>
+   895→   895→                </CardHeader>
+   896→   896→                <CardContent className="p-0">
+   897→   897→                  {/* Desktop table */}
+   898→   898→                  <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto custom-scrollbar">
+   899→   899→                    <Table>
+   900→   900→                      <TableHeader>
+   901→   901→                        <TableRow>
+   902→   902→                          <TableHead>#</TableHead>
+   903→   903→                          <TableHead>Product Name</TableHead>
+   904→   904→                          <TableHead>SKU</TableHead>
+   905→   905→                          <TableHead className="text-right">Quantity Sold</TableHead>
+   906→   906→                          <TableHead className="text-right">Revenue</TableHead>
+   907→   907→                          <TableHead className="text-right">Avg Price</TableHead>
+   908→   908→                        </TableRow>
+   909→   909→                      </TableHeader>
+   910→   910→                      <TableBody>
+   911→   911→                        {bestSelling.length > 0 ? (
+   912→   912→                          bestSelling.map((product, i) => (
+   913→   913→                            <TableRow key={product.id}>
+   914→   914→                              <TableCell>
+   915→   915→                                <Badge variant="secondary" className="size-6 p-0 flex items-center justify-center text-xs">
+   916→   916→                                  {i + 1}
+   917→   917→                                </Badge>
+   918→   918→                              </TableCell>
+   919→   919→                              <TableCell className="font-medium">{product.name}</TableCell>
+   920→   920→                              <TableCell className="text-muted-foreground">{product.sku || '—'}</TableCell>
+   921→   921→                              <TableCell className="text-right">{product.totalQuantity}</TableCell>
+   922→   922→                              <TableCell className="text-right">{formatETB(product.totalRevenue)}</TableCell>
+   923→   923→                              <TableCell className="text-right text-muted-foreground">
+   924→   924→                                {formatETB(product.totalQuantity > 0 ? product.totalRevenue / product.totalQuantity : 0)}
+   925→   925→                              </TableCell>
+   926→   926→                            </TableRow>
+   927→   927→                          ))
+   928→   928→                        ) : (
+   929→   929→                          <TableRow>
+   930→   930→                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+   931→   931→                              No product sales data for this period
+   932→   932→                            </TableCell>
+   933→   933→                          </TableRow>
+   934→   934→                        )}
+   935→   935→                      </TableBody>
+   936→   936→                    </Table>
+   937→   937→                  </div>
+   938→   938→                  {/* Mobile card view */}
+   939→   939→                  <div className="md:hidden space-y-3 p-3 max-h-96 overflow-y-auto">
+   940→   940→                    {bestSelling.length > 0 ? (
+   941→   941→                      bestSelling.map((product, i) => (
+   942→   942→                        <Card key={product.id} className="p-4">
+   943→   943→                          <div className="flex items-start gap-3">
+   944→   944→                            <Badge variant="secondary" className="size-6 p-0 flex items-center justify-center text-xs shrink-0 mt-0.5">
+   945→   945→                              {i + 1}
+   946→   946→                            </Badge>
+   947→   947→                            <div className="flex-1 min-w-0">
+   948→   948→                              <p className="font-medium text-sm truncate">{product.name}</p>
+   949→   949→                              <p className="text-xs text-muted-foreground">{product.sku || '—'}</p>
+   950→   950→                              <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+   951→   951→                                <div><span className="text-muted-foreground">Qty:</span> <span className="font-medium">{product.totalQuantity}</span></div>
+   952→   952→                                <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatETB(product.totalRevenue)}</span></div>
+   953→   953→                                <div className="col-span-2"><span className="text-muted-foreground">Avg:</span> {formatETB(product.totalQuantity > 0 ? product.totalRevenue / product.totalQuantity : 0)}</div>
+   954→   954→                              </div>
+   955→   955→                            </div>
+   956→   956→                          </div>
+   957→   957→                        </Card>
+   958→   958→                      ))
+   959→   959→                    ) : (
+   960→   960→                      <p className="text-sm text-muted-foreground text-center py-8">No product sales data for this period</p>
+   961→   961→                    )}
+   962→   962→                  </div>
+   963→   963→                </CardContent>
+   964→   964→              </Card>
+   965→   965→            </>
+   966→   966→          )}
+   967→   967→        </TabsContent>
+   968→   968→
+   969→   969→        {/* Inventory Valuation */}
+   970→   970→        <TabsContent value="inventory" className="space-y-4">
+   971→   971→          {loading ? (
+   972→   972→            <LoadingSkeleton cards={3} />
+   973→   973→          ) : pageError && !reportData ? (
+   974→   974→            <ErrorState title="Failed to load report data" message={pageError} onRetry={fetchReport} />
+   975→   975→          ) : !loading && reportData && (inventoryVal?.totalItems || 0) === 0 ? (
+   976→   976→            <Card>
+   977→   977→              <CardContent className="py-12 text-center">
+   978→   978→                <Package className="size-12 text-muted-foreground mx-auto mb-4" />
+   979→   979→                <h3 className="text-base font-semibold mb-1">No inventory data yet</h3>
+   980→   980→                <p className="text-muted-foreground text-sm mb-4">
+   981→   981→                  Add products to your inventory to see valuation reports here
+   982→   982→                </p>
+   983→   983→              </CardContent>
+   984→   984→            </Card>
+   985→   985→          ) : (
+   986→   986→            <>
+   987→   987→              {/* Summary Cards */}
+   988→   988→              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+   989→   989→                <Card>
+   990→   990→                  <CardContent className="p-4">
+   991→   991→                    <div className="flex items-center gap-3">
+   992→   992→                      <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+   993→   993→                        <DollarSign className="size-5 text-primary" />
+   994→   994→                      </div>
+   995→   995→                      <div>
+   996→   996→                        <p className="text-sm text-muted-foreground">Cost Value</p>
+   997→   997→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
+   998→   998→                      </div>
+   999→   999→                    </div>
+  1000→  1000→                  </CardContent>
+  1001→  1001→                </Card>
+  1002→  1002→                <Card>
+  1003→  1003→                  <CardContent className="p-4">
+  1004→  1004→                    <div className="flex items-center gap-3">
+  1005→  1005→                      <div className="size-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+  1006→  1006→                        <ShoppingCart className="size-5 text-blue-600 dark:text-blue-400" />
+  1007→  1007→                      </div>
+  1008→  1008→                      <div>
+  1009→  1009→                        <p className="text-sm text-muted-foreground">Retail Value</p>
+  1010→  1010→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
+  1011→  1011→                      </div>
+  1012→  1012→                    </div>
+  1013→  1013→                  </CardContent>
+  1014→  1014→                </Card>
+  1015→  1015→                <Card>
+  1016→  1016→                  <CardContent className="p-4">
+  1017→  1017→                    <div className="flex items-center gap-3">
+  1018→  1018→                      <div className="size-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+  1019→  1019→                        <TrendingUp className="size-5 text-purple-600 dark:text-purple-400" />
+  1020→  1020→                      </div>
+  1021→  1021→                      <div>
+  1022→  1022→                        <p className="text-sm text-muted-foreground">Potential Profit</p>
+  1023→  1023→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.potentialProfit || 0)}</p>
+  1024→  1024→                      </div>
+  1025→  1025→                    </div>
+  1026→  1026→                  </CardContent>
+  1027→  1027→                </Card>
+  1028→  1028→                <Card>
+  1029→  1029→                  <CardContent className="p-4">
+  1030→  1030→                    <div className="flex items-center gap-3">
+  1031→  1031→                      <div className="size-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+  1032→  1032→                        <Package className="size-5 text-orange-600 dark:text-orange-400" />
+  1033→  1033→                      </div>
+  1034→  1034→                      <div>
+  1035→  1035→                        <p className="text-sm text-muted-foreground">Total Items</p>
+  1036→  1036→                        <p className="text-xl sm:text-2xl font-bold">{inventoryVal?.totalItems || 0}</p>
+  1037→  1037→                      </div>
+  1038→  1038→                    </div>
+  1039→  1039→                  </CardContent>
+  1040→  1040→                </Card>
+  1041→  1041→              </div>
+  1042→  1042→
+  1043→  1043→              {/* Inventory by Category Pie */}
+  1044→  1044→              <Card>
+  1045→  1045→                <CardHeader className="pb-2">
+  1046→  1046→                  <CardTitle className="text-sm font-semibold">Inventory Value Distribution</CardTitle>
+  1047→  1047→                </CardHeader>
+  1048→  1048→                <CardContent>
+  1049→  1049→                  <ResponsiveContainer width="100%" height={300}>
+  1050→  1050→                    <RechartsPie>
+  1051→  1051→                      <Pie
+  1052→  1052→                        data={[
+  1053→  1053→                          { name: 'Cost Value', value: inventoryVal?.totalCostValue || 0 },
+  1054→  1054→                          { name: 'Potential Profit', value: inventoryVal?.potentialProfit || 0 },
+  1055→  1055→                        ]}
+  1056→  1056→                        cx="50%"
+  1057→  1057→                        cy="50%"
+  1058→  1058→                        innerRadius={70}
+  1059→  1059→                        outerRadius={100}
+  1060→  1060→                        paddingAngle={4}
+  1061→  1061→                        dataKey="value"
+  1062→  1062→                        label={({ name, value }: { name: string; value: number }) => `${name}: ${formatShortETB(value)}`}
+  1063→  1063→                      >
+  1064→  1064→                        <Cell fill="oklch(0.398 0.07 227.392)" />
+  1065→  1065→                        <Cell fill="oklch(0.508 0.14 160)" />
+  1066→  1066→                      </Pie>
+  1067→  1067→                      <Tooltip formatter={(value: number) => formatETB(value)} />
+  1068→  1068→                      <Legend />
+  1069→  1069→                    </RechartsPie>
+  1070→  1070→                  </ResponsiveContainer>
+  1071→  1071→                </CardContent>
+  1072→  1072→              </Card>
+  1073→  1073→
+  1074→  1074→              {/* Products Table */}
+  1075→  1075→              <Card>
+  1076→  1076→                <CardHeader className="pb-2">
+  1077→  1077→                  <CardTitle className="text-sm font-semibold">Inventory Valuation Details</CardTitle>
+  1078→  1078→                </CardHeader>
+  1079→  1079→                <CardContent>
+  1080→  1080→                  <p className="text-sm text-muted-foreground mb-4">
+  1081→  1081→                    Shows total inventory value at cost and retail prices
+  1082→  1082→                  </p>
+  1083→  1083→                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+  1084→  1084→                    <Card className="bg-muted/50">
+  1085→  1085→                      <CardContent className="p-4 text-center">
+  1086→  1086→                        <p className="text-sm text-muted-foreground">Total at Cost</p>
+  1087→  1087→                        <p className="text-sm font-semibold">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
+  1088→  1088→                      </CardContent>
+  1089→  1089→                    </Card>
+  1090→  1090→                    <Card className="bg-muted/50">
+  1091→  1091→                      <CardContent className="p-4 text-center">
+  1092→  1092→                        <p className="text-sm text-muted-foreground">Total at Retail</p>
+  1093→  1093→                        <p className="text-sm font-semibold">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
+  1094→  1094→                      </CardContent>
+  1095→  1095→                    </Card>
+  1096→  1096→                    <Card className="bg-muted/50">
+  1097→  1097→                      <CardContent className="p-4 text-center">
+  1098→  1098→                        <p className="text-sm text-muted-foreground">Profit Margin</p>
+  1099→  1099→                        <p className="text-sm font-semibold">
+  1100→  1100→                          {inventoryVal && inventoryVal.totalRetailValue > 0
+  1101→  1101→                            ? `${((inventoryVal.potentialProfit / inventoryVal.totalRetailValue) * 100).toFixed(1)}%`
+  1102→  1102→                            : '0%'}
+  1103→  1103→                        </p>
+  1104→  1104→                      </CardContent>
+  1105→  1105→                    </Card>
+  1106→  1106→                  </div>
+  1107→  1107→                </CardContent>
+  1108→  1108→              </Card>
+  1109→  1109→            </>
+  1110→  1110→          )}
+  1111→  1111→        </TabsContent>
+  1112→  1112→      </Tabs>
+  1113→  1113→    </div>
+  1114→  1114→  )
+  1115→  1115→}
+  1116→  1116→
+  1117→  1117→// ============================================
+  1118→  1118→// Helpers
+  1119→  1119→// ============================================
+  1120→  1120→function LoadingSkeleton({ cards = 3 }: { cards?: number }) {
+  1121→  1121→  return (
+  1122→  1122→    <div className="space-y-4">
+  1123→  1123→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+  1124→  1124→        {Array.from({ length: cards }).map((_, i) => (
+  1125→  1125→          <Card key={i}>
+  1126→  1126→            <CardContent className="p-4">
+  1127→  1127→              <Skeleton className="h-16 w-full" />
+  1128→  1128→            </CardContent>
+  1129→  1129→          </Card>
+  1130→  1130→        ))}
+  1131→  1131→      </div>
+  1132→  1132→      <Card>
+  1133→  1133→        <CardContent className="p-6">
+  1134→  1134→          <Skeleton className="h-64 w-full" />
+  1135→  1135→        </CardContent>
+  1136→  1136→      </Card>
+  1137→  1137→    </div>
+  1138→  1138→  )
+  1139→  1139→}
+  1140→  1140→
+  1141→  1141→function EmptyChart({ message }: { message: string }) {
+  1142→  1142→  return (
+  1143→  1143→    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+  1144→  1144→      <PieChart className="size-12 mb-3 opacity-30" />
+  1145→  1145→      <p className="text-sm">{message}</p>
+  1146→  1146→    </div>
+  1147→  1147→  )
+  1148→  1148→}
+  1149→  1149→

@@ -1,0 +1,1615 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
+     4→import {
+     5→  Building2, Users, DollarSign, CreditCard, MapPin, Search,
+     6→  TrendingUp, Package, ShoppingCart, AlertTriangle, Loader2,
+     7→  BarChart3, Globe2, Store, Rocket, Flame, ChevronRight,
+     8→  Activity, Database, Zap, Clock, Server, CheckCircle2, XCircle,
+     9→  AlertCircle, Megaphone, RefreshCw, HardDrive, ShieldCheck,
+    10→  ArrowDownUp, Cpu, Filter,
+    11→} from 'lucide-react'
+    12→import { toast } from 'sonner'
+    13→import {
+    14→  api, type AdminDashboardData, type ShopData, type MarketInsightsData,
+    15→  type SystemHealthData, type RegionData,
+    16→} from '@/lib/api-client'
+    17→import { useAuthStore } from '@/lib/stores/auth-store'
+    18→import { useAppStore } from '@/lib/stores/app-store'
+    19→import { getNetworkErrorMessage } from '@/lib/validation'
+    20→import { formatETB, businessTypeColor, CHART_COLORS, formatDateWithTime } from '@/lib/admin-utils'
+    21→import { ErrorState, EmptyState } from '@/components/shared/error-states'
+    22→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    23→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    24→import { Button } from '@/components/ui/button'
+    25→import { Input } from '@/components/ui/input'
+    26→import { Badge } from '@/components/ui/badge'
+    27→import { Skeleton } from '@/components/ui/skeleton'
+    28→import { Progress } from '@/components/ui/progress'
+    29→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    30→import { swrFetch, invalidateKey } from '@/lib/client-cache'
+    31→import { useIsMobile } from '@/hooks/use-mobile'
+    32→import {
+    33→  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    34→  PieChart, Pie, Cell, AreaChart, Area,
+    35→} from '@/components/ui/recharts-exports'
+    36→
+    37→// ============================================
+    38→// Helpers (imported from @/lib/admin-utils)
+    39→// ============================================
+    40→
+    41→// ============================================
+    42→// Lazy-loaded Map Component (YouTube Pattern)
+    43→// ============================================
+    44→// YouTube lazily loads heavy components. We do the same with Leaflet
+    45→// to reduce initial JS bundle size and improve page load time.
+    46→const LazyShopsMap = lazy(() =>
+    47→  import('./shops-map-component').then(mod => ({ default: mod.ShopsMapComponent }))
+    48→)
+    49→
+    50→function MapSkeleton() {
+    51→  return (
+    52→    <div className="space-y-3">
+    53→      <Skeleton className="h-[300px] md:h-[450px] w-full rounded-lg" />
+    54→      <div className="flex gap-3">
+    55→        <Skeleton className="h-4 w-16" />
+    56→        <Skeleton className="h-4 w-16" />
+    57→        <Skeleton className="h-4 w-16" />
+    58→      </div>
+    59→    </div>
+    60→  )
+    61→}
+    62→
+    63→// ============================================
+    64→// Quick Actions Panel
+    65→// ============================================
+    66→function QuickActionsPanel() {
+    67→  const { setPage } = useAppStore()
+    68→
+    69→  const actions = [
+    70→    { label: 'Manage Organizations', icon: Building2, page: 'admin-organizations' as const, color: 'text-primary', bg: 'bg-brand-50 dark:bg-brand-900/20' },
+    71→    { label: 'View Users', icon: Users, page: 'admin-users' as const, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+    72→    { label: 'Modules & Pricing', icon: Package, page: 'admin-modules' as const, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+    73→    { label: 'Sales Team', icon: DollarSign, page: 'admin-sales-team' as const, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+    74→    { label: 'Regions & Cities', icon: Globe2, page: 'admin-regions' as const, color: 'text-cyan-600', bg: 'bg-cyan-100 dark:bg-cyan-900/30' },
+    75→    { label: 'Send Announcement', icon: Activity, page: 'admin-notifications' as const, color: 'text-rose-600', bg: 'bg-rose-100 dark:bg-rose-900/30' },
+    76→  ]
+    77→
+    78→  return (
+    79→    <Card>
+    80→      <CardHeader>
+    81→        <CardTitle className="text-base flex items-center gap-2">
+    82→          <Zap className="size-4 text-primary" /> Quick Actions
+    83→        </CardTitle>
+    84→        <CardDescription>Jump to common admin tasks</CardDescription>
+    85→      </CardHeader>
+    86→      <CardContent>
+    87→        <div className="grid grid-cols-2 gap-2">
+    88→          {actions.map(action => (
+    89→            <button
+    90→              key={action.label}
+    91→              onClick={() => setPage(action.page)}
+    92→              className="flex items-center gap-2.5 p-3 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors text-left group"
+    93→            >
+    94→              <div className={`size-8 rounded-lg ${action.bg} flex items-center justify-center shrink-0`}>
+    95→                <action.icon className={`size-4 ${action.color}`} />
+    96→              </div>
+    97→              <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">{action.label}</span>
+    98→            </button>
+    99→          ))}
+   100→        </div>
+   101→      </CardContent>
+   102→    </Card>
+   103→  )
+   104→}
+   105→
+   106→// ============================================
+   107→// Recent Activity Feed
+   108→// ============================================
+   109→function RecentActivityFeed({ data }: { data: AdminDashboardData }) {
+   110→  // Build activity items from dashboard data
+   111→  const activities: Array<{
+   112→    id: string
+   113→    icon: React.ElementType
+   114→    iconBg: string
+   115→    iconColor: string
+   116→    title: string
+   117→    description: string
+   118→    time: string
+   119→  }> = []
+   120→
+   121→  // New shops this month
+   122→  if (data.newShopsThisMonth > 0) {
+   123→    activities.push({
+   124→      id: 'new-shops',
+   125→      icon: TrendingUp,
+   126→      iconBg: 'bg-brand-50 dark:bg-brand-900/20',
+   127→      iconColor: 'text-primary',
+   128→      title: `${data.newShopsThisMonth} new organization${data.newShopsThisMonth !== 1 ? 's' : ''} joined`,
+   129→      description: 'This month',
+   130→      time: 'This month',
+   131→    })
+   132→  }
+   133→
+   134→  // Revenue info
+   135→  if (data.totalRevenue > 0) {
+   136→    activities.push({
+   137→      id: 'revenue',
+   138→      icon: DollarSign,
+   139→      iconBg: 'bg-amber-100 dark:bg-amber-900/30',
+   140→      iconColor: 'text-amber-600',
+   141→      title: `Platform revenue at ${formatETB(data.totalRevenue)}`,
+   142→      description: `${Object.values(data.activeSubscriptions).reduce((a, b) => a + b, 0)} active subscriptions`,
+   143→      time: 'Current',
+   144→    })
+   145→  }
+   146→
+   147→  // Top shops
+   148→  if (data.topShopsByRevenue.length > 0) {
+   149→    activities.push({
+   150→      id: 'top-shop',
+   151→      icon: Store,
+   152→      iconBg: 'bg-emerald-100 dark:bg-emerald-900/30',
+   153→      iconColor: 'text-emerald-600',
+   154→      title: `${data.topShopsByRevenue[0].name} leads revenue`,
+   155→      description: formatETB(data.topShopsByRevenue[0].totalRevenue) + ' in total',
+   156→      time: 'Top performer',
+   157→    })
+   158→  }
+   159→
+   160→  // Regions breakdown
+   161→  if (data.regionsBreakdown && data.regionsBreakdown.length > 0) {
+   162→    const topRegion = data.regionsBreakdown.reduce((max, r) => r.orgCount > max.orgCount ? r : max, data.regionsBreakdown[0])
+   163→    activities.push({
+   164→      id: 'top-region',
+   165→      icon: Globe2,
+   166→      iconBg: 'bg-cyan-100 dark:bg-cyan-900/30',
+   167→      iconColor: 'text-cyan-600',
+   168→      title: `${topRegion.regionName} has the most orgs`,
+   169→      description: `${topRegion.orgCount} organizations in this region`,
+   170→      time: 'By region',
+   171→    })
+   172→  }
+   173→
+   174→  // Sales team
+   175→  if (data.salesTeam && data.salesTeam.activeReps > 0) {
+   176→    activities.push({
+   177→      id: 'sales-team',
+   178→      icon: Flame,
+   179→      iconBg: 'bg-violet-100 dark:bg-violet-900/30',
+   180→      iconColor: 'text-violet-600',
+   181→      title: `${data.salesTeam.registrationsThisMonth} sales team registrations`,
+   182→      description: `${data.salesTeam.activeReps} active reps`,
+   183→      time: 'This month',
+   184→    })
+   185→  }
+   186→
+   187→  // Business type growth
+   188→  const businessTypes = Object.entries(data.organizationsByBusinessType || {})
+   189→  if (businessTypes.length > 0) {
+   190→    const [topType, topCount] = businessTypes.reduce((max, [type, count]) => count > max[1] ? [type, count] as [string, number] : max, businessTypes[0] as [string, number])
+   191→    activities.push({
+   192→      id: 'biz-type',
+   193→      icon: BarChart3,
+   194→      iconBg: 'bg-purple-100 dark:bg-purple-900/30',
+   195→      iconColor: 'text-purple-600',
+   196→      title: `${topType.charAt(0).toUpperCase() + topType.slice(1)} is the most popular type`,
+   197→      description: `${topCount} organizations`,
+   198→      time: 'Distribution',
+   199→    })
+   200→  }
+   201→
+   202→  return (
+   203→    <Card>
+   204→      <CardHeader>
+   205→        <CardTitle className="text-base flex items-center gap-2">
+   206→          <Activity className="size-4 text-primary" /> Recent Activity
+   207→        </CardTitle>
+   208→        <CardDescription>Platform insights at a glance</CardDescription>
+   209→      </CardHeader>
+   210→      <CardContent>
+   211→        {activities.length > 0 ? (
+   212→          <div className="space-y-3 max-h-80 overflow-y-auto">
+   213→            {activities.map(a => (
+   214→              <div key={a.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-muted/20 hover:bg-muted/30 transition-colors">
+   215→                <div className={`size-8 rounded-lg ${a.iconBg} flex items-center justify-center shrink-0`}>
+   216→                  <a.icon className={`size-4 ${a.iconColor}`} />
+   217→                </div>
+   218→                <div className="flex-1 min-w-0">
+   219→                  <p className="text-sm font-medium truncate">{a.title}</p>
+   220→                  <p className="text-xs text-muted-foreground truncate">{a.description}</p>
+   221→                </div>
+   222→                <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{a.time}</Badge>
+   223→              </div>
+   224→            ))}
+   225→          </div>
+   226→        ) : (
+   227→          <p className="text-sm text-muted-foreground text-center py-8">No activity yet</p>
+   228→        )}
+   229→      </CardContent>
+   230→    </Card>
+   231→  )
+   232→}
+   233→
+   234→// ============================================
+   235→// Overview Tab
+   236→// ============================================
+   237→function OverviewTab({ data }: { data: AdminDashboardData }) {
+   238→  const isMobile = useIsMobile()
+   239→  const stats = [
+   240→    { title: 'Organizations', value: data.totalOrganizations, icon: Building2, color: 'text-primary', bg: 'bg-brand-50 dark:bg-brand-900/20' },
+   241→    { title: 'Total Users', value: data.totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+   242→    { title: 'Platform Revenue', value: formatETB(data.totalRevenue), icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+   243→    { title: 'Active Subscriptions', value: Object.values(data.activeSubscriptions).reduce((a, b) => a + b, 0), icon: CreditCard, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+   244→  ]
+   245→
+   246→  // Revenue trend data
+   247→  const revenueData = data.revenueByMonth || []
+   248→
+   249→  // Top shops data
+   250→  const topShops = data.topShopsByRevenue || []
+   251→
+   252→  // Business type distribution for pie chart
+   253→  const businessTypeData = Object.entries(data.organizationsByBusinessType || {}).map(([type, count]) => ({
+   254→    type: type.charAt(0).toUpperCase() + type.slice(1),
+   255→    count,
+   256→  }))
+   257→
+   258→  return (
+   259→    <div className="space-y-4">
+   260→      {/* Stats */}
+   261→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+   262→        {stats.map(s => (
+   263→          <Card key={s.title}>
+   264→            <CardContent className="p-3 sm:p-4">
+   265→              <div className="flex items-center gap-2 sm:gap-3">
+   266→                <div className={`size-8 sm:size-10 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}>
+   267→                  <s.icon className={`size-4 sm:size-5 ${s.color}`} />
+   268→                </div>
+   269→                <div className="min-w-0">
+   270→                  <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{s.title}</p>
+   271→                  <p className="text-sm sm:text-base font-semibold whitespace-nowrap">{s.value}</p>
+   272→                </div>
+   273→              </div>
+   274→            </CardContent>
+   275→          </Card>
+   276→        ))}
+   277→      </div>
+   278→
+   279→      {/* New shops this month */}
+   280→      {data.newShopsThisMonth > 0 && (
+   281→        <Card className="border-brand-100 bg-brand-50/50 dark:border-brand-900/50 dark:bg-brand-900/10">
+   282→          <CardContent className="p-4 flex items-center gap-3">
+   283→            <div className="size-8 rounded-full bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+   284→              <TrendingUp className="size-4 text-primary" />
+   285→            </div>
+   286→            <div>
+   287→              <p className="text-sm font-medium">{data.newShopsThisMonth} new shops this month</p>
+   288→              <p className="text-xs text-muted-foreground">Platform is growing</p>
+   289→            </div>
+   290→          </CardContent>
+   291→        </Card>
+   292→      )}
+   293→
+   294→      {/* Sales Team Quick Stats */}
+   295→      {data.salesTeam && data.salesTeam.activeReps > 0 && (
+   296→        <Card className="border-violet-200 bg-violet-50/50 dark:border-violet-900/50 dark:bg-violet-900/10">
+   297→          <CardContent className="p-4">
+   298→            <div className="flex items-center gap-3">
+   299→              <div className="size-8 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+   300→                <Flame className="size-4 text-violet-600 dark:text-violet-400" />
+   301→              </div>
+   302→              <div className="flex-1">
+   303→                <p className="text-sm font-medium">Sales Team: {data.salesTeam.activeReps} active reps</p>
+   304→                <p className="text-xs text-muted-foreground">
+   305→                  {data.salesTeam.registrationsThisMonth} registrations this month via sales team
+   306→                </p>
+   307→              </div>
+   308→            </div>
+   309→          </CardContent>
+   310→        </Card>
+   311→      )}
+   312→
+   313→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   314→        {/* Revenue Trend */}
+   315→        <Card>
+   316→          <CardHeader>
+   317→            <CardTitle className="text-base flex items-center gap-2">
+   318→              <TrendingUp className="size-4 text-primary" /> Revenue Trend
+   319→            </CardTitle>
+   320→            <CardDescription>Last 6 months</CardDescription>
+   321→          </CardHeader>
+   322→          <CardContent>
+   323→            {revenueData.length > 0 ? (
+   324→              <ResponsiveContainer width="100%" height={250}>
+   325→                <AreaChart data={revenueData}>
+   326→                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   327→                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+   328→                  <YAxis tick={{ fontSize: 11 }} />
+   329→                  <Tooltip formatter={(value: number) => formatETB(value)} />
+   330→                  <Area type="monotone" dataKey="revenue" stroke="#ea580c" fill="#ea580c" fillOpacity={0.15} strokeWidth={2} />
+   331→                </AreaChart>
+   332→              </ResponsiveContainer>
+   333→            ) : (
+   334→              <p className="text-sm text-muted-foreground text-center py-8">No revenue data</p>
+   335→            )}
+   336→          </CardContent>
+   337→        </Card>
+   338→
+   339→        {/* Business Type Distribution */}
+   340→        <Card>
+   341→          <CardHeader>
+   342→            <CardTitle className="text-base flex items-center gap-2">
+   343→              <BarChart3 className="size-4 text-primary" /> Business Type Distribution
+   344→            </CardTitle>
+   345→          </CardHeader>
+   346→          <CardContent>
+   347→            {businessTypeData.length > 0 ? (
+   348→              <ResponsiveContainer width="100%" height={250}>
+   349→                <PieChart>
+   350→                  <Pie
+   351→                    data={businessTypeData}
+   352→                    cx="50%" cy="50%"
+   353→                    innerRadius={50} outerRadius={80}
+   354→                    paddingAngle={4} dataKey="count"
+   355→                    label={isMobile ? ({ count }: { count: number }) => count : ({ type, count }: { type: string; count: number }) => `${type} (${count})`}
+   356→                  >
+   357→                    {businessTypeData.map((_, i) => (
+   358→                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+   359→                    ))}
+   360→                  </Pie>
+   361→                  <Tooltip />
+   362→                </PieChart>
+   363→              </ResponsiveContainer>
+   364→            ) : (
+   365→              <p className="text-sm text-muted-foreground text-center py-8">No data</p>
+   366→            )}
+   367→          </CardContent>
+   368→        </Card>
+   369→      </div>
+   370→
+   371→      {/* Top Shops by Revenue */}
+   372→      <Card>
+   373→        <CardHeader>
+   374→          <CardTitle className="text-base flex items-center gap-2">
+   375→            <Store className="size-4 text-primary" /> Top Shops by Revenue
+   376→          </CardTitle>
+   377→        </CardHeader>
+   378→        <CardContent>
+   379→          {topShops.length > 0 ? (
+   380→            <ResponsiveContainer width="100%" height={Math.max(200, topShops.length * 40)}>
+   381→              <BarChart data={topShops} layout="vertical" margin={{ left: 20 }}>
+   382→                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   383→                <XAxis type="number" tick={{ fontSize: 11 }} />
+   384→                <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={isMobile ? 70 : 120} />
+   385→                <Tooltip formatter={(value: number) => formatETB(value)} />
+   386→                <Bar dataKey="totalRevenue" fill="#ea580c" radius={[0, 4, 4, 0]} />
+   387→              </BarChart>
+   388→            </ResponsiveContainer>
+   389→          ) : (
+   390→            <p className="text-sm text-muted-foreground text-center py-8">No shop data</p>
+   391→          )}
+   392→        </CardContent>
+   393→      </Card>
+   394→
+   395→      {/* Quick Actions + Activity Feed */}
+   396→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   397→        {/* Quick Actions */}
+   398→        <QuickActionsPanel />
+   399→
+   400→        {/* Recent Activity */}
+   401→        <RecentActivityFeed data={data} />
+   402→      </div>
+   403→    </div>
+   404→  )
+   405→}
+   406→
+   407→// ============================================
+   408→// Shops Map Tab
+   409→// ============================================
+   410→function ShopsMapTab({ shops: initialShops }: { shops: ShopData[] }) {
+   411→  const [shops, setShops] = useState<ShopData[]>(initialShops)
+   412→  const [shopSearch, setShopSearch] = useState('')
+   413→  const [shopTypeFilter, setShopTypeFilter] = useState('all')
+   414→  const [loading, setLoading] = useState(false)
+   415→
+   416→  // Fetch shops from API for filtering (server-side handles the filters)
+   417→  const fetchShops = useCallback(async () => {
+   418→    setLoading(true)
+   419→    try {
+   420→      const data = await api.getAdminShops({
+   421→        search: shopSearch || undefined,
+   422→        businessType: shopTypeFilter !== 'all' ? shopTypeFilter : undefined,
+   423→        limit: 100,
+   424→      })
+   425→      setShops(data.shops || [])
+   426→    } catch (err) {
+   427→      toast.error(getNetworkErrorMessage(err))
+   428→      setShops(initialShops)
+   429→    } finally {
+   430→      setLoading(false)
+   431→    }
+   432→  }, [shopSearch, shopTypeFilter, initialShops])
+   433→
+   434→  useEffect(() => {
+   435→    // Debounce search
+   436→    const timer = setTimeout(() => fetchShops(), 300)
+   437→    return () => clearTimeout(timer)
+   438→  }, [fetchShops])
+   439→
+   440→  // Server already filters — just use the results directly
+   441→  const filteredShops = shops
+   442→
+   443→  return (
+   444→    <div className="space-y-4">
+   445→      <Card>
+   446→        <CardHeader>
+   447→          <CardTitle className="text-base flex items-center gap-2">
+   448→            <MapPin className="size-4 text-primary" /> Shops Map
+   449→          </CardTitle>
+   450→          <CardDescription>Geographic distribution of all registered shops</CardDescription>
+   451→        </CardHeader>
+   452→        <CardContent>
+   453→          {/* Lazy loaded map component (YouTube pattern) */}
+   454→          <Suspense fallback={<MapSkeleton />}>
+   455→            <LazyShopsMap shops={filteredShops} />
+   456→          </Suspense>
+   457→        </CardContent>
+   458→      </Card>
+   459→
+   460→      {/* Search and filter */}
+   461→      <div className="flex flex-col sm:flex-row gap-3">
+   462→        <div className="relative flex-1">
+   463→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   464→          <Input placeholder="Search shops by name or city..." value={shopSearch} onChange={(e) => setShopSearch(e.target.value)} className="pl-9" />
+   465→        </div>
+   466→        <Select value={shopTypeFilter} onValueChange={setShopTypeFilter}>
+   467→          <SelectTrigger className="w-full sm:w-40">
+   468→            <SelectValue placeholder="Type" />
+   469→          </SelectTrigger>
+   470→          <SelectContent>
+   471→            <SelectItem value="all">All Types</SelectItem>
+   472→            <SelectItem value="retail">Retail</SelectItem>
+   473→            <SelectItem value="service">Service</SelectItem>
+   474→            <SelectItem value="mixed">Mixed</SelectItem>
+   475→          </SelectContent>
+   476→        </Select>
+   477→      </div>
+   478→
+   479→      {/* Shops list */}
+   480→      <div className="space-y-2 max-h-96 overflow-y-auto">
+   481→        {loading ? (
+   482→          <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+   483→        ) : filteredShops.length === 0 ? (
+   484→          <p className="text-sm text-muted-foreground text-center py-8">No shops found</p>
+   485→        ) : (
+   486→          filteredShops.map(shop => (
+   487→            <Card key={shop.id} className="p-3 hover:bg-muted/30 transition-colors">
+   488→              <div className="flex items-center gap-3">
+   489→                <div className={`size-8 rounded-lg flex items-center justify-center shrink-0 ${
+   490→                  shop.businessType === 'retail' ? 'bg-emerald-100 dark:bg-emerald-900/30' :
+   491→                  shop.businessType === 'service' ? 'bg-blue-100 dark:bg-blue-900/30' :
+   492→                  'bg-amber-100 dark:bg-amber-900/30'
+   493→                }`}>
+   494→                  <Store className={`size-4 ${
+   495→                    shop.businessType === 'retail' ? 'text-emerald-600' :
+   496→                    shop.businessType === 'service' ? 'text-blue-600' :
+   497→                    'text-amber-600'
+   498→                  }`} />
+   499→                </div>
+   500→                <div className="flex-1 min-w-0">
+   501→                  <div className="flex items-center gap-2">
+   502→                    <h4 className="font-medium text-sm truncate">{shop.name}</h4>
+   503→                    <Badge className={businessTypeColor(shop.businessType)} variant="outline">{shop.businessType}</Badge>
+   504→                  </div>
+   505→                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+   506→                    {shop.city && <span className="flex items-center gap-1"><MapPin className="size-3" />{shop.city}</span>}
+   507→                    <span>Revenue: <strong className="text-foreground">{formatETB(shop.totalRevenue)}</strong></span>
+   508→                    <span>Shops: {shop.shopCount || 0}</span>
+   509→                  </div>
+   510→                </div>
+   511→                <Badge variant="secondary" className="text-xs capitalize shrink-0">{shop.subscriptionPlan}</Badge>
+   512→              </div>
+   513→            </Card>
+   514→          ))
+   515→        )}
+   516→      </div>
+   517→    </div>
+   518→  )
+   519→}
+   520→
+   521→// ============================================
+   522→// Market Intelligence Tab (uses isMobile)
+   523→// ============================================
+   524→function MarketIntelligenceTab({ regionId }: { regionId?: string | null }) {
+   525→  const { setPage } = useAppStore()
+   526→  const isMobile = useIsMobile()
+   527→  const [insights, setInsights] = useState<MarketInsightsData | null>(null)
+   528→  const [loading, setLoading] = useState(true)
+   529→  const [error, setError] = useState<string | null>(null)
+   530→
+   531→  const fetchInsights = useCallback(async () => {
+   532→    setError(null)
+   533→    try {
+   534→      const data = await api.getAdminMarketInsights(regionId || undefined)
+   535→      setInsights(data)
+   536→    } catch (err) {
+   537→      const msg = getNetworkErrorMessage(err)
+   538→      setError(msg)
+   539→    } finally {
+   540→      setLoading(false)
+   541→    }
+   542→  }, [regionId])
+   543→
+   544→  useEffect(() => { fetchInsights() }, [fetchInsights])
+   545→
+   546→  if (loading) {
+   547→    return (
+   548→      <div className="space-y-4">
+   549→        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-48" />)}
+   550→      </div>
+   551→    )
+   552→  }
+   553→
+   554→  if (!insights) {
+   555→    if (error) {
+   556→      return (
+   557→        <ErrorState
+   558→          title="Failed to load market insights"
+   559→          message={error}
+   560→          onRetry={() => { setLoading(true); fetchInsights() }}
+   561→        />
+   562→      )
+   563→    }
+   564→    return (
+   565→      <EmptyState
+   566→        title="No market data"
+   567→        message="Market intelligence data is not available yet."
+   568→      />
+   569→    )
+   570→  }
+   571→
+   572→  return (
+   573→    <div className="space-y-6">
+   574→      {/* Supply Opportunities */}
+   575→      <Card className="border-amber-200 dark:border-amber-900/50">
+   576→        <CardHeader>
+   577→          <CardTitle className="text-base flex items-center gap-2">
+   578→            <Rocket className="size-5 text-amber-500" /> Supply Opportunities
+   579→          </CardTitle>
+   580→          <CardDescription>
+   581→            Products that shops need — ideal for suppliers looking to fulfill demand
+   582→          </CardDescription>
+   583→        </CardHeader>
+   584→        <CardContent>
+   585→          {insights.supplyOpportunities.length > 0 ? (
+   586→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+   587→              {insights.supplyOpportunities.map((opp, i) => (
+   588→                <div key={i} className="p-4 rounded-lg border bg-amber-50/50 dark:bg-amber-900/10 space-y-2">
+   589→                  <div className="flex items-start justify-between">
+   590→                    <h4 className="font-semibold text-sm">{opp.productType}</h4>
+   591→                    {opp.lowStockCount >= 3 && (
+   592→                      <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0">HIGH DEMAND</Badge>
+   593→                    )}
+   594→                  </div>
+   595→                  <div className="space-y-1">
+   596→                    <p className="text-sm text-muted-foreground">
+   597→                      <strong className="text-foreground">{opp.lowStockCount}</strong> {opp.lowStockCount === 1 ? 'business needs' : 'businesses need'} this product
+   598→                    </p>
+   599→                    <div className="flex flex-wrap gap-1">
+   600→                      {opp.orgNames.slice(0, 3).map((name, j) => (
+   601→                        <Badge key={j} variant="outline" className="text-[10px] py-0">{name}</Badge>
+   602→                      ))}
+   603→                      {opp.orgNames.length > 3 && (
+   604→                        <Badge variant="outline" className="text-[10px] py-0">+{opp.orgNames.length - 3} more</Badge>
+   605→                      )}
+   606→                    </div>
+   607→                  </div>
+   608→                  <Button size="sm" variant="outline" className="w-full gap-1.5 text-xs mt-2" onClick={() => setPage('admin-organizations')}>
+   609→                    View Organizations <ChevronRight className="size-3" />
+   610→                  </Button>
+   611→                </div>
+   612→              ))}
+   613→            </div>
+   614→          ) : (
+   615→            <p className="text-sm text-muted-foreground text-center py-4">No supply opportunities detected</p>
+   616→          )}
+   617→        </CardContent>
+   618→      </Card>
+   619→
+   620→      {/* Fast Moving Products */}
+   621→      <Card className="border-brand-100 dark:border-brand-900/50">
+   622→        <CardHeader>
+   623→          <CardTitle className="text-base flex items-center gap-2">
+   624→            <Flame className="size-5 text-orange-500" /> Fast Moving Products
+   625→          </CardTitle>
+   626→          <CardDescription>Products with the highest sales volume across all shops</CardDescription>
+   627→        </CardHeader>
+   628→        <CardContent>
+   629→          {insights.fastMovingProducts.length > 0 ? (
+   630→            <div className="space-y-3">
+   631→              {insights.fastMovingProducts.slice(0, 10).map((p, i) => (
+   632→                <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-brand-50/50 dark:bg-brand-900/10">
+   633→                  <div className="flex-1 min-w-0">
+   634→                    <div className="flex items-center gap-2">
+   635→                      <h4 className="font-medium text-sm truncate">{p.name}</h4>
+   636→                      <Badge variant="outline" className="text-[10px] py-0 shrink-0">{p.category}</Badge>
+   637→                    </div>
+   638→                    <p className="text-xs text-muted-foreground mt-0.5">
+   639→                      {p.orgName} · {p.quantitySold} sold
+   640→                    </p>
+   641→                  </div>
+   642→                  <div className="text-right shrink-0 ml-3">
+   643→                    <p className="font-semibold text-sm">{formatETB(p.revenue)}</p>
+   644→                    <p className="text-[11px] text-primary">High demand</p>
+   645→                  </div>
+   646→                </div>
+   647→              ))}
+   648→            </div>
+   649→          ) : (
+   650→            <p className="text-sm text-muted-foreground text-center py-4">No data available</p>
+   651→          )}
+   652→        </CardContent>
+   653→      </Card>
+   654→
+   655→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   656→        {/* Demand by Category */}
+   657→        <Card>
+   658→          <CardHeader>
+   659→            <CardTitle className="text-base flex items-center gap-2">
+   660→              <ShoppingCart className="size-4 text-primary" /> Demand by Category
+   661→            </CardTitle>
+   662→          </CardHeader>
+   663→          <CardContent>
+   664→            {insights.demandByCategory.length > 0 ? (
+   665→              <ResponsiveContainer width="100%" height={250}>
+   666→                <BarChart data={insights.demandByCategory}>
+   667→                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   668→                  <XAxis dataKey="category" tick={{ fontSize: 11 }} />
+   669→                  <YAxis tick={{ fontSize: 11 }} />
+   670→                  <Tooltip />
+   671→                  <Bar dataKey="quantitySold" fill="#ea580c" radius={[4, 4, 0, 0]} name="Quantity Sold" />
+   672→                </BarChart>
+   673→              </ResponsiveContainer>
+   674→            ) : (
+   675→              <p className="text-sm text-muted-foreground text-center py-4">No data</p>
+   676→            )}
+   677→          </CardContent>
+   678→        </Card>
+   679→
+   680→        {/* Average Revenue by Business Type */}
+   681→        <Card>
+   682→          <CardHeader>
+   683→            <CardTitle className="text-base flex items-center gap-2">
+   684→              <DollarSign className="size-4 text-primary" /> Avg Revenue by Business Type
+   685→            </CardTitle>
+   686→          </CardHeader>
+   687→          <CardContent>
+   688→            {insights.averageRevenueByType.length > 0 ? (
+   689→              <ResponsiveContainer width="100%" height={250}>
+   690→                <BarChart data={insights.averageRevenueByType.map(item => ({
+   691→                  ...item,
+   692→                  businessType: item.businessType.charAt(0).toUpperCase() + item.businessType.slice(1),
+   693→                }))}>
+   694→                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   695→                  <XAxis dataKey="businessType" tick={{ fontSize: 11 }} />
+   696→                  <YAxis tick={{ fontSize: 11 }} />
+   697→                  <Tooltip formatter={(value: number) => formatETB(value)} />
+   698→                  <Bar dataKey="averageRevenue" fill="#06b6d4" radius={[4, 4, 0, 0]} name="Avg Revenue" />
+   699→                </BarChart>
+   700→              </ResponsiveContainer>
+   701→            ) : (
+   702→              <p className="text-sm text-muted-foreground text-center py-4">No data</p>
+   703→            )}
+   704→          </CardContent>
+   705→        </Card>
+   706→      </div>
+   707→
+   708→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   709→        {/* Top Cities */}
+   710→        <Card>
+   711→          <CardHeader>
+   712→            <CardTitle className="text-base flex items-center gap-2">
+   713→              <Globe2 className="size-4 text-primary" /> Top Cities
+   714→            </CardTitle>
+   715→            <CardDescription>Where most shops are located</CardDescription>
+   716→          </CardHeader>
+   717→          <CardContent>
+   718→            {insights.topCities.length > 0 ? (
+   719→              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+   720→                {insights.topCities.map((c, i) => (
+   721→                  <div key={i} className="text-center p-3 rounded-lg border bg-muted/30">
+   722→                    <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
+   723→                      <span className="text-sm font-bold text-primary">{i + 1}</span>
+   724→                    </div>
+   725→                    <p className="font-medium text-sm">{c.city || 'Unknown'}</p>
+   726→                    <p className="text-xs text-muted-foreground">{c.shopCount} shops</p>
+   727→                  </div>
+   728→                ))}
+   729→              </div>
+   730→            ) : (
+   731→              <p className="text-sm text-muted-foreground text-center py-4">No data</p>
+   732→            )}
+   733→          </CardContent>
+   734→        </Card>
+   735→
+   736→        {/* Business Type Distribution */}
+   737→        <Card>
+   738→          <CardHeader>
+   739→            <CardTitle className="text-base flex items-center gap-2">
+   740→              <BarChart3 className="size-4 text-primary" /> Business Type Distribution
+   741→            </CardTitle>
+   742→          </CardHeader>
+   743→          <CardContent>
+   744→            {insights.businessTypeDistribution.length > 0 ? (
+   745→              <ResponsiveContainer width="100%" height={220}>
+   746→                <PieChart>
+   747→                  <Pie
+   748→                    data={insights.businessTypeDistribution.map(item => ({
+   749→                      type: item.businessType.charAt(0).toUpperCase() + item.businessType.slice(1),
+   750→                      count: item.count,
+   751→                    }))}
+   752→                    cx="50%" cy="50%"
+   753→                    innerRadius={45} outerRadius={75}
+   754→                    paddingAngle={4} dataKey="count"
+   755→                    label={isMobile ? ({ count }: { count: number }) => count : ({ type, count }: { type: string; count: number }) => `${type} (${count})`}
+   756→                  >
+   757→                    {insights.businessTypeDistribution.map((_, i) => (
+   758→                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+   759→                    ))}
+   760→                  </Pie>
+   761→                  <Tooltip />
+   762→                </PieChart>
+   763→              </ResponsiveContainer>
+   764→            ) : (
+   765→              <p className="text-sm text-muted-foreground text-center py-4">No data</p>
+   766→            )}
+   767→          </CardContent>
+   768→        </Card>
+   769→      </div>
+   770→
+   771→      {/* Low Stock Alerts */}
+   772→      <Card className="border-red-200 dark:border-red-900/50">
+   773→        <CardHeader>
+   774→          <CardTitle className="text-base flex items-center gap-2">
+   775→            <AlertTriangle className="size-5 text-red-500" /> Low Stock Alerts
+   776→          </CardTitle>
+   777→          <CardDescription>Products running low across shops — supply opportunity</CardDescription>
+   778→        </CardHeader>
+   779→        <CardContent>
+   780→          {insights.lowStockProducts.length > 0 ? (
+   781→            <div className="space-y-2 max-h-80 overflow-y-auto">
+   782→              {insights.lowStockProducts.map((p, i) => (
+   783→                <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-red-50/50 dark:bg-red-900/10">
+   784→                  <div className="flex items-center gap-3">
+   785→                    <div className="size-8 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
+   786→                      <Store className="size-4 text-red-600" />
+   787→                    </div>
+   788→                    <div>
+   789→                      <p className="font-medium text-sm">
+   790→                        <span className="text-muted-foreground">🏪</span> {p.orgName} needs <strong>{p.productName}</strong>
+   791→                      </p>
+   792→                      <p className="text-xs text-muted-foreground">{p.category} · only {p.quantity} left</p>
+   793→                    </div>
+   794→                  </div>
+   795→                  <Badge variant="outline" className="text-red-700 bg-red-100 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800">
+   796→                    {p.quantity} left
+   797→                  </Badge>
+   798→                </div>
+   799→              ))}
+   800→            </div>
+   801→          ) : (
+   802→            <p className="text-sm text-muted-foreground text-center py-4">No low stock alerts</p>
+   803→          )}
+   804→        </CardContent>
+   805→      </Card>
+   806→    </div>
+   807→  )
+   808→}
+   809→
+   810→// ============================================
+   811→// System Health Tab
+   812→// ============================================
+   813→function SystemHealthTab() {
+   814→  const [health, setHealth] = useState<SystemHealthData | null>(null)
+   815→  const [loading, setLoading] = useState(true)
+   816→  const [error, setError] = useState<string | null>(null)
+   817→  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+   818→
+   819→  const fetchHealth = useCallback(async () => {
+   820→    setError(null)
+   821→    try {
+   822→      const data = await swrFetch<SystemHealthData>(
+   823→        'admin:system-health',
+   824→        () => api.getSystemHealth(),
+   825→        { dedupingInterval: 10_000 } // 10s dedupe for health data
+   826→      )
+   827→      setHealth(data)
+   828→      setLastRefresh(new Date())
+   829→    } catch (err) {
+   830→      const msg = getNetworkErrorMessage(err)
+   831→      setError(msg)
+   832→    } finally {
+   833→      setLoading(false)
+   834→    }
+   835→  }, [])
+   836→
+   837→  // Initial fetch + auto-refresh every 30 seconds
+   838→  useEffect(() => {
+   839→    fetchHealth()
+   840→    const interval = setInterval(() => {
+   841→      invalidateKey('admin:system-health')
+   842→      fetchHealth()
+   843→    }, 30_000)
+   844→    return () => clearInterval(interval)
+   845→  }, [fetchHealth])
+   846→
+   847→  if (loading) {
+   848→    return (
+   849→      <div className="space-y-4">
+   850→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+   851→          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
+   852→        </div>
+   853→        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   854→          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-48" />)}
+   855→        </div>
+   856→      </div>
+   857→    )
+   858→  }
+   859→
+   860→  if (!health) {
+   861→    if (error) {
+   862→      return (
+   863→        <ErrorState
+   864→          title="Failed to load system health"
+   865→          message={error}
+   866→          onRetry={() => { setLoading(true); fetchHealth() }}
+   867→        />
+   868→      )
+   869→    }
+   870→    return (
+   871→      <EmptyState
+   872→        title="No health data"
+   873→        message="System health data is not available."
+   874→      />
+   875→    )
+   876→  }
+   877→
+   878→  const isHealthy = health.status === 'healthy'
+   879→  const isDegraded = health.status === 'degraded'
+   880→  const memUsagePercent = health.memory.heapTotalMB > 0
+   881→    ? Math.round((health.memory.heapUsedMB / health.memory.heapTotalMB) * 100)
+   882→    : 0
+   883→
+   884→  return (
+   885→    <div className="space-y-4">
+   886→      {/* Status Overview */}
+   887→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+   888→        {/* Server Status */}
+   889→        <Card className={isHealthy ? 'border-emerald-200 dark:border-emerald-900/50' : isDegraded ? 'border-amber-200 dark:border-amber-900/50' : 'border-red-200 dark:border-red-900/50'}>
+   890→          <CardContent className="p-3 sm:p-4">
+   891→            <div className="flex items-center gap-2 sm:gap-3">
+   892→              <div className={`size-8 sm:size-10 rounded-lg flex items-center justify-center shrink-0 ${
+   893→                isHealthy ? 'bg-emerald-100 dark:bg-emerald-900/30' :
+   894→                isDegraded ? 'bg-amber-100 dark:bg-amber-900/30' :
+   895→                'bg-red-100 dark:bg-red-900/30'
+   896→              }`}>
+   897→                <Server className={`size-4 sm:size-5 ${
+   898→                  isHealthy ? 'text-emerald-600' :
+   899→                  isDegraded ? 'text-amber-600' :
+   900→                  'text-red-600'
+   901→                }`} />
+   902→              </div>
+   903→              <div className="min-w-0">
+   904→                <p className="text-[11px] sm:text-xs text-muted-foreground">Server Status</p>
+   905→                <div className="flex items-center gap-1.5">
+   906→                  {isHealthy ? <CheckCircle2 className="size-3.5 sm:size-4 text-emerald-600" /> :
+   907→                   isDegraded ? <AlertCircle className="size-3.5 sm:size-4 text-amber-600" /> :
+   908→                   <XCircle className="size-3.5 sm:size-4 text-red-600" />}
+   909→                  <p className="text-sm sm:text-base font-semibold capitalize">{health.status}</p>
+   910→                </div>
+   911→              </div>
+   912→            </div>
+   913→          </CardContent>
+   914→        </Card>
+   915→
+   916→        {/* Database Latency */}
+   917→        <Card>
+   918→          <CardContent className="p-3 sm:p-4">
+   919→            <div className="flex items-center gap-2 sm:gap-3">
+   920→              <div className="size-8 sm:size-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+   921→                <Database className="size-4 sm:size-5 text-blue-600" />
+   922→              </div>
+   923→              <div className="min-w-0">
+   924→                <p className="text-[11px] sm:text-xs text-muted-foreground">DB Latency</p>
+   925→                <p className="text-sm sm:text-base font-semibold">
+   926→                  {health.database.latencyMs}ms
+   927→                </p>
+   928→                <Badge variant="outline" className={`text-[10px] px-1 py-0 mt-0.5 ${
+   929→                  health.database.status === 'connected'
+   930→                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+   931→                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+   932→                }`}>
+   933→                  {health.database.status}
+   934→                </Badge>
+   935→              </div>
+   936→            </div>
+   937→          </CardContent>
+   938→        </Card>
+   939→
+   940→        {/* Uptime */}
+   941→        <Card>
+   942→          <CardContent className="p-3 sm:p-4">
+   943→            <div className="flex items-center gap-2 sm:gap-3">
+   944→              <div className="size-8 sm:size-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+   945→                <Clock className="size-4 sm:size-5 text-purple-600" />
+   946→              </div>
+   947→              <div className="min-w-0">
+   948→                <p className="text-[11px] sm:text-xs text-muted-foreground">Uptime</p>
+   949→                <p className="text-sm sm:text-base font-semibold">{health.uptime.formatted}</p>
+   950→              </div>
+   951→            </div>
+   952→          </CardContent>
+   953→        </Card>
+   954→
+   955→        {/* Cache Entries */}
+   956→        <Card>
+   957→          <CardContent className="p-3 sm:p-4">
+   958→            <div className="flex items-center gap-2 sm:gap-3">
+   959→              <div className="size-8 sm:size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center shrink-0">
+   960→                <Zap className="size-4 sm:size-5 text-primary" />
+   961→              </div>
+   962→              <div className="min-w-0">
+   963→                <p className="text-[11px] sm:text-xs text-muted-foreground">Cache Entries</p>
+   964→                <p className="text-sm sm:text-base font-semibold">{health.cache.totalEntries}</p>
+   965→                <p className="text-[10px] text-muted-foreground">{health.cache.namespaces} namespaces</p>
+   966→              </div>
+   967→            </div>
+   968→          </CardContent>
+   969→        </Card>
+   970→      </div>
+   971→
+   972→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   973→        {/* Memory Usage */}
+   974→        <Card>
+   975→          <CardHeader>
+   976→            <CardTitle className="text-base flex items-center gap-2">
+   977→              <HardDrive className="size-4 text-primary" /> Memory Usage
+   978→            </CardTitle>
+   979→            <CardDescription>Node.js process memory allocation</CardDescription>
+   980→          </CardHeader>
+   981→          <CardContent className="space-y-4">
+   982→            {/* Heap usage bar */}
+   983→            <div className="space-y-2">
+   984→              <div className="flex justify-between text-sm">
+   985→                <span className="text-muted-foreground">Heap Used</span>
+   986→                <span className="font-medium">{health.memory.heapUsedMB} / {health.memory.heapTotalMB} MB</span>
+   987→              </div>
+   988→              <Progress value={memUsagePercent} className={`h-3 ${memUsagePercent > 80 ? '[&>[data-slot=progress-indicator]]:bg-red-500' : memUsagePercent > 60 ? '[&>[data-slot=progress-indicator]]:bg-amber-500' : '[&>[data-slot=progress-indicator]]:bg-emerald-500'}`} />
+   989→              <p className="text-xs text-muted-foreground">{memUsagePercent}% utilized</p>
+   990→            </div>
+   991→
+   992→            <div className="grid grid-cols-2 gap-3">
+   993→              <div className="p-3 rounded-lg border bg-muted/30">
+   994→                <p className="text-xs text-muted-foreground">RSS</p>
+   995→                <p className="text-sm font-semibold">{health.memory.rssMB} MB</p>
+   996→              </div>
+   997→              <div className="p-3 rounded-lg border bg-muted/30">
+   998→                <p className="text-xs text-muted-foreground">External</p>
+   999→                <p className="text-sm font-semibold">{health.memory.externalMB} MB</p>
+  1000→              </div>
+  1001→            </div>
+  1002→          </CardContent>
+  1003→        </Card>
+  1004→
+  1005→        {/* Cache Namespaces */}
+  1006→        <Card>
+  1007→          <CardHeader>
+  1008→            <CardTitle className="text-base flex items-center gap-2">
+  1009→              <Zap className="size-4 text-primary" /> Cache Namespaces
+  1010→            </CardTitle>
+  1011→            <CardDescription>Netflix EVCache-style multi-layer cache</CardDescription>
+  1012→          </CardHeader>
+  1013→          <CardContent>
+  1014→            {Object.keys(health.cache.details).length > 0 ? (
+  1015→              <div className="space-y-2 max-h-64 overflow-y-auto">
+  1016→                {Object.entries(health.cache.details).map(([ns, count]) => (
+  1017→                  <div key={ns} className="flex items-center justify-between p-2.5 rounded-lg border bg-muted/20">
+  1018→                    <div className="flex items-center gap-2 min-w-0">
+  1019→                      <div className="size-2 rounded-full bg-emerald-500 shrink-0" />
+  1020→                      <span className="text-sm font-mono truncate">{ns}</span>
+  1021→                    </div>
+  1022→                    <Badge variant="secondary" className="text-xs shrink-0 ml-2">{count} entries</Badge>
+  1023→                  </div>
+  1024→                ))}
+  1025→              </div>
+  1026→            ) : (
+  1027→              <p className="text-sm text-muted-foreground text-center py-4">No cache entries</p>
+  1028→            )}
+  1029→            <div className="mt-3 p-2 rounded-lg bg-muted/30 text-xs text-muted-foreground">
+  1030→              Hit Rate: {health.cache.hitRate}
+  1031→            </div>
+  1032→          </CardContent>
+  1033→        </Card>
+  1034→
+  1035→        {/* Rate Limit Stats */}
+  1036→        <Card>
+  1037→          <CardHeader>
+  1038→            <CardTitle className="text-base flex items-center gap-2">
+  1039→              <ShieldCheck className="size-4 text-primary" /> Rate Limiting
+  1040→            </CardTitle>
+  1041→            <CardDescription>Google API-style token bucket rate limits</CardDescription>
+  1042→          </CardHeader>
+  1043→          <CardContent>
+  1044→            <div className="space-y-3">
+  1045→              <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+  1046→                <span className="text-sm text-muted-foreground">Active Buckets</span>
+  1047→                <span className="text-sm font-semibold">{health.rateLimit.activeBuckets}</span>
+  1048→              </div>
+  1049→              {Object.keys(health.rateLimit.details).length > 0 ? (
+  1050→                <div className="space-y-2">
+  1051→                  {Object.entries(health.rateLimit.details).map(([prefix, count]) => (
+  1052→                    <div key={prefix} className="flex items-center justify-between p-2.5 rounded-lg border bg-muted/20">
+  1053→                      <div className="flex items-center gap-2">
+  1054→                        <ArrowDownUp className="size-3.5 text-amber-500" />
+  1055→                        <span className="text-sm font-mono">{prefix}</span>
+  1056→                      </div>
+  1057→                      <Badge variant="outline" className="text-xs">{count} buckets</Badge>
+  1058→                    </div>
+  1059→                  ))}
+  1060→                </div>
+  1061→              ) : (
+  1062→                <p className="text-sm text-muted-foreground text-center py-2">No active rate limit buckets</p>
+  1063→              )}
+  1064→            </div>
+  1065→          </CardContent>
+  1066→        </Card>
+  1067→
+  1068→        {/* Circuit Breaker States */}
+  1069→        <Card>
+  1070→          <CardHeader>
+  1071→            <CardTitle className="text-base flex items-center gap-2">
+  1072→              <Activity className="size-4 text-primary" /> Circuit Breakers
+  1073→            </CardTitle>
+  1074→            <CardDescription>Netflix Hystrix-style resilience patterns</CardDescription>
+  1075→          </CardHeader>
+  1076→          <CardContent>
+  1077→            {Object.keys(health.resilience.circuits).length > 0 ? (
+  1078→              <div className="space-y-2">
+  1079→                {Object.entries(health.resilience.circuits).map(([key, circuit]) => (
+  1080→                  <div key={key} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+  1081→                    <div className="flex items-center gap-2">
+  1082→                      <div className={`size-2.5 rounded-full ${
+  1083→                        circuit.state === 'closed' ? 'bg-emerald-500' :
+  1084→                        circuit.state === 'open' ? 'bg-red-500' :
+  1085→                        'bg-amber-500'
+  1086→                      }`} />
+  1087→                      <span className="text-sm font-mono">{key}</span>
+  1088→                    </div>
+  1089→                    <div className="flex items-center gap-2">
+  1090→                      <Badge className={`text-[10px] px-1.5 py-0 ${
+  1091→                        circuit.state === 'closed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' :
+  1092→                        circuit.state === 'open' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+  1093→                        'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+  1094→                      }`} variant="outline">
+  1095→                        {circuit.state}
+  1096→                      </Badge>
+  1097→                      {circuit.failureCount > 0 && (
+  1098→                        <span className="text-xs text-red-600 dark:text-red-400">
+  1099→                          {circuit.failureCount} failures
+  1100→                        </span>
+  1101→                      )}
+  1102→                    </div>
+  1103→                  </div>
+  1104→                ))}
+  1105→              </div>
+  1106→            ) : (
+  1107→              <p className="text-sm text-muted-foreground text-center py-4">All circuits closed (healthy)</p>
+  1108→            )}
+  1109→
+  1110→            {Object.keys(health.resilience.bulkheads).length > 0 && (
+  1111→              <div className="mt-3 space-y-2">
+  1112→                <p className="text-xs text-muted-foreground font-medium">Bulkheads</p>
+  1113→                {Object.entries(health.resilience.bulkheads).map(([key, bh]) => (
+  1114→                  <div key={key} className="flex items-center justify-between p-2 rounded-lg border bg-muted/10 text-sm">
+  1115→                    <span className="font-mono text-xs">{key}</span>
+  1116→                    <span className="text-xs text-muted-foreground">
+  1117→                      {bh.active} active / {bh.queued} queued
+  1118→                    </span>
+  1119→                  </div>
+  1120→                ))}
+  1121→              </div>
+  1122→            )}
+  1123→          </CardContent>
+  1124→        </Card>
+  1125→      </div>
+  1126→
+  1127→      {/* Applied Patterns */}
+  1128→      <Card>
+  1129→        <CardHeader>
+  1130→          <CardTitle className="text-base flex items-center gap-2">
+  1131→            <Cpu className="size-4 text-primary" /> Applied Traffic Optimization Patterns
+  1132→          </CardTitle>
+  1133→          <CardDescription>
+  1134→            Industry-proven patterns from Netflix, Google, and YouTube
+  1135→          </CardDescription>
+  1136→        </CardHeader>
+  1137→        <CardContent>
+  1138→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  1139→            {health.patterns.applied.map((pattern, i) => (
+  1140→              <div key={i} className="flex items-start gap-2.5 p-3 rounded-lg border bg-muted/20">
+  1141→                <div className="size-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+  1142→                  <Zap className="size-3 text-primary" />
+  1143→                </div>
+  1144→                <span className="text-sm">{pattern}</span>
+  1145→              </div>
+  1146→            ))}
+  1147→          </div>
+  1148→        </CardContent>
+  1149→      </Card>
+  1150→
+  1151→      {/* Last Refresh */}
+  1152→      <div className="flex items-center justify-between text-xs text-muted-foreground">
+  1153→        <span>Last refreshed: {lastRefresh.toLocaleTimeString()}</span>
+  1154→        <span className="flex items-center gap-1">
+  1155→          <Activity className="size-3" />
+  1156→          Auto-refreshes every 30s
+  1157→        </span>
+  1158→      </div>
+  1159→    </div>
+  1160→  )
+  1161→}
+  1162→
+  1163→// ============================================
+  1164→// Activity Log Tab
+  1165→// ============================================
+  1166→type ActivityEventType = 'organization' | 'user' | 'announcement'
+  1167→
+  1168→interface ActivityEvent {
+  1169→  id: string
+  1170→  type: ActivityEventType
+  1171→  icon: React.ElementType
+  1172→  iconBg: string
+  1173→  iconColor: string
+  1174→  title: string
+  1175→  description: string
+  1176→  timestamp: string
+  1177→}
+  1178→
+  1179→function ActivityLogTab() {
+  1180→  const [events, setEvents] = useState<ActivityEvent[]>([])
+  1181→  const [loading, setLoading] = useState(true)
+  1182→  const [error, setError] = useState<string | null>(null)
+  1183→  const [filter, setFilter] = useState<'all' | ActivityEventType>('all')
+  1184→
+  1185→  const fetchEvents = useCallback(async () => {
+  1186→    setError(null)
+  1187→    try {
+  1188→      const [orgsRes, usersRes, announcementsRes] = await Promise.allSettled([
+  1189→        api.getAdminOrganizations({ limit: 10 }),
+  1190→        api.getAdminUsers({ limit: 10 }),
+  1191→        api.getAdminAnnouncements({ limit: 10 }),
+  1192→      ])
+  1193→
+  1194→      const allEvents: ActivityEvent[] = []
+  1195→
+  1196→      // Process organizations
+  1197→      if (orgsRes.status === 'fulfilled') {
+  1198→        for (const org of orgsRes.value.organizations) {
+  1199→          allEvents.push({
+  1200→            id: `org-${org.id}`,
+  1201→            type: 'organization',
+  1202→            icon: Building2,
+  1203→            iconBg: 'bg-brand-50 dark:bg-brand-900/20',
+  1204→            iconColor: 'text-primary',
+  1205→            title: 'New organization registered',
+  1206→            description: `${org.name}${org.businessType ? ` · ${org.businessType}` : ''}`,
+  1207→            timestamp: org.createdAt,
+  1208→          })
+  1209→        }
+  1210→      }
+  1211→
+  1212→      // Process users
+  1213→      if (usersRes.status === 'fulfilled') {
+  1214→        for (const user of usersRes.value.users) {
+  1215→          allEvents.push({
+  1216→            id: `user-${user.id}`,
+  1217→            type: 'user',
+  1218→            icon: Users,
+  1219→            iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+  1220→            iconColor: 'text-blue-600',
+  1221→            title: 'User joined',
+  1222→            description: `${user.name}${user.email ? ` · ${user.email}` : ''}`,
+  1223→            timestamp: user.createdAt,
+  1224→          })
+  1225→        }
+  1226→      }
+  1227→
+  1228→      // Process announcements
+  1229→      if (announcementsRes.status === 'fulfilled') {
+  1230→        for (const ann of announcementsRes.value.announcements) {
+  1231→          allEvents.push({
+  1232→            id: `ann-${ann.id}`,
+  1233→            type: 'announcement',
+  1234→            icon: Megaphone,
+  1235→            iconBg: 'bg-rose-100 dark:bg-rose-900/30',
+  1236→            iconColor: 'text-rose-600',
+  1237→            title: 'Announcement sent',
+  1238→            description: ann.title,
+  1239→            timestamp: ann.createdAt,
+  1240→          })
+  1241→        }
+  1242→      }
+  1243→
+  1244→      // Sort by date, most recent first
+  1245→      allEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  1246→      setEvents(allEvents)
+  1247→    } catch (err) {
+  1248→      const msg = getNetworkErrorMessage(err)
+  1249→      setError(msg)
+  1250→    } finally {
+  1251→      setLoading(false)
+  1252→    }
+  1253→  }, [])
+  1254→
+  1255→  useEffect(() => { fetchEvents() }, [fetchEvents])
+  1256→
+  1257→  const filteredEvents = filter === 'all'
+  1258→    ? events
+  1259→    : events.filter(e => e.type === filter)
+  1260→
+  1261→  const filterOptions: Array<{ value: 'all' | ActivityEventType; label: string; icon: React.ElementType }> = [
+  1262→    { value: 'all', label: 'All', icon: Filter },
+  1263→    { value: 'organization', label: 'Organizations', icon: Building2 },
+  1264→    { value: 'user', label: 'Users', icon: Users },
+  1265→    { value: 'announcement', label: 'Announcements', icon: Megaphone },
+  1266→  ]
+  1267→
+  1268→  if (loading) {
+  1269→    return (
+  1270→      <div className="space-y-4">
+  1271→        <div className="flex flex-wrap gap-2">
+  1272→          {Array.from({ length: 4 }).map((_, i) => (
+  1273→            <Skeleton key={i} className="h-8 w-24" />
+  1274→          ))}
+  1275→        </div>
+  1276→        <Card>
+  1277→          <CardContent className="p-4 space-y-4">
+  1278→            {Array.from({ length: 6 }).map((_, i) => (
+  1279→              <div key={i} className="flex items-center gap-3">
+  1280→                <Skeleton className="size-9 rounded-lg shrink-0" />
+  1281→                <div className="flex-1 space-y-1.5">
+  1282→                  <Skeleton className="h-4 w-3/4" />
+  1283→                  <Skeleton className="h-3 w-1/2" />
+  1284→                </div>
+  1285→                <Skeleton className="h-3 w-20 shrink-0" />
+  1286→              </div>
+  1287→            ))}
+  1288→          </CardContent>
+  1289→        </Card>
+  1290→      </div>
+  1291→    )
+  1292→  }
+  1293→
+  1294→  if (error) {
+  1295→    return (
+  1296→      <ErrorState
+  1297→        title="Failed to load activity log"
+  1298→        message={error}
+  1299→        onRetry={() => { setLoading(true); fetchEvents() }}
+  1300→      />
+  1301→    )
+  1302→  }
+  1303→
+  1304→  return (
+  1305→    <div className="space-y-4">
+  1306→      {/* Filters */}
+  1307→      <div className="flex flex-wrap gap-2">
+  1308→        {filterOptions.map(opt => (
+  1309→          <Button
+  1310→            key={opt.value}
+  1311→            variant={filter === opt.value ? 'default' : 'outline'}
+  1312→            size="sm"
+  1313→            className="gap-1.5 text-xs"
+  1314→            onClick={() => setFilter(opt.value)}
+  1315→          >
+  1316→            <opt.icon className="size-3.5" />
+  1317→            {opt.label}
+  1318→            {opt.value !== 'all' && (
+  1319→              <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
+  1320→                {events.filter(e => e.type === opt.value).length}
+  1321→              </Badge>
+  1322→            )}
+  1323→          </Button>
+  1324→        ))}
+  1325→      </div>
+  1326→
+  1327→      {/* Timeline */}
+  1328→      <Card>
+  1329→        <CardHeader>
+  1330→          <CardTitle className="text-base flex items-center gap-2">
+  1331→            <Activity className="size-4 text-primary" /> Activity Timeline
+  1332→          </CardTitle>
+  1333→          <CardDescription>
+  1334→            {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} found
+  1335→          </CardDescription>
+  1336→        </CardHeader>
+  1337→        <CardContent>
+  1338→          {filteredEvents.length > 0 ? (
+  1339→            <div className="relative max-h-[calc(100vh-300px)] overflow-y-auto">
+  1340→              {/* Timeline line */}
+  1341→              <div className="absolute left-[18px] top-2 bottom-2 w-px bg-border" />
+  1342→              <div className="space-y-1">
+  1343→                {filteredEvents.map(event => (
+  1344→                  <div key={event.id} className="relative flex items-start gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors group">
+  1345→                    {/* Icon */}
+  1346→                    <div className={`size-9 rounded-lg ${event.iconBg} flex items-center justify-center shrink-0 z-10 ring-2 ring-background`}>
+  1347→                      <event.icon className={`size-4 ${event.iconColor}`} />
+  1348→                    </div>
+  1349→                    {/* Content */}
+  1350→                    <div className="flex-1 min-w-0 pt-0.5">
+  1351→                      <div className="flex items-center gap-2 flex-wrap">
+  1352→                        <p className="text-sm font-medium">{event.title}</p>
+  1353→                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize shrink-0">
+  1354→                          {event.type}
+  1355→                        </Badge>
+  1356→                      </div>
+  1357→                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{event.description}</p>
+  1358→                    </div>
+  1359→                    {/* Timestamp */}
+  1360→                    <div className="text-right shrink-0 ml-2 pt-0.5">
+  1361→                      <p className="text-xs text-muted-foreground whitespace-nowrap">
+  1362→                        {formatDateWithTime(event.timestamp)}
+  1363→                      </p>
+  1364→                    </div>
+  1365→                  </div>
+  1366→                ))}
+  1367→              </div>
+  1368→            </div>
+  1369→          ) : (
+  1370→            <EmptyState
+  1371→              title="No events found"
+  1372→              message={filter === 'all' ? 'There is no platform activity yet.' : `No ${filter} events found. Try a different filter.`}
+  1373→            />
+  1374→          )}
+  1375→        </CardContent>
+  1376→      </Card>
+  1377→    </div>
+  1378→  )
+  1379→}
+  1380→
+  1381→// ============================================
+  1382→// Admin Dashboard Page
+  1383→// ============================================
+  1384→export function AdminDashboardPage() {
+  1385→  const { user } = useAuthStore()
+  1386→  const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null)
+  1387→  const [shopsData, setShopsData] = useState<ShopData[]>([])
+  1388→  const [loading, setLoading] = useState(true)
+  1389→  const [refreshing, setRefreshing] = useState(false)
+  1390→  const [error, setError] = useState<string | null>(null)
+  1391→  const [activeTab, setActiveTab] = useState('overview')
+  1392→  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null)
+  1393→  const [regions, setRegions] = useState<RegionData[]>([])
+  1394→
+  1395→  // Fetch regions for the selector
+  1396→  const fetchRegions = useCallback(async () => {
+  1397→    try {
+  1398→      const data = await api.getAdminRegions({ includeStats: true })
+  1399→      setRegions(data.regions)
+  1400→    } catch {
+  1401→      // Silent fail for regions selector
+  1402→    }
+  1403→  }, [])
+  1404→
+  1405→  useEffect(() => { fetchRegions() }, [fetchRegions])
+  1406→
+  1407→  const fetchData = useCallback(async (isRefresh = false) => {
+  1408→    if (isRefresh) setRefreshing(true)
+  1409→    setError(null)
+  1410→    try {
+  1411→      const [dashboard, shopsResult] = await Promise.all([
+  1412→        swrFetch<AdminDashboardData>(
+  1413→          `admin:dashboard:${selectedRegionId || 'all'}`,
+  1414→          () => api.getAdminDashboard(selectedRegionId || undefined),
+  1415→          { dedupingInterval: 15_000 }
+  1416→        ),
+  1417→        api.getAdminShops({ limit: 100, regionId: selectedRegionId || undefined }),
+  1418→      ])
+  1419→      setDashboardData(dashboard)
+  1420→      setShopsData(shopsResult.shops || [])
+  1421→    } catch (err) {
+  1422→      const msg = getNetworkErrorMessage(err)
+  1423→      setError(msg)
+  1424→      toast.error(msg)
+  1425→    } finally {
+  1426→      setLoading(false)
+  1427→      setRefreshing(false)
+  1428→    }
+  1429→  }, [selectedRegionId])
+  1430→
+  1431→  useEffect(() => { fetchData() }, [fetchData])
+  1432→
+  1433→  if (loading) {
+  1434→    return (
+  1435→      <div className="space-y-6">
+  1436→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+  1437→          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
+  1438→        </div>
+  1439→        <Skeleton className="h-[400px]" />
+  1440→      </div>
+  1441→    )
+  1442→  }
+  1443→
+  1444→  if (!dashboardData) {
+  1445→    return (
+  1446→      <div className="space-y-6">
+  1447→        <div>
+  1448→          <h1 className="text-base font-semibold tracking-tight">Admin Dashboard</h1>
+  1449→          <p className="text-muted-foreground text-sm">Platform overview and market intelligence</p>
+  1450→        </div>
+  1451→        {error ? (
+  1452→          <ErrorState
+  1453→            title="Failed to load dashboard"
+  1454→            message={error}
+  1455→            onRetry={() => fetchData(true)}
+  1456→          />
+  1457→        ) : (
+  1458→          <EmptyState
+  1459→            title="No data available"
+  1460→            message="Dashboard data could not be loaded."
+  1461→          />
+  1462→        )}
+  1463→      </div>
+  1464→    )
+  1465→  }
+  1466→
+  1467→  return (
+  1468→    <div className="space-y-6">
+  1469→      {/* Header */}
+  1470→      <div className="flex items-center justify-between">
+  1471→        <div>
+  1472→          <h1 className="text-base font-semibold tracking-tight flex items-center gap-2">
+  1473→            Admin Dashboard
+  1474→            <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-[10px] px-1.5 py-0.5 gap-1">
+  1475→              <Zap className="size-3" />
+  1476→              Optimized
+  1477→            </Badge>
+  1478→            {dashboardData.regionInfo && (
+  1479→              <span className="text-primary"> · {dashboardData.regionInfo.name}</span>
+  1480→            )}
+  1481→          </h1>
+  1482→          <p className="text-muted-foreground text-sm">
+  1483→            {selectedRegionId ? `Filtered to ${dashboardData.regionInfo?.name || 'selected region'}` : 'Platform overview and market intelligence'}
+  1484→          </p>
+  1485→        </div>
+  1486→        <Button
+  1487→          variant="outline"
+  1488→          size="sm"
+  1489→          className="gap-1.5"
+  1490→          onClick={() => fetchData(true)}
+  1491→          disabled={refreshing}
+  1492→        >
+  1493→          <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
+  1494→          Refresh
+  1495→        </Button>
+  1496→      </div>
+  1497→
+  1498→      {/* Region Selector Bar */}
+  1499→      {regions.length > 0 && (
+  1500→        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+  1501→          <button
+  1502→            className={`shrink-0 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+  1503→              !selectedRegionId
+  1504→                ? 'bg-primary text-primary-foreground border-primary'
+  1505→                : 'bg-card text-card-foreground border-border hover:bg-muted/50'
+  1506→            }`}
+  1507→            onClick={() => setSelectedRegionId(null)}
+  1508→          >
+  1509→            All
+  1510→          </button>
+  1511→          {regions.map(region => (
+  1512→            <button
+  1513→              key={region.id}
+  1514→              className={`shrink-0 px-4 py-2 rounded-lg border text-sm transition-colors ${
+  1515→                selectedRegionId === region.id
+  1516→                  ? 'bg-primary text-primary-foreground border-primary'
+  1517→                  : 'bg-card text-card-foreground border-border hover:bg-muted/50'
+  1518→              }`}
+  1519→              onClick={() => setSelectedRegionId(region.id)}
+  1520→            >
+  1521→              <span className="font-medium">{region.name}</span>
+  1522→              <span className={`ml-1.5 text-xs ${selectedRegionId === region.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+  1523→                ({region.orgCount ?? 0})
+  1524→              </span>
+  1525→            </button>
+  1526→          ))}
+  1527→        </div>
+  1528→      )}
+  1529→
+  1530→      {/* Regions Comparison */}
+  1531→      {dashboardData.regionsBreakdown && dashboardData.regionsBreakdown.length > 1 && !selectedRegionId && (
+  1532→        <Card className="border-brand-100 dark:border-brand-900/50">
+  1533→          <CardHeader className="pb-3">
+  1534→            <CardTitle className="text-base flex items-center gap-2">
+  1535→              <Globe2 className="size-4 text-primary" /> Regional Breakdown
+  1536→            </CardTitle>
+  1537→            <CardDescription>Compare performance across cities</CardDescription>
+  1538→          </CardHeader>
+  1539→          <CardContent>
+  1540→            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+  1541→              {dashboardData.regionsBreakdown
+  1542→                .sort((a, b) => b.orgCount - a.orgCount)
+  1543→                .map(region => (
+  1544→                  <button
+  1545→                    key={region.regionId}
+  1546→                    onClick={() => setSelectedRegionId(region.regionId)}
+  1547→                    className="text-left p-3 rounded-lg border hover:border-primary/50 hover:bg-primary/5 transition-colors"
+  1548→                  >
+  1549→                    <p className="font-medium text-sm truncate">{region.regionName}</p>
+  1550→                    <div className="mt-2 space-y-1">
+  1551→                      <div className="flex items-center justify-between">
+  1552→                        <span className="text-xs text-muted-foreground">Orgs</span>
+  1553→                        <span className="text-xs font-semibold">{region.orgCount}</span>
+  1554→                      </div>
+  1555→                      <div className="flex items-center justify-between">
+  1556→                        <span className="text-xs text-muted-foreground">Revenue</span>
+  1557→                        <span className="text-xs font-semibold">{formatETB(region.revenue)}</span>
+  1558→                      </div>
+  1559→                    </div>
+  1560→                  </button>
+  1561→                ))}
+  1562→            </div>
+  1563→          </CardContent>
+  1564→        </Card>
+  1565→      )}
+  1566→
+  1567→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+  1568→        <TabsList className="w-full overflow-x-auto">
+  1569→          <TabsTrigger value="overview" className="gap-1.5 text-xs sm:text-sm">
+  1570→            <BarChart3 className="size-4" /><span className="hidden sm:inline">Overview</span>
+  1571→          </TabsTrigger>
+  1572→          <TabsTrigger value="map" className="gap-1.5 text-xs sm:text-sm">
+  1573→            <MapPin className="size-4" /><span className="hidden sm:inline">Shops Map</span>
+  1574→          </TabsTrigger>
+  1575→          <TabsTrigger value="intelligence" className="gap-1.5 text-xs sm:text-sm">
+  1576→            <TrendingUp className="size-4" /><span className="hidden sm:inline">Intelligence</span>
+  1577→          </TabsTrigger>
+  1578→          <TabsTrigger value="health" className="gap-1.5 text-xs sm:text-sm">
+  1579→            <Activity className="size-4" /><span className="hidden sm:inline">System Health</span>
+  1580→          </TabsTrigger>
+  1581→          <TabsTrigger value="activity" className="gap-1.5 text-xs sm:text-sm">
+  1582→            <Activity className="size-4" />
+  1583→            <span className="hidden sm:inline">Activity Log</span>
+  1584→          </TabsTrigger>
+  1585→        </TabsList>
+  1586→
+  1587→        {/* Overview Tab */}
+  1588→        <TabsContent value="overview" className="mt-4">
+  1589→          <OverviewTab data={dashboardData} />
+  1590→        </TabsContent>
+  1591→
+  1592→        {/* Map Tab */}
+  1593→        <TabsContent value="map" className="mt-4">
+  1594→          <ShopsMapTab shops={shopsData} />
+  1595→        </TabsContent>
+  1596→
+  1597→        {/* Intelligence Tab */}
+  1598→        <TabsContent value="intelligence" className="mt-4">
+  1599→          <MarketIntelligenceTab regionId={selectedRegionId} />
+  1600→        </TabsContent>
+  1601→
+  1602→        {/* System Health Tab */}
+  1603→        <TabsContent value="health" className="mt-4">
+  1604→          <SystemHealthTab />
+  1605→        </TabsContent>
+  1606→
+  1607→        {/* Activity Log Tab */}
+  1608→        <TabsContent value="activity" className="mt-4">
+  1609→          <ActivityLogTab />
+  1610→        </TabsContent>
+  1611→      </Tabs>
+  1612→    </div>
+  1613→  )
+  1614→}
+  1615→
