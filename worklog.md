@@ -1699,3 +1699,27 @@ Three `$queryRaw` SQL queries were fixed — all changed `isActive = 1` → `isA
 - ✅ Zero remaining `isActive = 1` instances in raw SQL queries
 - ✅ All three `isActive = TRUE` changes confirmed at lines 171, 184, 341
 - ✅ `bun run lint` passes with no errors
+
+---
+Task ID: 1-5
+Agent: Main
+Task: Comprehensive production readiness fix — Dashboard 500, Realtime, CSP, Maps
+
+Work Log:
+- Investigated dashboard API 500 error: found SQLite syntax in PostgreSQL raw SQL
+- Fixed isActive = 1 → isActive = TRUE (3 instances)
+- Discovered deeper root cause: PostgreSQL requires double-quoted identifiers for Prisma camelCase tables/columns
+- Fixed all raw SQL: Product → "Product", organizationId → "organizationId", etc.
+- Replaced WebSocket-first realtime client with polling-first approach (Vercel serverless incompatible with persistent WebSockets)
+- Added 'since' parameter to /api/notifications for incremental polling
+- Comprehensive CSP fix: removed cdnjs.cloudflare.com, added *.openstreetmap.org
+- Downloaded Leaflet marker icons locally to /public/images/leaflet/
+- Updated location-picker to use local marker icons instead of CDN
+- Added Nominatim 503 retry logic with 1s delay
+
+Stage Summary:
+- Dashboard 500 → Fixed by quoting PostgreSQL identifiers in raw SQL
+- WebSocket errors → Replaced with HTTP polling (works on Vercel)
+- CSP violations → Comprehensive fix, no CDN dependencies for map assets
+- Map resilience → Local marker icons, Nominatim retry, graceful degradation
+- 2 commits pushed: 7bdf86f and d0cb4e7
