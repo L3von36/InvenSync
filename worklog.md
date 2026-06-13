@@ -79,3 +79,26 @@ Stage Summary:
 - Login credentials: admin@invensync.com / admin123
 - Database: Neon PostgreSQL (ep-lively-mouse-atbcnutm, us-east-1)
 - Auth mode: JWT (Supabase Auth removed, app falls back to JWT)
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix multiple UI/UX issues reported by user
+
+Work Log:
+- Analyzed user screenshots showing: P&L text overflow, expenses page error, sidebar with all modules
+- Fixed middleware.ts: changed geolocation=() to geolocation=(self) so location permission works
+- Fixed registration route: new orgs now start with only core modules (inventory, sales, expenses) instead of all 14
+- Fixed P&L page: reduced KPI card font sizes (text-sm/sm:text-lg/md:text-xl), added md breakpoint to grid
+- Fixed expenses page: corrected Array.from(map).values().toArray() bug in API route, fixed Zod v4 incompatibility
+- Fixed sidebar: added moduleKey to Expenses, Branches, Stock Transfers, Purchase Orders nav items
+- Added 'expenses' module to database, module-guard FREE_MODULE_KEYS, ROUTE_MODULE_MAP, and seed file
+- Committed, pushed to GitHub, deployed to Vercel
+- Verified: login works, expenses API works, database connected
+
+Stage Summary:
+- 5 issues fixed in single commit: geolocation, clean sidebar, P&L overflow, expenses error, module gating
+- New registrations start with clean sidebar (only inventory, sales, expenses)
+- Other modules can be requested from "My Modules" page (free auto-activate, paid need admin approval)
+- Expenses page no longer crashes
+- Location picker will now ask for browser permission
