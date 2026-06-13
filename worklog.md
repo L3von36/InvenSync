@@ -27,3 +27,29 @@ Stage Summary:
 - All main API endpoints functional
 - Server running on port 3000 via daemon process
 - Known browser automation issues: form submit button may need explicit click (works via curl/API)
+---
+Task ID: 2
+Agent: Main Agent
+Task: Migrate database from Supabase to Neon PostgreSQL
+
+Work Log:
+- Exported 507 rows across 21 tables from Supabase via REST API (saved to /tmp/supabase-export.json)
+- Updated Prisma schema with relationMode = "prisma" for Neon compatibility
+- Updated db.ts for Neon serverless connection handling
+- Updated vercel-build script to include prisma db push
+- Removed .env from git tracking (contains credentials)
+- Cleaned up old schema files (schema-sqlite.prisma, schema.supabase.prisma)
+- Created Neon project with connection string: ep-lively-mouse-atbcnutm-pooler.c-9.us-east-1.aws.neon.tech
+- Pushed all 37 tables to Neon database successfully
+- Migrated all 507 rows of Supabase data to Neon (23 users, 24 orgs, 13 shops, 20 products, etc.)
+- Verified Neon connection works: setup/status returns "connected", tableCount: 37
+- Verified login works: admin@invensync.com logs in successfully with 4 organizations
+- Committed code changes and cleaned up git repo
+- Lint passes clean
+
+Stage Summary:
+- Neon PostgreSQL database fully operational with all data migrated from Supabase
+- Local dev server works with Neon (need to unset DATABASE_URL shell override)
+- Vercel deployment requires: DATABASE_URL, DIRECT_URL, JWT_SECRET env vars to be set
+- Cannot push to GitHub or set Vercel env vars without user's GitHub/Vercel tokens
+- Next step: User needs to set env vars in Vercel dashboard and push code to trigger deployment
