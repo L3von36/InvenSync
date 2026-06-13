@@ -446,7 +446,7 @@ function RegisterBusinessDialog({
                 name="password"
                 label="Password"
                 type="password"
-                placeholder="Min 6 characters"
+                placeholder="Min 8 chars: uppercase, lowercase, digit, special"
                 required
                 disabled={submitting}
               />

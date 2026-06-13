@@ -137,7 +137,7 @@ export function ResetPasswordPage({ onSwitchToLogin, onBack }: ResetPasswordPage
                   name="newPassword"
                   label="New Password"
                   type="password"
-                  placeholder="Create a new password (min 6 characters)"
+                  placeholder="Min 8 chars: uppercase, lowercase, digit, special"
                   required
                   autoComplete="new-password"
                   disabled={isLoading}

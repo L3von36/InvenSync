@@ -88,8 +88,20 @@ export function validateUrl(value: string, fieldName = 'URL'): ValidationError |
 
 export function validatePassword(value: string, fieldName = 'Password'): ValidationError | null {
   if (!value) return { field: fieldName, message: 'Password is required' }
-  if (value.length < 6) {
-    return { field: fieldName, message: 'Password must be at least 6 characters' }
+  if (value.length < 8) {
+    return { field: fieldName, message: 'Password must be at least 8 characters' }
+  }
+  if (!/[A-Z]/.test(value)) {
+    return { field: fieldName, message: 'Password must contain at least one uppercase letter' }
+  }
+  if (!/[a-z]/.test(value)) {
+    return { field: fieldName, message: 'Password must contain at least one lowercase letter' }
+  }
+  if (!/\d/.test(value)) {
+    return { field: fieldName, message: 'Password must contain at least one digit' }
+  }
+  if (!/[!@#$%^&*()_+\-=[\]{}|;:'",.<>?/`~]/.test(value)) {
+    return { field: fieldName, message: 'Password must contain at least one special character' }
   }
   return null
 }

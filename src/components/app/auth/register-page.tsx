@@ -155,7 +155,7 @@ export function RegisterPage({ onSwitchToLogin, onBack }: RegisterPageProps) {
                   name="password"
                   label="Password"
                   type="password"
-                  placeholder="Create a password (min 6 characters)"
+                  placeholder="Min 8 chars: uppercase, lowercase, digit, special"
                   required
                   autoComplete="new-password"
                   disabled={isLoading}
