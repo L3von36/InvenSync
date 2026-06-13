@@ -166,23 +166,23 @@ async function fetchDashboardData(
     // not supported by Prisma where clause, but is trivial in SQL.
     db.$queryRaw<Array<{ count: bigint }>>(
       Prisma.sql`
-        SELECT COUNT(*) as count FROM Product
-        WHERE organizationId = ${orgId}
-        AND isActive = TRUE
+        SELECT COUNT(*) as count FROM "Product"
+        WHERE "organizationId" = ${orgId}
+        AND "isActive" = TRUE
         AND quantity > 0
-        AND quantity <= lowStockThreshold
-        ${shopId ? Prisma.sql`AND (shopId = ${shopId} OR shopId IS NULL)` : Prisma.empty}
+        AND quantity <= "lowStockThreshold"
+        ${shopId ? Prisma.sql`AND ("shopId" = ${shopId} OR "shopId" IS NULL)` : Prisma.empty}
       `
     ).then(result => Number(result[0]?.count ?? 0)),
 
     // Total stock value — raw SQL: DB-side SUM aggregation
     db.$queryRaw<Array<{ costValue: number; retailValue: number }>>(
       Prisma.sql`
-        SELECT COALESCE(SUM(quantity * costPrice), 0) as costValue,
-               COALESCE(SUM(quantity * sellingPrice), 0) as retailValue
-        FROM Product
-        WHERE organizationId = ${orgId} AND isActive = TRUE AND quantity > 0
-        ${shopId ? Prisma.sql`AND (shopId = ${shopId} OR shopId IS NULL)` : Prisma.empty}
+        SELECT COALESCE(SUM(quantity * "costPrice"), 0) as costValue,
+               COALESCE(SUM(quantity * "sellingPrice"), 0) as retailValue
+        FROM "Product"
+        WHERE "organizationId" = ${orgId} AND "isActive" = TRUE AND quantity > 0
+        ${shopId ? Prisma.sql`AND ("shopId" = ${shopId} OR "shopId" IS NULL)` : Prisma.empty}
       `
     ).then(result => ({
       costValue: result[0]?.costValue ?? 0,
@@ -249,24 +249,24 @@ async function fetchDashboardData(
     // Period COGS — raw SQL: DB-side SUM with JOIN
     db.$queryRaw<Array<{ cogs: number }>>(
       Prisma.sql`
-        SELECT COALESCE(SUM(si.costPrice * si.quantity), 0) as cogs
-        FROM SaleItem si
-        JOIN Sale s ON si.saleId = s.id
-        WHERE s.organizationId = ${orgId} AND s.status = 'completed'
-        AND s.saleDate >= ${periodStart} AND s.saleDate <= ${periodEnd}
-        ${shopId ? Prisma.sql`AND s.shopId = ${shopId}` : Prisma.empty}
+        SELECT COALESCE(SUM(si."costPrice" * si.quantity), 0) as cogs
+        FROM "SaleItem" si
+        JOIN "Sale" s ON si."saleId" = s.id
+        WHERE s."organizationId" = ${orgId} AND s.status = 'completed'
+        AND s."saleDate" >= ${periodStart} AND s."saleDate" <= ${periodEnd}
+        ${shopId ? Prisma.sql`AND s."shopId" = ${shopId}` : Prisma.empty}
       `
     ),
 
     // Previous period COGS — raw SQL: DB-side SUM with JOIN
     db.$queryRaw<Array<{ cogs: number }>>(
       Prisma.sql`
-        SELECT COALESCE(SUM(si.costPrice * si.quantity), 0) as cogs
-        FROM SaleItem si
-        JOIN Sale s ON si.saleId = s.id
-        WHERE s.organizationId = ${orgId} AND s.status = 'completed'
-        AND s.saleDate >= ${prevPeriodStart} AND s.saleDate <= ${prevPeriodEnd}
-        ${shopId ? Prisma.sql`AND s.shopId = ${shopId}` : Prisma.empty}
+        SELECT COALESCE(SUM(si."costPrice" * si.quantity), 0) as cogs
+        FROM "SaleItem" si
+        JOIN "Sale" s ON si."saleId" = s.id
+        WHERE s."organizationId" = ${orgId} AND s.status = 'completed'
+        AND s."saleDate" >= ${prevPeriodStart} AND s."saleDate" <= ${prevPeriodEnd}
+        ${shopId ? Prisma.sql`AND s."shopId" = ${shopId}` : Prisma.empty}
       `
     ),
 
@@ -337,10 +337,10 @@ async function fetchDashboardData(
       // Very low stock products (< 20% of threshold) — raw SQL
       db.$queryRaw<Array<{ id: string; name: string; sku: string | null; quantity: number; lowStockThreshold: number }>>(
         Prisma.sql`
-          SELECT id, name, sku, quantity, lowStockThreshold FROM Product
-          WHERE organizationId = ${orgId} AND isActive = TRUE AND quantity > 0
-          AND quantity <= lowStockThreshold * 0.2
-          ${shopId ? Prisma.sql`AND (shopId = ${shopId} OR shopId IS NULL)` : Prisma.empty}
+          SELECT id, name, sku, quantity, "lowStockThreshold" FROM "Product"
+          WHERE "organizationId" = ${orgId} AND "isActive" = TRUE AND quantity > 0
+          AND quantity <= "lowStockThreshold" * 0.2
+          ${shopId ? Prisma.sql`AND ("shopId" = ${shopId} OR "shopId" IS NULL)` : Prisma.empty}
           LIMIT 5
         `
       ).then(products =>
@@ -400,12 +400,12 @@ async function fetchDashboardData(
     // ============================================
     db.$queryRaw<Array<{ saleDate: string; dailyRevenue: number }>>(
       Prisma.sql`
-        SELECT DATE(saleDate) as saleDate, COALESCE(SUM(total), 0) as dailyRevenue
-        FROM Sale
-        WHERE organizationId = ${orgId} AND status = 'completed'
-        AND saleDate >= ${new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)}
-        ${shopId ? Prisma.sql`AND shopId = ${shopId}` : Prisma.empty}
-        GROUP BY DATE(saleDate)
+        SELECT DATE("saleDate") as saleDate, COALESCE(SUM(total), 0) as dailyRevenue
+        FROM "Sale"
+        WHERE "organizationId" = ${orgId} AND status = 'completed'
+        AND "saleDate" >= ${new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)}
+        ${shopId ? Prisma.sql`AND "shopId" = ${shopId}` : Prisma.empty}
+        GROUP BY DATE("saleDate")
         ORDER BY saleDate ASC
       `
     ),
