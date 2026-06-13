@@ -5,6 +5,8 @@ import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
+import { broadcastNotification, NotificationTypes } from '@/lib/notification-broadcast'
+import { cache, CacheNamespaces } from '@/lib/cache'
 
 // GET /api/sales?orgId=xxx&startDate=xxx&endDate=xxx&status=xxx
 export async function GET(request: Request) {
@@ -314,6 +316,83 @@ export async function POST(request: Request) {
         }
       })
     })
+
+    // --- Notification triggers (fire-and-forget) ---
+    // These must NOT break the sale flow, so all are voided with .catch(() => {})
+
+    // 1. New sale notification
+    void broadcastNotification({
+      organizationId: orgId,
+      type: NotificationTypes.NEW_SALE,
+      title: 'New Sale Completed',
+      message: `Sale ${result?.invoiceNumber} for ETB ${result?.total} completed`,
+      actionUrl: '/sales',
+      metadata: { saleId: result?.id, invoiceNumber: result?.invoiceNumber, total: result?.total }
+    }).catch(() => {})
+
+    // 2. Large sale notification (if total >= 50000)
+    if ((result?.total || 0) >= 50000) {
+      void broadcastNotification({
+        organizationId: orgId,
+        type: NotificationTypes.LARGE_SALE,
+        title: 'Large Sale!',
+        message: `Large sale of ETB ${result?.total} completed`,
+        actionUrl: '/sales',
+        metadata: { saleId: result?.id, invoiceNumber: result?.invoiceNumber, total: result?.total }
+      }).catch(() => {})
+    }
+
+    // 3. Low stock / out of stock checks after sale reduces quantities
+    try {
+      const soldProductIds = items.map((item: { productId: string }) => item.productId)
+      const currentProducts = await db.product.findMany({
+        where: { id: { in: soldProductIds }, organizationId: orgId },
+        select: { id: true, name: true, quantity: true, lowStockThreshold: true }
+      })
+
+      for (const product of currentProducts) {
+        if (product.quantity === 0) {
+          // Out of stock notification
+          void broadcastNotification({
+            organizationId: orgId,
+            type: NotificationTypes.OUT_OF_STOCK,
+            title: 'Out of Stock',
+            message: `Product ${product.name} is now out of stock`,
+            actionUrl: '/inventory',
+            metadata: { productId: product.id, quantity: 0, lowStockThreshold: product.lowStockThreshold }
+          }).catch(() => {})
+        } else if (product.quantity <= product.lowStockThreshold) {
+          // Low stock notification
+          void broadcastNotification({
+            organizationId: orgId,
+            type: NotificationTypes.LOW_STOCK,
+            title: 'Low Stock Alert',
+            message: `Product ${product.name} is running low (${product.quantity} remaining)`,
+            actionUrl: '/inventory',
+            metadata: { productId: product.id, quantity: product.quantity, lowStockThreshold: product.lowStockThreshold }
+          }).catch(() => {})
+        }
+      }
+    } catch (notifErr) {
+      // Don't break the sale flow if stock check fails
+      console.error('Post-sale stock notification error:', notifErr)
+    }
+
+    // 4. Credit sale debt notification
+    if (customerId && amountPaidVal < (result?.total || 0)) {
+      const debtAmount = (result?.total || 0) - amountPaidVal
+      void broadcastNotification({
+        organizationId: orgId,
+        type: NotificationTypes.DEBT_REMINDER,
+        title: 'Credit Sale - Debt Created',
+        message: `Debt of ETB ${debtAmount} created from sale ${result?.invoiceNumber}`,
+        actionUrl: '/debts',
+        metadata: { saleId: result?.id, invoiceNumber: result?.invoiceNumber, debtAmount }
+      }).catch(() => {})
+    }
+
+    // 5. Invalidate dashboard cache so fresh data is shown
+    cache.invalidate(CacheNamespaces.BUSINESS_DASHBOARD)
 
     return NextResponse.json({ sale: result }, { status: 201 })
   } catch (error) {

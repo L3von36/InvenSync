@@ -1,0 +1,2002 @@
+     1→// ============================================
+     2→// API Client - Centralized API communication
+     3→// ============================================
+     4→
+     5→export interface User {
+     6→  id: string
+     7→  email: string
+     8→  name: string
+     9→  avatarUrl?: string | null
+    10→  role?: string
+    11→}
+    12→
+    13→export interface Organization {
+    14→  id: string
+    15→  name: string
+    16→  slug: string
+    17→  role: string
+    18→  currency?: string
+    19→  country?: string
+    20→  subscriptionPlan?: string
+    21→  subscriptionStatus?: string
+    22→  businessType?: 'retail' | 'service' | 'mixed' | null
+    23→  description?: string | null
+    24→  address?: string | null
+    25→  city?: string | null
+    26→  latitude?: number | null
+    27→  longitude?: number | null
+    28→  phone?: string | null
+    29→}
+    30→
+    31→export interface ProductType {
+    32→  id: string
+    33→  organizationId: string
+    34→  name: string
+    35→  icon?: string | null
+    36→  createdAt: string
+    37→  updatedAt: string
+    38→  attributes?: AttributeDefinition[]
+    39→  _count?: { products: number }
+    40→}
+    41→
+    42→export interface AttributeDefinition {
+    43→  id: string
+    44→  productTypeId: string
+    45→  name: string
+    46→  fieldType: string
+    47→  options?: string | null
+    48→  required: boolean
+    49→  order: number
+    50→}
+    51→
+    52→export interface Product {
+    53→  id: string
+    54→  productTypeId: string
+    55→  organizationId: string
+    56→  sku?: string | null
+    57→  name: string
+    58→  description?: string | null
+    59→  imageUrl?: string | null
+    60→  quantity: number
+    61→  costPrice: number
+    62→  sellingPrice: number
+    63→  lowStockThreshold: number
+    64→  isActive: boolean
+    65→  createdAt: string
+    66→  updatedAt: string
+    67→  productType?: { id: string; name: string; icon?: string | null }
+    68→  attributeValues?: ProductAttributeValue[]
+    69→}
+    70→
+    71→export interface ProductAttributeValue {
+    72→  id: string
+    73→  productId: string
+    74→  attributeDefinitionId: string
+    75→  value: string
+    76→  attributeDefinition?: { id: string; name: string; fieldType: string }
+    77→}
+    78→
+    79→export interface StockMovement {
+    80→  id: string
+    81→  organizationId: string
+    82→  productId: string
+    83→  type: string
+    84→  quantity: number
+    85→  previousStock: number
+    86→  newStock: number
+    87→  reason?: string | null
+    88→  reference?: string | null
+    89→  createdAt: string
+    90→  product?: { id: string; name: string; sku?: string | null }
+    91→}
+    92→
+    93→export interface Customer {
+    94→  id: string
+    95→  organizationId: string
+    96→  name: string
+    97→  email?: string | null
+    98→  phone?: string | null
+    99→  address?: string | null
+   100→  shopId?: string | null
+   101→  createdAt: string
+   102→  updatedAt: string
+   103→  _count?: { sales: number; debts: number }
+   104→}
+   105→
+   106→export interface Supplier {
+   107→  id: string
+   108→  organizationId: string
+   109→  name: string
+   110→  email?: string | null
+   111→  phone?: string | null
+   112→  address?: string | null
+   113→  shopId?: string | null
+   114→  createdAt: string
+   115→  updatedAt: string
+   116→}
+   117→
+   118→export interface Sale {
+   119→  id: string
+   120→  organizationId: string
+   121→  customerId?: string | null
+   122→  invoiceNumber: string
+   123→  status: string
+   124→  paymentMethod: string
+   125→  subtotal: number
+   126→  discount: number
+   127→  tax: number
+   128→  total: number
+   129→  amountPaid: number
+   130→  notes?: string | null
+   131→  saleDate: string
+   132→  createdAt: string
+   133→  updatedAt: string
+   134→  customer?: { id: string; name: string; phone?: string | null } | null
+   135→  items?: SaleItem[]
+   136→}
+   137→
+   138→export interface SaleItem {
+   139→  id: string
+   140→  saleId: string
+   141→  productId: string
+   142→  quantity: number
+   143→  unitPrice: number
+   144→  costPrice: number
+   145→  total: number
+   146→  product?: { id: string; name: string; sku?: string | null }
+   147→}
+   148→
+   149→export interface Debt {
+   150→  id: string
+   151→  organizationId: string
+   152→  customerId?: string | null
+   153→  supplierId?: string | null
+   154→  type: string
+   155→  amount: number
+   156→  paidAmount: number
+   157→  dueDate?: string | null
+   158→  status: string
+   159→  description?: string | null
+   160→  shopId?: string | null
+   161→  createdAt: string
+   162→  updatedAt: string
+   163→  customer?: { id: string; name: string; phone?: string | null } | null
+   164→  supplier?: { id: string; name: string; phone?: string | null } | null
+   165→  payments?: DebtPayment[]
+   166→}
+   167→
+   168→export interface DebtPayment {
+   169→  id: string
+   170→  debtId: string
+   171→  amount: number
+   172→  paymentMethod: string
+   173→  notes?: string | null
+   174→  paidAt: string
+   175→}
+   176→
+   177→export interface DashboardData {
+   178→  stats: {
+   179→    totalProducts: number
+   180→    outOfStockCount: number
+   181→    lowStockCount: number
+   182→    totalStockCostValue: number
+   183→    totalStockRetailValue: number
+   184→    todayRevenue: number
+   185→    todaySalesCount: number
+   186→    monthRevenue: number
+   187→    totalCustomerDebt: number
+   188→  }
+   189→  recentSales: Sale[]
+   190→  topProducts: Array<{
+   191→    id: string
+   192→    name: string
+   193→    sku?: string | null
+   194→    imageUrl?: string | null
+   195→    totalRevenue: number
+   196→    totalQuantity: number
+   197→  }>
+   198→}
+   199→
+   200→export interface InventoryStats {
+   201→  overview: {
+   202→    totalProducts: number
+   203→    outOfStock: number
+   204→    lowStock: number
+   205→    totalCostValue: number
+   206→    totalRetailValue: number
+   207→  }
+   208→  lowStockProducts: Array<{
+   209→    id: string
+   210→    name: string
+   211→    quantity: number
+   212→    costPrice: number
+   213→    sellingPrice: number
+   214→    lowStockThreshold: number
+   215→    productType: { id: string; name: string }
+   216→  }>
+   217→  recentMovements: StockMovement[]
+   218→}
+   219→
+   220→export interface Subscription {
+   221→  id: string
+   222→  organizationId: string
+   223→  subscriptionPlan: string
+   224→  subscriptionStatus: string
+   225→  subscriptionExpiresAt?: string | null
+   226→}
+   227→
+   228→export interface ServiceType {
+   229→  id: string
+   230→  organizationId: string
+   231→  name: string
+   232→  description?: string | null
+   233→  duration: number
+   234→  price: number
+   235→  imageUrl?: string | null
+   236→  isActive: boolean
+   237→  createdAt: string
+   238→  updatedAt: string
+   239→}
+   240→
+   241→export interface ServiceBooking {
+   242→  id: string
+   243→  organizationId: string
+   244→  serviceTypeId: string
+   245→  customerId?: string | null
+   246→  customerName: string
+   247→  customerPhone?: string | null
+   248→  status: string
+   249→  bookingDate: string
+   250→  startTime: string
+   251→  endTime: string
+   252→  notes?: string | null
+   253→  createdAt: string
+   254→  updatedAt: string
+   255→  serviceType?: { id: string; name: string; duration: number; price: number }
+   256→  customer?: { id: string; name: string; phone?: string | null } | null
+   257→}
+   258→
+   259→export interface Shop {
+   260→  id: string
+   261→  organizationId: string
+   262→  name: string
+   263→  address?: string | null
+   264→  city?: string | null
+   265→  latitude?: number | null
+   266→  longitude?: number | null
+   267→  phone?: string | null
+   268→  isActive: boolean
+   269→  memberCount?: number
+   270→}
+   271→
+   272→export interface ShopMemberData {
+   273→  id: string
+   274→  userId: string
+   275→  shopId: string
+   276→  role: string
+   277→  user: { id: string; name: string; email: string }
+   278→}
+   279→
+   280→export interface ModuleData {
+   281→  id: string
+   282→  key: string
+   283→  name: string
+   284→  description: string
+   285→  icon: string
+   286→  category: string
+   287→  priceETB: number
+   288→  isFree: boolean
+   289→  freeTrialDays: number
+   290→  billingCycle: string
+   291→  isActive: boolean  // Whether the org has it active
+   292→  order: number
+   293→  orgStatus?: {
+   294→    isActive: boolean
+   295→    status: string  // trial, active, expired, cancelled
+   296→    activatedAt: string | null
+   297→    expiresAt: string | null
+   298→    priceAtActivation: number
+   299→    autoRenew: boolean
+   300→  } | null
+   301→}
+   302→
+   303→export interface AdminDashboardData {
+   304→  totalOrganizations: number
+   305→  totalUsers: number
+   306→  totalShops: number
+   307→  totalRevenue: number
+   308→  totalProducts: number
+   309→  newShopsThisMonth: number
+   310→  activeSubscriptions: Record<string, number>
+   311→  organizationsByBusinessType: Record<string, number>
+   312→  revenueByMonth: Array<{ month: string; revenue: number }>
+   313→  topShopsByRevenue: Array<{ id: string; name: string; businessType: string; city: string | null; totalRevenue: number }>
+   314→  salesTeam?: {
+   315→    activeReps: number
+   316→    totalRegistrationsByReps: number
+   317→    registrationsThisMonth: number
+   318→  }
+   319→  regionInfo?: { id: string; name: string; slug: string } | null
+   320→  regionsBreakdown: Array<{ regionId: string; regionName: string; orgCount: number; revenue: number }>
+   321→}
+   322→
+   323→export interface ShopData {
+   324→  id: string
+   325→  name: string
+   326→  businessType: string
+   327→  city: string | null
+   328→  latitude: number | null
+   329→  longitude: number | null
+   330→  phone: string | null
+   331→  subscriptionPlan: string
+   332→  createdAt: string
+   333→  memberCount: number
+   334→  shopCount: number
+   335→  productTypeCount: number
+   336→  totalRevenue: number
+   337→}
+   338→
+   339→export interface MarketInsightsData {
+   340→  lowStockProducts: Array<{ orgName: string; productName: string; quantity: number; category: string }>
+   341→  fastMovingProducts: Array<{ name: string; orgName: string; category: string; quantitySold: number; revenue: number }>
+   342→  demandByCategory: Array<{ category: string; quantitySold: number; revenue: number }>
+   343→  supplyOpportunities: Array<{ productType: string; lowStockCount: number; orgNames: string[] }>
+   344→  topCities: Array<{ city: string | null; shopCount: number }>
+   345→  businessTypeDistribution: Array<{ businessType: string; count: number }>
+   346→  averageRevenueByType: Array<{ businessType: string; averageRevenue: number; totalRevenue: number; organizationCount: number }>
+   347→}
+   348→
+   349→export interface ShopMemberInfo {
+   350→  shopRole: string | null
+   351→  currentShopId: string | null
+   352→  shops: Array<{
+   353→    shopId: string
+   354→    shopName: string
+   355→    role: string
+   356→  }>
+   357→}
+   358→
+   359→export interface RegionData {
+   360→  id: string
+   361→  name: string
+   362→  slug: string
+   363→  country: string
+   364→  latitude: number | null
+   365→  longitude: number | null
+   366→  population: number | null
+   367→  description: string | null
+   368→  isActive: boolean
+   369→  order: number
+   370→  createdAt: string
+   371→  updatedAt: string
+   372→  // Stats (when includeStats=true)
+   373→  orgCount?: number
+   374→  userCount?: number
+   375→  shopCount?: number
+   376→  revenue?: number
+   377→  recentOrgs?: Array<{ id: string; name: string; businessType: string; city: string | null }>
+   378→}
+   379→
+   380→export interface RegionDetailData extends RegionData {
+   381→  organizations: Array<{
+   382→    id: string
+   383→    name: string
+   384→    businessType: string
+   385→    city: string | null
+   386→    subscriptionPlan: string
+   387→    memberCount: number
+   388→    shopCount: number
+   389→    revenue: number
+   390→  }>
+   391→  salesReps: Array<{
+   392→    id: string
+   393→    name: string
+   394→    email: string
+   395→    commissionRate: number
+   396→    registrations: number
+   397→  }>
+   398→}
+   399→
+   400→export interface Pagination {
+   401→  page: number
+   402→  limit: number
+   403→  total: number
+   404→  totalPages: number
+   405→}
+   406→
+   407→// ============================================
+   408→// Sales Team Types
+   409→// ============================================
+   410→
+   411→export interface SalesRep {
+   412→  id: string
+   413→  userId: string
+   414→  phone: string | null
+   415→  targetCity: string | null
+   416→  commissionRate: number
+   417→  commissionPerReg: number
+   418→  isActive: boolean
+   419→  joinedAt: string
+   420→  createdAt: string
+   421→  updatedAt: string
+   422→  user: { id: string; name: string; email: string; role: string }
+   423→  totalRegistrations: number
+   424→  currentGoal: SalesRepGoal | null
+   425→  commissions: {
+   426→    total: number
+   427→    pending: number
+   428→    paid: number
+   429→  }
+   430→}
+   431→
+   432→export interface SalesRepGoal {
+   433→  id: string
+   434→  period: string
+   435→  targetCount: number
+   436→  achievedCount: number
+   437→  progressPercentage: number
+   438→  bonusAmount: number
+   439→  isAchieved: boolean
+   440→}
+   441→
+   442→export interface Commission {
+   443→  id: string
+   444→  salesRepId: string
+   445→  organizationId: string
+   446→  amount: number
+   447→  status: string
+   448→  paidAt: string | null
+   449→  createdAt: string
+   450→  updatedAt: string
+   451→  organization: {
+   452→    id: string
+   453→    name: string
+   454→    city: string | null
+   455→    businessType: string
+   456→  }
+   457→}
+   458→
+   459→export interface TeamOverview {
+   460→  overview: {
+   461→    totalActiveReps: number
+   462→    totalInactiveReps: number
+   463→    totalReps: number
+   464→    currentMonthRegistrations: number
+   465→    totalCommissionsPaidThisMonth: number
+   466→  }
+   467→  teamGoal: {
+   468→    totalTarget: number
+   469→    totalAchieved: number
+   470→    progressPercentage: number
+   471→    totalBonusPool: number
+   472→    goalsAchieved: number
+   473→    totalGoals: number
+   474→  }
+   475→  topPerformingReps: Array<{
+   476→    id: string
+   477→    userId: string
+   478→    name: string
+   479→    email: string
+   480→    totalRegistrations: number
+   481→    currentMonthRegistrations: number
+   482→  }>
+   483→  goalsByRep: Array<{
+   484→    salesRepId: string
+   485→    repName: string
+   486→    repEmail: string
+   487→    targetCount: number
+   488→    achievedCount: number
+   489→    progressPercentage: number
+   490→    bonusAmount: number
+   491→    isAchieved: boolean
+   492→  }>
+   493→}
+   494→
+   495→// ============================================
+   496→// System Health (Traffic Optimization Patterns)
+   497→// ============================================
+   498→
+   499→export interface SystemHealthData {
+   500→  status: 'healthy' | 'degraded' | 'error'
+   501→  timestamp: string
+   502→  uptime: {
+   503→    seconds: number
+   504→    formatted: string
+   505→  }
+   506→  database: {
+   507→    status: 'connected' | 'error'
+   508→    latencyMs: number
+   509→  }
+   510→  cache: {
+   511→    namespaces: number
+   512→    totalEntries: number
+   513→    hitRate: string
+   514→    details: Record<string, number>
+   515→  }
+   516→  rateLimit: {
+   517→    activeBuckets: number
+   518→    details: Record<string, number>
+   519→  }
+   520→  resilience: {
+   521→    circuits: Record<string, { state: 'closed' | 'open' | 'half-open'; failureCount: number }>
+   522→    bulkheads: Record<string, { active: number; queued: number }>
+   523→  }
+   524→  memory: {
+   525→    heapUsedMB: number
+   526→    heapTotalMB: number
+   527→    rssMB: number
+   528→    externalMB: number
+   529→  }
+   530→  patterns: {
+   531→    applied: string[]
+   532→    cacheNamespaces: string[]
+   533→  }
+   534→  error?: string
+   535→}
+   536→
+   537→export interface Expense {
+   538→  id: string
+   539→  organizationId: string
+   540→  shopId?: string | null
+   541→  category: string
+   542→  amount: number
+   543→  description?: string | null
+   544→  expenseDate: string
+   545→  isRecurring: boolean
+   546→  recurringPeriod?: string | null
+   547→  createdAt: string
+   548→  updatedAt: string
+   549→  shop?: { id: string; name: string } | null
+   550→}
+   551→
+   552→class ApiClient {
+   553→  // Supabase Auth uses httpOnly cookies for session management.
+   554→  // The token is no longer stored in localStorage for security.
+   555→  // We keep a reference for backward compat but auth is primarily cookie-based.
+   556→  private _token: string | null = null
+   557→  // Guard flag: when true, 401 auto-logout is suppressed to prevent
+   558→  // stale background requests from interfering with an active login attempt.
+   559→  private _isLoggingIn: boolean = false
+   560→
+   561→  // Request deduplication: prevent concurrent identical GET requests
+   562→  // If 3 components request the same endpoint simultaneously, only 1 fetch is made.
+   563→  private _inflightRequests = new Map<string, Promise<unknown>>()
+   564→
+   565→  // Short-lived client-side response cache for GET requests (5s TTL)
+   566→  // Prevents rapid re-fetches when multiple components mount simultaneously
+   567→  private _responseCache = new Map<string, { data: unknown; expiresAt: number }>()
+   568→  private static RESPONSE_CACHE_TTL = 5_000 // 5 seconds
+   569→
+   570→  /**
+   571→   * Invalidate client-side response cache entries matching a prefix.
+   572→   * Called after mutating operations to ensure stale data is not served.
+   573→   */
+   574→  invalidateCache(prefix: string): void {
+   575→    // Invalidate our internal response cache
+   576→    this._responseCache.forEach((_, key) => {
+   577→      if (key.startsWith(prefix)) {
+   578→        this._responseCache.delete(key)
+   579→      }
+   580→    })
+   581→    // Also invalidate the shared client-cache (used by swrFetch)
+   582→    try {
+   583→      import('@/lib/client-cache').then(({ invalidateKeysByPrefix }) => {
+   584→        invalidateKeysByPrefix(prefix)
+   585→      }).catch(() => {
+   586→        // client-cache may not be available during SSR
+   587→      })
+   588→    } catch {
+   589→      // client-cache may not be available during SSR
+   590→    }
+   591→  }
+   592→
+   593→  private getToken(): string | null {
+   594→    if (typeof window === 'undefined') return null
+   595→    // Check memory first, then fallback to localStorage (for migration)
+   596→    return this._token || localStorage.getItem('sb_token')
+   597→  }
+   598→
+   599→  setToken(token: string): void {
+   600→    if (typeof window === 'undefined') return
+   601→    this._token = token
+   602→    // Also keep in localStorage for migration period
+   603→    localStorage.setItem('sb_token', token)
+   604→  }
+   605→
+   606→  clearToken(): void {
+   607→    if (typeof window === 'undefined') return
+   608→    this._token = null
+   609→    localStorage.removeItem('sb_token')
+   610→  }
+   611→
+   612→  private async request<T>(
+   613→    endpoint: string,
+   614→    options: RequestInit = {}
+   615→  ): Promise<T> {
+   616→    const token = this.getToken()
+   617→    const headers: Record<string, string> = {
+   618→      'Content-Type': 'application/json',
+   619→      ...(options.headers as Record<string, string>),
+   620→    }
+   621→
+   622→    // Add JWT token to Authorization header if available
+   623→    if (token) {
+   624→      headers['Authorization'] = `Bearer ${token}`
+   625→    }
+   626→
+   627→    // Offline interceptor: queue mutating requests, reject GET requests
+   628→    const method = (options.method || 'GET').toUpperCase()
+   629→    const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+   630→    const isGet = method === 'GET'
+   631→
+   632→    // ---- Request deduplication for GET requests ----
+   633→    // If an identical GET request is already in-flight, return the same promise
+   634→    // instead of firing a duplicate network request.
+   635→    if (isGet) {
+   636→      const cacheKey = `${method}:${endpoint}`
+   637→
+   638→      // Check short-lived response cache first
+   639→      const cached = this._responseCache.get(cacheKey)
+   640→      if (cached && Date.now() < cached.expiresAt) {
+   641→        return cached.data as T
+   642→      }
+   643→
+   644→      // Check for in-flight deduplication
+   645→      const inflight = this._inflightRequests.get(cacheKey)
+   646→      if (inflight) {
+   647→        return inflight as Promise<T>
+   648→      }
+   649→    }
+   650→
+   651→    if (typeof window !== 'undefined' && !navigator.onLine) {
+   652→      if (isMutating) {
+   653→        // Queue the operation for later sync
+   654→        try {
+   655→          const { queueOperation } = await import('@/lib/offline-queue')
+   656→          await queueOperation(
+   657→            endpoint,
+   658→            method,
+   659→            headers,
+   660→            options.body ? String(options.body) : null
+   661→          )
+   662→          // Return a mock "offline queued" response so callers don't break
+   663→          return { offline: true, queued: true } as unknown as T
+   664→        } catch {
+   665→          // If queuing fails, fall through to normal error
+   666→        }
+   667→      }
+   668→      throw new Error('You are offline. Please check your internet connection and try again.')
+   669→    }
+   670→
+   671→    // Add timeout (30s) to prevent hanging requests
+   672→    const controller = new AbortController()
+   673→    const timeoutId = setTimeout(() => controller.abort(), 30000)
+   674→    const signal = options.signal || controller.signal
+   675→
+   676→    // For GET requests, register the inflight promise for deduplication
+   677→    const cacheKey = `${method}:${endpoint}`
+   678→    let isInflightRegistered = false
+   679→
+   680→    if (isGet) {
+   681→      isInflightRegistered = true
+   682→    }
+   683→
+   684→    // Create the fetch promise (may be shared across callers)
+   685→    const fetchPromise = (async () => {
+   686→      let response: Response
+   687→      try {
+   688→        response = await fetch(endpoint, {
+   689→          ...options,
+   690→          headers,
+   691→          signal,
+   692→        })
+   693→      } catch (err) {
+   694→        clearTimeout(timeoutId)
+   695→        // Clean up inflight registration
+   696→        if (isInflightRegistered) {
+   697→          this._inflightRequests.delete(cacheKey)
+   698→        }
+   699→        // If we got a network error during a mutating request, try to queue it
+   700→        if (err instanceof TypeError && err.message === 'Failed to fetch' && isMutating) {
+   701→          try {
+   702→            const { queueOperation } = await import('@/lib/offline-queue')
+   703→            await queueOperation(
+   704→              endpoint,
+   705→              method,
+   706→              headers,
+   707→              options.body ? String(options.body) : null
+   708→            )
+   709→            return { offline: true, queued: true } as unknown as T
+   710→          } catch {
+   711→            // Fall through to original error handling
+   712→          }
+   713→        }
+   714→        if (err instanceof DOMException && err.name === 'AbortError') {
+   715→          throw new Error('Request timed out — the server took too long to respond. Please try again.')
+   716→        }
+   717→        if (err instanceof TypeError && err.message === 'Failed to fetch') {
+   718→          throw new Error('Network error — please check your internet connection and try again.')
+   719→        }
+   720→        throw new Error(err instanceof Error ? err.message : 'An unexpected network error occurred')
+   721→      }
+   722→
+   723→      clearTimeout(timeoutId)
+   724→
+   725→      // Handle non-JSON responses gracefully
+   726→      let data: Record<string, unknown>
+   727→      try {
+   728→        data = await response.json() as Record<string, unknown>
+   729→      } catch {
+   730→        // Clean up inflight registration on parse error
+   731→        if (isInflightRegistered) {
+   732→          this._inflightRequests.delete(cacheKey)
+   733→        }
+   734→        if (!response.ok) {
+   735→          // Map common HTTP error codes to user-friendly messages — never expose raw status codes
+   736→          if (response.status === 401) throw new Error('Your session has expired. Please log in again.')
+   737→          if (response.status === 403) throw new Error('You do not have permission to perform this action')
+   738→          if (response.status === 404) throw new Error('The requested resource was not found')
+   739→          if (response.status === 429) throw new Error('Too many requests — please wait a moment and try again')
+   740→          if (response.status >= 500) throw new Error('Server error — please try again later')
+   741→          throw new Error('An unexpected error occurred. Please try again.')
+   742→        }
+   743→        throw new Error('Server returned an invalid response')
+   744→      }
+   745→
+   746→      // Clean up inflight registration after response is parsed
+   747→      if (isInflightRegistered) {
+   748→        this._inflightRequests.delete(cacheKey)
+   749→      }
+   750→
+   751→      if (!response.ok) {
+   752→        const errorMessage = (data.error as string) || (data.message as string) || 'An unexpected error occurred. Please try again.'
+   753→        const errorCode = data.code as string | undefined
+   754→
+   755→        // Handle database unreachable errors
+   756→        if (response.status === 503 && errorCode === 'DB_UNREACHABLE') {
+   757→          const dbError = new Error('Database is unreachable') as Error & { code: string }
+   758→          dbError.code = 'DB_UNREACHABLE'
+   759→          throw dbError
+   760→        }
+   761→
+   762→        // Handle auth errors — clear token and trigger logout if 401 from a non-auth endpoint
+   763→        // Auth endpoints (login, register, me) legitimately return 401 for wrong credentials
+   764→        // Also suppress auto-logout during active login to prevent race conditions
+   765→        const isAuthEndpoint = endpoint.startsWith('/api/auth/login') || endpoint.startsWith('/api/auth/register') || endpoint.startsWith('/api/auth/me')
+   766→        if (response.status === 401 && token && !isAuthEndpoint && !this._isLoggingIn) {
+   767→          // Only clear token and trigger logout if the token we sent is STILL the current token.
+   768→          // This prevents a stale background request from clearing a freshly-set token
+   769→          // after the user logged out and logged back in.
+   770→          const currentToken = this.getToken()
+   771→          if (token === currentToken) {
+   772→            this.clearToken()
+   773→            // Trigger logout via auth store to update UI state
+   774→            try {
+   775→              const { useAuthStore } = await import('@/lib/stores/auth-store')
+   776→              const store = useAuthStore.getState()
+   777→              if (store.isAuthenticated) {
+   778→                // Use setTimeout to avoid race conditions with concurrent requests.
+   779→                // If multiple 401s come in at the same time, only the first one will
+   780→                // trigger logout (subsequent ones will see isAuthenticated = false).
+   781→                setTimeout(() => {
+   782→                  const currentStore = useAuthStore.getState()
+   783→                  if (currentStore.isAuthenticated) {
+   784→                    currentStore.logout()
+   785→                  }
+   786→                }, 100)
+   787→              }
+   788→            } catch {
+   789→              // If import fails (e.g. during SSR), just clear the token
+   790→            }
+   791→          }
+   792→          throw new Error('Your session has expired. Please log in again.')
+   793→        }
+   794→
+   795→        throw new Error(errorMessage)
+   796→      }
+   797→
+   798→      // Cache successful GET responses for short TTL
+   799→      if (isGet) {
+   800→        this._responseCache.set(cacheKey, {
+   801→          data: data as T,
+   802→          expiresAt: Date.now() + ApiClient.RESPONSE_CACHE_TTL,
+   803→        })
+   804→      }
+   805→
+   806→      return data as T
+   807→    })()
+   808→
+   809→    // Register the inflight promise for GET deduplication
+   810→    if (isGet) {
+   811→      this._inflightRequests.set(cacheKey, fetchPromise)
+   812→    }
+   813→
+   814→    return fetchPromise
+   815→  }
+   816→
+   817→  // ============================================
+   818→  // Auth
+   819→  // ============================================
+   820→
+   821→  async login(email: string, password: string): Promise<{
+   822→    token: string
+   823→    user: User
+   824→    organizations: Organization[]
+   825→  }> {
+   826→    // Clear any stale token before login to prevent sending old Authorization header
+   827→    this.clearToken()
+   828→    // Set guard flag to prevent stale 401 responses from triggering auto-logout
+   829→    // during the login process
+   830→    this._isLoggingIn = true
+   831→    try {
+   832→      const data = await this.request('/api/auth/login', {
+   833→        method: 'POST',
+   834→        body: JSON.stringify({ email, password }),
+   835→      })
+   836→      if (data.token) {
+   837→        this.setToken(data.token)
+   838→      }
+   839→      return data
+   840→    } finally {
+   841→      // Always reset the guard flag, even if login fails
+   842→      this._isLoggingIn = false
+   843→    }
+   844→  }
+   845→
+   846→  async register(name: string, email: string, password: string, orgName: string, extra?: {
+   847→    businessType?: string
+   848→    description?: string
+   849→    address?: string
+   850→    city?: string
+   851→    latitude?: number
+   852→    longitude?: number
+   853→    phone?: string
+   854→    referralCode?: string
+   855→  }): Promise<{
+   856→    token: string
+   857→    user: User
+   858→    organization: Organization
+   859→  }> {
+   860→    // Clear any stale token before register to prevent sending old Authorization header
+   861→    this.clearToken()
+   862→    this._isLoggingIn = true
+   863→    try {
+   864→      const data = await this.request('/api/auth/register', {
+   865→        method: 'POST',
+   866→        body: JSON.stringify({ name, email, password, organizationName: orgName, ...extra }),
+   867→      })
+   868→      if (data.token) {
+   869→        this.setToken(data.token)
+   870→      }
+   871→      return data
+   872→    } finally {
+   873→      this._isLoggingIn = false
+   874→    }
+   875→  }
+   876→
+   877→  async getMe(): Promise<{
+   878→    user: User
+   879→    organizations: Organization[]
+   880→  }> {
+   881→    return this.request('/api/auth/me')
+   882→  }
+   883→
+   884→  async resetPassword(email: string, currentPassword: string, newPassword: string): Promise<{
+   885→    message: string
+   886→  }> {
+   887→    return this.request('/api/auth/reset-password', {
+   888→      method: 'POST',
+   889→      body: JSON.stringify({ email, currentPassword, newPassword }),
+   890→    })
+   891→  }
+   892→
+   893→  // ============================================
+   894→  // Two-Factor Authentication (2FA)
+   895→  // ============================================
+   896→
+   897→  async setup2fa(userId: string): Promise<{
+   898→    qrCodeUrl: string
+   899→    backupCodes: string[]
+   900→    secret: string
+   901→  }> {
+   902→    return this.request('/api/auth/2fa/setup', {
+   903→      method: 'POST',
+   904→      body: JSON.stringify({ userId }),
+   905→    })
+   906→  }
+   907→
+   908→  async verify2faSetup(userId: string, code: string): Promise<{
+   909→    success: boolean
+   910→    message: string
+   911→  }> {
+   912→    return this.request('/api/auth/2fa/verify', {
+   913→      method: 'POST',
+   914→      body: JSON.stringify({ userId, code }),
+   915→    })
+   916→  }
+   917→
+   918→  async disable2fa(userId: string, code: string): Promise<{
+   919→    success: boolean
+   920→    message: string
+   921→  }> {
+   922→    return this.request('/api/auth/2fa/disable', {
+   923→      method: 'POST',
+   924→      body: JSON.stringify({ userId, code }),
+   925→    })
+   926→  }
+   927→
+   928→  async verify2faLogin(tempToken: string, code: string): Promise<{
+   929→    token: string
+   930→    user: User
+   931→    organizations: Organization[]
+   932→  }> {
+   933→    // Clear any stale token before 2FA verification
+   934→    this.clearToken()
+   935→    this._isLoggingIn = true
+   936→    try {
+   937→      const data = await this.request('/api/auth/login/2fa', {
+   938→        method: 'POST',
+   939→        body: JSON.stringify({ tempToken, code }),
+   940→      })
+   941→      if (data.token) {
+   942→        this.setToken(data.token)
+   943→      }
+   944→      return data
+   945→    } finally {
+   946→      this._isLoggingIn = false
+   947→    }
+   948→  }
+   949→
+   950→  // ============================================
+   951→  // Session Management
+   952→  // ============================================
+   953→
+   954→  async getSessions(): Promise<{
+   955→    sessions: Array<{
+   956→      id: string
+   957→      deviceName: string | null
+   958→      deviceType: string | null
+   959→      browser: string | null
+   960→      os: string | null
+   961→      ipAddress: string | null
+   962→      lastActiveAt: string
+   963→      isActive: boolean
+   964→      isCurrent: boolean
+   965→      createdAt: string
+   966→    }>
+   967→  }> {
+   968→    return this.request('/api/auth/sessions')
+   969→  }
+   970→
+   971→  async revokeSession(sessionId: string): Promise<{ success: boolean }> {
+   972→    return this.request(`/api/auth/sessions/${sessionId}`, {
+   973→      method: 'DELETE',
+   974→    })
+   975→  }
+   976→
+   977→  async revokeAllSessions(): Promise<{ success: boolean; message: string }> {
+   978→    return this.request('/api/auth/sessions/revoke-all', {
+   979→      method: 'POST',
+   980→    })
+   981→  }
+   982→
+   983→  // ============================================
+   984→  // Organizations
+   985→  // ============================================
+   986→
+   987→  async getOrganizations(): Promise<{ organizations: Organization[] }> {
+   988→    return this.request('/api/organizations')
+   989→  }
+   990→
+   991→  async getOrganization(id: string): Promise<{
+   992→    organization: Organization & {
+   993→      members: Array<{
+   994→        id: string
+   995→        userId: string
+   996→        role: string
+   997→        user: { id: string; name: string; email: string }
+   998→      }>
+   999→    }
+  1000→  }> {
+  1001→    return this.request(`/api/organizations/${id}`)
+  1002→  }
+  1003→
+  1004→  // ============================================
+  1005→  // Shop Members
+  1006→  // ============================================
+  1007→
+  1008→  async getShopMemberInfo(orgId: string): Promise<ShopMemberInfo> {
+  1009→    return this.request(`/api/shop-members?orgId=${orgId}`)
+  1010→  }
+  1011→
+  1012→  // ============================================
+  1013→  // Product Types
+  1014→  // ============================================
+  1015→
+  1016→  async getProductTypes(orgId: string, shopId?: string): Promise<{ productTypes: ProductType[] }> {
+  1017→    const params = new URLSearchParams({ orgId })
+  1018→    if (shopId) params.set('shopId', shopId)
+  1019→    return this.request(`/api/product-types?${params.toString()}`)
+  1020→  }
+  1021→
+  1022→  async createProductType(orgId: string, data: {
+  1023→    name: string
+  1024→    icon?: string
+  1025→    attributes?: Array<{ name: string; fieldType: string; options?: string; required?: boolean }>
+  1026→  }): Promise<{ productType: ProductType }> {
+  1027→    return this.request('/api/product-types', {
+  1028→      method: 'POST',
+  1029→      body: JSON.stringify({ orgId, ...data }),
+  1030→    })
+  1031→  }
+  1032→
+  1033→  async updateProductType(id: string, orgId: string, data: {
+  1034→    name?: string
+  1035→    icon?: string
+  1036→    attributes?: Array<{ name: string; fieldType: string; options?: string; required?: boolean }>
+  1037→  }): Promise<{ productType: ProductType }> {
+  1038→    return this.request(`/api/product-types/${id}`, {
+  1039→      method: 'PATCH',
+  1040→      body: JSON.stringify({ orgId, ...data }),
+  1041→    })
+  1042→  }
+  1043→
+  1044→  async deleteProductType(id: string, orgId: string): Promise<void> {
+  1045→    await this.request(`/api/product-types/${id}?orgId=${orgId}`, {
+  1046→      method: 'DELETE',
+  1047→    })
+  1048→  }
+  1049→
+  1050→  // ============================================
+  1051→  // Products
+  1052→  // ============================================
+  1053→
+  1054→  async getProducts(orgId: string, params?: {
+  1055→    productTypeId?: string
+  1056→    search?: string
+  1057→    page?: number
+  1058→    limit?: number
+  1059→    shopId?: string
+  1060→  }): Promise<{ products: Product[]; pagination: Pagination }> {
+  1061→    const searchParams = new URLSearchParams({ orgId })
+  1062→    if (params?.productTypeId) searchParams.set('productTypeId', params.productTypeId)
+  1063→    if (params?.search) searchParams.set('search', params.search)
+  1064→    if (params?.page) searchParams.set('page', params.page.toString())
+  1065→    if (params?.limit) searchParams.set('limit', params.limit.toString())
+  1066→    if (params?.shopId) searchParams.set('shopId', params.shopId)
+  1067→    return this.request(`/api/products?${searchParams.toString()}`)
+  1068→  }
+  1069→
+  1070→  async createProduct(orgId: string, data: {
+  1071→    productTypeId: string
+  1072→    name: string
+  1073→    sku?: string
+  1074→    description?: string
+  1075→    imageUrl?: string
+  1076→    quantity?: number
+  1077→    costPrice?: number
+  1078→    sellingPrice?: number
+  1079→    lowStockThreshold?: number
+  1080→    attributeValues?: Array<{ attributeDefinitionId: string; value: string }>
+  1081→    shopId?: string
+  1082→  }): Promise<{ product: Product }> {
+  1083→    const result = await this.request('/api/products', {
+  1084→      method: 'POST',
+  1085→      body: JSON.stringify({ orgId, ...data }),
+  1086→    })
+  1087→    this.invalidateCache('GET:/api/products')
+  1088→    this.invalidateCache('GET:/api/inventory')
+  1089→    this.invalidateCache('GET:/api/dashboard')
+  1090→    return result
+  1091→  }
+  1092→
+  1093→  async updateProduct(id: string, orgId: string, data: {
+  1094→    name?: string
+  1095→    sku?: string
+  1096→    description?: string
+  1097→    imageUrl?: string
+  1098→    costPrice?: number
+  1099→    sellingPrice?: number
+  1100→    lowStockThreshold?: number
+  1101→    attributeValues?: Array<{ attributeDefinitionId: string; value: string }>
+  1102→  }): Promise<{ product: Product }> {
+  1103→    const result = await this.request(`/api/products/${id}`, {
+  1104→      method: 'PATCH',
+  1105→      body: JSON.stringify({ orgId, ...data }),
+  1106→    })
+  1107→    this.invalidateCache('GET:/api/products')
+  1108→    this.invalidateCache('GET:/api/inventory')
+  1109→    this.invalidateCache('GET:/api/dashboard')
+  1110→    return result
+  1111→  }
+  1112→
+  1113→  async deleteProduct(id: string, orgId: string): Promise<void> {
+  1114→    await this.request(`/api/products/${id}?orgId=${orgId}`, {
+  1115→      method: 'DELETE',
+  1116→    })
+  1117→    this.invalidateCache('GET:/api/products')
+  1118→    this.invalidateCache('GET:/api/inventory')
+  1119→    this.invalidateCache('GET:/api/dashboard')
+  1120→  }
+  1121→
+  1122→  // ============================================
+  1123→  // Inventory
+  1124→  // ============================================
+  1125→
+  1126→  async getInventory(orgId: string, shopId?: string): Promise<InventoryStats> {
+  1127→    const params = new URLSearchParams({ orgId })
+  1128→    if (shopId) params.set('shopId', shopId)
+  1129→    return this.request(`/api/inventory?${params.toString()}`)
+  1130→  }
+  1131→
+  1132→  async addStockMovement(orgId: string, data: {
+  1133→    productId: string
+  1134→    type: string
+  1135→    quantity: number
+  1136→    reason?: string
+  1137→    reference?: string
+  1138→    shopId?: string
+  1139→  }): Promise<{ movement: StockMovement }> {
+  1140→    return this.request('/api/inventory', {
+  1141→      method: 'POST',
+  1142→      body: JSON.stringify({ orgId, ...data }),
+  1143→    })
+  1144→  }
+  1145→
+  1146→  async getProductStockHistory(productId: string, orgId: string): Promise<{ movements: StockMovement[] }> {
+  1147→    return this.request(`/api/inventory/${productId}?orgId=${orgId}`)
+  1148→  }
+  1149→
+  1150→  // ============================================
+  1151→  // Customers
+  1152→  // ============================================
+  1153→
+  1154→  async getCustomers(orgId: string, params?: {
+  1155→    search?: string
+  1156→    page?: number
+  1157→    limit?: number
+  1158→    shopId?: string
+  1159→  }): Promise<{ customers: Customer[]; pagination: Pagination }> {
+  1160→    const searchParams = new URLSearchParams({ orgId })
+  1161→    if (params?.search) searchParams.set('search', params.search)
+  1162→    if (params?.page) searchParams.set('page', params.page.toString())
+  1163→    if (params?.limit) searchParams.set('limit', params.limit.toString())
+  1164→    if (params?.shopId) searchParams.set('shopId', params.shopId)
+  1165→    return this.request(`/api/customers?${searchParams.toString()}`)
+  1166→  }
+  1167→
+  1168→  async createCustomer(orgId: string, data: {
+  1169→    name: string
+  1170→    email?: string
+  1171→    phone?: string
+  1172→    address?: string
+  1173→    shopId?: string
+  1174→  }): Promise<{ customer: Customer }> {
+  1175→    const result = await this.request('/api/customers', {
+  1176→      method: 'POST',
+  1177→      body: JSON.stringify({ orgId, ...data }),
+  1178→    })
+  1179→    this.invalidateCache('GET:/api/customers')
+  1180→    return result
+  1181→  }
+  1182→
+  1183→  async updateCustomer(id: string, orgId: string, data: {
+  1184→    name?: string
+  1185→    email?: string
+  1186→    phone?: string
+  1187→    address?: string
+  1188→  }): Promise<{ customer: Customer }> {
+  1189→    const result = await this.request(`/api/customers/${id}`, {
+  1190→      method: 'PATCH',
+  1191→      body: JSON.stringify({ orgId, ...data }),
+  1192→    })
+  1193→    this.invalidateCache('GET:/api/customers')
+  1194→    return result
+  1195→  }
+  1196→
+  1197→  async deleteCustomer(id: string, orgId: string): Promise<void> {
+  1198→    await this.request(`/api/customers/${id}?orgId=${orgId}`, {
+  1199→      method: 'DELETE',
+  1200→    })
+  1201→    this.invalidateCache('GET:/api/customers')
+  1202→  }
+  1203→
+  1204→  // ============================================
+  1205→  // Suppliers
+  1206→  // ============================================
+  1207→
+  1208→  async getSuppliers(orgId: string, params?: {
+  1209→    search?: string
+  1210→    page?: number
+  1211→    limit?: number
+  1212→    shopId?: string
+  1213→  }): Promise<{ suppliers: Supplier[]; pagination: Pagination }> {
+  1214→    const searchParams = new URLSearchParams({ orgId })
+  1215→    if (params?.search) searchParams.set('search', params.search)
+  1216→    if (params?.page) searchParams.set('page', params.page.toString())
+  1217→    if (params?.limit) searchParams.set('limit', params.limit.toString())
+  1218→    if (params?.shopId) searchParams.set('shopId', params.shopId)
+  1219→    return this.request(`/api/suppliers?${searchParams.toString()}`)
+  1220→  }
+  1221→
+  1222→  async createSupplier(orgId: string, data: {
+  1223→    name: string
+  1224→    email?: string
+  1225→    phone?: string
+  1226→    address?: string
+  1227→    shopId?: string
+  1228→  }): Promise<{ supplier: Supplier }> {
+  1229→    return this.request('/api/suppliers', {
+  1230→      method: 'POST',
+  1231→      body: JSON.stringify({ orgId, ...data }),
+  1232→    })
+  1233→  }
+  1234→
+  1235→  async updateSupplier(id: string, orgId: string, data: {
+  1236→    name?: string
+  1237→    email?: string
+  1238→    phone?: string
+  1239→    address?: string
+  1240→  }): Promise<{ supplier: Supplier }> {
+  1241→    return this.request(`/api/suppliers/${id}`, {
+  1242→      method: 'PATCH',
+  1243→      body: JSON.stringify({ orgId, ...data }),
+  1244→    })
+  1245→  }
+  1246→
+  1247→  async deleteSupplier(id: string, orgId: string): Promise<void> {
+  1248→    await this.request(`/api/suppliers/${id}?orgId=${orgId}`, {
+  1249→      method: 'DELETE',
+  1250→    })
+  1251→  }
+  1252→
+  1253→  // ============================================
+  1254→  // Sales
+  1255→  // ============================================
+  1256→
+  1257→  async getSales(orgId: string, params?: {
+  1258→    startDate?: string
+  1259→    endDate?: string
+  1260→    status?: string
+  1261→    page?: number
+  1262→    limit?: number
+  1263→    shopId?: string
+  1264→  }): Promise<{ sales: Sale[]; pagination: Pagination }> {
+  1265→    const searchParams = new URLSearchParams({ orgId })
+  1266→    if (params?.startDate) searchParams.set('startDate', params.startDate)
+  1267→    if (params?.endDate) searchParams.set('endDate', params.endDate)
+  1268→    if (params?.status) searchParams.set('status', params.status)
+  1269→    if (params?.page) searchParams.set('page', params.page.toString())
+  1270→    if (params?.limit) searchParams.set('limit', params.limit.toString())
+  1271→    if (params?.shopId) searchParams.set('shopId', params.shopId)
+  1272→    return this.request(`/api/sales?${searchParams.toString()}`)
+  1273→  }
+  1274→
+  1275→  async createSale(orgId: string, data: {
+  1276→    customerId?: string
+  1277→    items: Array<{ productId: string; quantity: number; unitPrice?: number }>
+  1278→    paymentMethod?: string
+  1279→    discount?: number
+  1280→    tax?: number
+  1281→    amountPaid?: number
+  1282→    notes?: string
+  1283→    shopId?: string
+  1284→  }): Promise<{ sale: Sale }> {
+  1285→    const result = await this.request('/api/sales', {
+  1286→      method: 'POST',
+  1287→      body: JSON.stringify({ orgId, ...data }),
+  1288→    })
+  1289→    // Invalidate all related caches after sale creation
+  1290→    this.invalidateCache('GET:/api/sales')
+  1291→    this.invalidateCache('GET:/api/dashboard')
+  1292→    this.invalidateCache('GET:/api/inventory')
+  1293→    this.invalidateCache('GET:/api/products')
+  1294→    this.invalidateCache('GET:/api/debts')
+  1295→    return result
+  1296→  }
+  1297→
+  1298→  async getSale(id: string, orgId: string): Promise<{ sale: Sale }> {
+  1299→    return this.request(`/api/sales/${id}?orgId=${orgId}`)
+  1300→  }
+  1301→
+  1302→  // ============================================
+  1303→  // Debts
+  1304→  // ============================================
+  1305→
+  1306→  async getDebts(orgId: string, params?: {
+  1307→    status?: string
+  1308→    type?: string
+  1309→    page?: number
+  1310→    limit?: number
+  1311→    shopId?: string
+  1312→  }): Promise<{
+  1313→    debts: Debt[]
+  1314→    summary: {
+  1315→      totalCustomerDebt: number
+  1316→      totalSupplierDebt: number
+  1317→      totalOutstanding: number
+  1318→    }
+  1319→    pagination: Pagination
+  1320→  }> {
+  1321→    const searchParams = new URLSearchParams({ orgId })
+  1322→    if (params?.status) searchParams.set('status', params.status)
+  1323→    if (params?.type) searchParams.set('type', params.type)
+  1324→    if (params?.page) searchParams.set('page', params.page.toString())
+  1325→    if (params?.limit) searchParams.set('limit', params.limit.toString())
+  1326→    if (params?.shopId) searchParams.set('shopId', params.shopId)
+  1327→    return this.request(`/api/debts?${searchParams.toString()}`)
+  1328→  }
+  1329→
+  1330→  async createDebt(orgId: string, data: {
+  1331→    customerId?: string
+  1332→    supplierId?: string
+  1333→    type: string
+  1334→    amount: number
+  1335→    dueDate?: string
+  1336→    description?: string
+  1337→    shopId?: string
+  1338→  }): Promise<{ debt: Debt }> {
+  1339→    return this.request('/api/debts', {
+  1340→      method: 'POST',
+  1341→      body: JSON.stringify({ orgId, ...data }),
+  1342→    })
+  1343→  }
+  1344→
+  1345→  async addDebtPayment(id: string, orgId: string, data: {
+  1346→    amount: number
+  1347→    paymentMethod?: string
+  1348→    notes?: string
+  1349→  }): Promise<{ debt: Debt }> {
+  1350→    return this.request(`/api/debts/${id}`, {
+  1351→      method: 'PATCH',
+  1352→      body: JSON.stringify({ orgId, ...data }),
+  1353→    })
+  1354→  }
+  1355→
+  1356→  // ============================================
+  1357→  // Expenses
+  1358→  // ============================================
+  1359→
+  1360→  async getExpenses(orgId: string, params?: {
+  1361→    category?: string
+  1362→    page?: number
+  1363→    limit?: number
+  1364→    shopId?: string
+  1365→  }): Promise<{
+  1366→    expenses: Expense[]
+  1367→    summary: { totalExpenses: number }
+  1368→    monthlySummary: Array<{ month: string; total: number }>
+  1369→    pagination: Pagination
+  1370→  }> {
+  1371→    const searchParams = new URLSearchParams({ organizationId: orgId })
+  1372→    if (params?.category) searchParams.set('category', params.category)
+  1373→    if (params?.page) searchParams.set('page', params.page.toString())
+  1374→    if (params?.limit) searchParams.set('limit', params.limit.toString())
+  1375→    if (params?.shopId) searchParams.set('shopId', params.shopId)
+  1376→    return this.request(`/api/expenses?${searchParams.toString()}`)
+  1377→  }
+  1378→
+  1379→  async createExpense(orgId: string, data: {
+  1380→    category: string
+  1381→    amount: number
+  1382→    description?: string | null
+  1383→    expenseDate: string
+  1384→    shopId?: string | null
+  1385→    isRecurring?: boolean
+  1386→    recurringPeriod?: string | null
+  1387→  }): Promise<{ expense: Expense }> {
+  1388→    return this.request('/api/expenses', {
+  1389→      method: 'POST',
+  1390→      body: JSON.stringify({ organizationId: orgId, ...data }),
+  1391→    })
+  1392→  }
+  1393→
+  1394→  async updateExpense(id: string, orgId: string, data: {
+  1395→    category: string
+  1396→    amount: number
+  1397→    description?: string | null
+  1398→    expenseDate: string
+  1399→    shopId?: string | null
+  1400→    isRecurring?: boolean
+  1401→    recurringPeriod?: string | null
+  1402→  }): Promise<{ expense: Expense }> {
+  1403→    return this.request(`/api/expenses/${id}?organizationId=${orgId}`, {
+  1404→      method: 'PUT',
+  1405→      body: JSON.stringify({ organizationId: orgId, ...data }),
+  1406→    })
+  1407→  }
+  1408→
+  1409→  async deleteExpense(id: string, orgId: string): Promise<void> {
+  1410→    return this.request(`/api/expenses/${id}?organizationId=${orgId}`, {
+  1411→      method: 'DELETE',
+  1412→    })
+  1413→  }
+  1414→
+  1415→  // ============================================
+  1416→  // Dashboard
+  1417→  // ============================================
+  1418→
+  1419→  async getDashboard(orgId: string, shopId?: string, from?: string, to?: string): Promise<DashboardData> {
+  1420→    const params = new URLSearchParams({ orgId })
+  1421→    if (shopId) params.set('shopId', shopId)
+  1422→    if (from) params.set('from', from)
+  1423→    if (to) params.set('to', to)
+  1424→    return this.request(`/api/dashboard?${params.toString()}`)
+  1425→  }
+  1426→
+  1427→  async getProductBarcode(productId: string, orgId: string): Promise<{
+  1428→    product: { id: string; name: string; sku: string | null; costPrice: number; sellingPrice: number; quantity: number; productType: { id: string; name: string } }
+  1429→    barcode: string
+  1430→    qr: string
+  1431→  }> {
+  1432→    return this.request(`/api/products/${productId}/barcode?orgId=${orgId}`)
+  1433→  }
+  1434→
+  1435→  async importProducts(orgId: string, data: {
+  1436→    shopId?: string
+  1437→    products: Array<{
+  1438→      name: string
+  1439→      sku?: string
+  1440→      productType?: string
+  1441→      costPrice: number
+  1442→      sellingPrice: number
+  1443→      quantity: number
+  1444→      lowStockThreshold: number
+  1445→    }>
+  1446→  }): Promise<{
+  1447→    successCount: number
+  1448→    failureCount: number
+  1449→    errors: Array<{ row: number; field: string; message: string }>
+  1450→    totalAttempted: number
+  1451→  }> {
+  1452→    return this.request('/api/products/import', {
+  1453→      method: 'POST',
+  1454→      body: JSON.stringify({ organizationId: orgId, ...data }),
+  1455→    })
+  1456→  }
+  1457→
+  1458→  // ============================================
+  1459→  // Reports
+  1460→  // ============================================
+  1461→
+  1462→  async getReports(orgId: string, params: {
+  1463→    startDate: string
+  1464→    endDate: string
+  1465→    period?: string
+  1466→    shopId?: string
+  1467→  }): Promise<{
+  1468→    salesByPeriod: Array<{ period: string; revenue: number; cost: number; profit: number; count: number }>
+  1469→    bestSellingProducts: Array<{ productId: string; productName: string; totalQuantity: number; totalRevenue: number }>
+  1470→    inventoryValuation: { totalCostValue: number; totalRetailValue: number; totalProducts: number }
+  1471→  }> {
+  1472→    const filteredParams = Object.fromEntries(
+  1473→      Object.entries({ orgId, ...params }).filter(([, v]) => v !== undefined && v !== null && v !== '')
+  1474→    )
+  1475→    const searchParams = new URLSearchParams(filteredParams)
+  1476→    return this.request(`/api/reports?${searchParams.toString()}`)
+  1477→  }
+  1478→
+  1479→  // ============================================
+  1480→  // AI
+  1481→  // ============================================
+  1482→
+  1483→  async analyzeProductImage(orgId: string, imageFile: File): Promise<{
+  1484→    analysis: {
+  1485→      productName: string
+  1486→      category: string
+  1487→      estimatedPrice: string
+  1488→      attributes: Array<{ key: string; value: string }>
+  1489→      description: string
+  1490→    }
+  1491→  }> {
+  1492→    const token = this.getToken()
+  1493→    const formData = new FormData()
+  1494→    formData.append('image', imageFile)
+  1495→    formData.append('orgId', orgId)
+  1496→
+  1497→    const headers: Record<string, string> = {}
+  1498→    // Add JWT token to Authorization header if available
+  1499→    if (token) {
+  1500→      headers['Authorization'] = `Bearer ${token}`
+  1501→    }
+  1502→
+  1503→    const response = await fetch('/api/ai/inventory-assistant', {
+  1504→      method: 'POST',
+  1505→      headers,
+  1506→      body: formData,
+  1507→    })
+  1508→
+  1509→    const data = await response.json()
+  1510→    if (!response.ok) {
+  1511→      throw new Error(data.error || 'An error occurred')
+  1512→    }
+  1513→    return data
+  1514→  }
+  1515→
+  1516→  async askBusinessQuestion(orgId: string, question: string): Promise<{
+  1517→    answer: string
+  1518→  }> {
+  1519→    return this.request('/api/ai/business-assistant', {
+  1520→      method: 'POST',
+  1521→      body: JSON.stringify({ orgId, question }),
+  1522→    })
+  1523→  }
+  1524→
+  1525→  // ============================================
+  1526→  // Subscriptions
+  1527→  // ============================================
+  1528→
+  1529→  async getSubscription(orgId: string): Promise<{
+  1530→    subscription: Subscription & { planLimits: Record<string, unknown> }
+  1531→  }> {
+  1532→    return this.request(`/api/subscriptions?orgId=${orgId}`)
+  1533→  }
+  1534→
+  1535→  async updateSubscription(orgId: string, plan: string): Promise<{
+  1536→    subscription: Subscription
+  1537→  }> {
+  1538→    return this.request('/api/subscriptions', {
+  1539→      method: 'POST',
+  1540→      body: JSON.stringify({ orgId, plan }),
+  1541→    })
+  1542→  }
+  1543→
+  1544→  // ============================================
+  1545→  // Service Types
+  1546→  // ============================================
+  1547→
+  1548→  async getServiceTypes(orgId: string): Promise<{ serviceTypes: ServiceType[] }> {
+  1549→    return this.request(`/api/service-types?orgId=${orgId}`)
+  1550→  }
+  1551→
+  1552→  async createServiceType(orgId: string, data: {
+  1553→    name: string
+  1554→    description?: string
+  1555→    duration: number
+  1556→    price: number
+  1557→    imageUrl?: string
+  1558→  }): Promise<{ serviceType: ServiceType }> {
+  1559→    return this.request('/api/service-types', {
+  1560→      method: 'POST',
+  1561→      body: JSON.stringify({ orgId, ...data }),
+  1562→    })
+  1563→  }
+  1564→
+  1565→  async updateServiceType(id: string, orgId: string, data: {
+  1566→    name?: string
+  1567→    description?: string
+  1568→    duration?: number
+  1569→    price?: number
+  1570→    imageUrl?: string
+  1571→    isActive?: boolean
+  1572→  }): Promise<{ serviceType: ServiceType }> {
+  1573→    return this.request(`/api/service-types/${id}`, {
+  1574→      method: 'PATCH',
+  1575→      body: JSON.stringify({ orgId, ...data }),
+  1576→    })
+  1577→  }
+  1578→
+  1579→  async deleteServiceType(id: string, orgId: string): Promise<void> {
+  1580→    await this.request(`/api/service-types/${id}?orgId=${orgId}`, {
+  1581→      method: 'DELETE',
+  1582→    })
+  1583→  }
+  1584→
+  1585→  // ============================================
+  1586→  // Service Bookings
+  1587→  // ============================================
+  1588→
+  1589→  async getServiceBookings(orgId: string, params?: {
+  1590→    date?: string
+  1591→    status?: string
+  1592→    page?: number
+  1593→    limit?: number
+  1594→    shopId?: string
+  1595→  }): Promise<{ bookings: ServiceBooking[]; pagination: Pagination }> {
+  1596→    const searchParams = new URLSearchParams({ orgId })
+  1597→    if (params?.date) searchParams.set('date', params.date)
+  1598→    if (params?.status) searchParams.set('status', params.status)
+  1599→    if (params?.page) searchParams.set('page', params.page.toString())
+  1600→    if (params?.limit) searchParams.set('limit', params.limit.toString())
+  1601→    if (params?.shopId) searchParams.set('shopId', params.shopId)
+  1602→    return this.request(`/api/service-bookings?${searchParams.toString()}`)
+  1603→  }
+  1604→
+  1605→  async createServiceBooking(orgId: string, data: {
+  1606→    serviceTypeId: string
+  1607→    customerName: string
+  1608→    customerPhone?: string
+  1609→    bookingDate: string
+  1610→    startTime: string
+  1611→    endTime: string
+  1612→    notes?: string
+  1613→    customerId?: string
+  1614→    shopId?: string
+  1615→  }): Promise<{ booking: ServiceBooking }> {
+  1616→    return this.request('/api/service-bookings', {
+  1617→      method: 'POST',
+  1618→      body: JSON.stringify({ orgId, ...data }),
+  1619→    })
+  1620→  }
+  1621→
+  1622→  async updateServiceBooking(id: string, orgId: string, data: {
+  1623→    status?: string
+  1624→    notes?: string
+  1625→  }): Promise<{ booking: ServiceBooking }> {
+  1626→    return this.request(`/api/service-bookings/${id}`, {
+  1627→      method: 'PATCH',
+  1628→      body: JSON.stringify({ orgId, ...data }),
+  1629→    })
+  1630→  }
+  1631→
+  1632→  // ============================================
+  1633→  // Admin
+  1634→  // ============================================
+  1635→
+  1636→  async getAdminDashboard(regionId?: string): Promise<AdminDashboardData> {
+  1637→    if (regionId) {
+  1638→      return this.request(`/api/admin/dashboard?regionId=${regionId}`)
+  1639→    }
+  1640→    return this.request('/api/admin/dashboard')
+  1641→  }
+  1642→
+  1643→  async getAdminShops(params?: {
+  1644→    search?: string
+  1645→    businessType?: string
+  1646→    city?: string
+  1647→    subscriptionPlan?: string
+  1648→    regionId?: string
+  1649→    page?: number
+  1650→    limit?: number
+  1651→  }): Promise<{ shops: ShopData[]; pagination: Pagination }> {
+  1652→    const searchParams = new URLSearchParams()
+  1653→    if (params?.search) searchParams.set('search', params.search)
+  1654→    if (params?.businessType) searchParams.set('businessType', params.businessType)
+  1655→    if (params?.city) searchParams.set('city', params.city)
+  1656→    if (params?.subscriptionPlan) searchParams.set('subscriptionPlan', params.subscriptionPlan)
+  1657→    if (params?.regionId) searchParams.set('regionId', params.regionId)
+  1658→    if (params?.page) searchParams.set('page', params.page.toString())
+  1659→    if (params?.limit) searchParams.set('limit', params.limit.toString())
+  1660→    return this.request(`/api/admin/shops?${searchParams.toString()}`)
+  1661→  }
+  1662→
+  1663→  async getAdminMarketInsights(regionId?: string): Promise<MarketInsightsData> {
+  1664→    if (regionId) {
+  1665→      return this.request(`/api/admin/market-insights?regionId=${regionId}`)
+  1666→    }
+  1667→    return this.request('/api/admin/market-insights')
+  1668→  }
+  1669→
+  1670→  async getSystemHealth(): Promise<SystemHealthData> {
+  1671→    return this.request('/api/admin/system/health')
+  1672→  }
+  1673→
+  1674→  // ============================================
+  1675→  // Shops
+  1676→  // ============================================
+  1677→
+  1678→  async getShops(orgId: string): Promise<{ shops: Shop[] }> {
+  1679→    return this.request(`/api/shops?orgId=${orgId}`)
+  1680→  }
+  1681→
+  1682→  async createShop(orgId: string, data: {
+  1683→    name: string
+  1684→    address?: string
+  1685→    city?: string
+  1686→    latitude?: number
+  1687→    longitude?: number
+  1688→    phone?: string
+  1689→  }): Promise<{ shop: Shop }> {
+  1690→    return this.request('/api/shops', {
+  1691→      method: 'POST',
+  1692→      body: JSON.stringify({ orgId, ...data }),
+  1693→    })
+  1694→  }
+  1695→
+  1696→  async updateShop(id: string, orgId: string, data: {
+  1697→    name?: string
+  1698→    address?: string
+  1699→    city?: string
+  1700→    latitude?: number
+  1701→    longitude?: number
+  1702→    phone?: string
+  1703→    isActive?: boolean
+  1704→  }): Promise<{ shop: Shop }> {
+  1705→    return this.request(`/api/shops/${id}`, {
+  1706→      method: 'PATCH',
+  1707→      body: JSON.stringify({ orgId, ...data }),
+  1708→    })
+  1709→  }
+  1710→
+  1711→  // ============================================
+  1712→  // Shop Members
+  1713→  // ============================================
+  1714→
+  1715→  async getShopMembers(shopId: string, orgId: string): Promise<{ members: ShopMemberData[] }> {
+  1716→    return this.request(`/api/shops/${shopId}/members?orgId=${orgId}`)
+  1717→  }
+  1718→
+  1719→  async addShopMember(shopId: string, orgId: string, data: {
+  1720→    userId: string
+  1721→    role: string
+  1722→  }): Promise<{ member: ShopMemberData }> {
+  1723→    return this.request(`/api/shops/${shopId}/members`, {
+  1724→      method: 'POST',
+  1725→      body: JSON.stringify({ orgId, ...data }),
+  1726→    })
+  1727→  }
+  1728→
+  1729→  async updateShopMember(shopId: string, memberId: string, orgId: string, data: {
+  1730→    role: string
+  1731→  }): Promise<{ member: ShopMemberData }> {
+  1732→    return this.request(`/api/shops/${shopId}/members/${memberId}`, {
+  1733→      method: 'PATCH',
+  1734→      body: JSON.stringify({ orgId, ...data }),
+  1735→    })
+  1736→  }
+  1737→
+  1738→  async removeShopMember(shopId: string, memberId: string, orgId: string): Promise<void> {
+  1739→    await this.request(`/api/shops/${shopId}/members/${memberId}?orgId=${orgId}`, {
+  1740→      method: 'DELETE',
+  1741→    })
+  1742→  }
+  1743→
+  1744→  // ============================================
+  1745→  // Modules
+  1746→  // ============================================
+  1747→
+  1748→  async getModules(orgId: string): Promise<{ modules: ModuleData[] }> {
+  1749→    interface ModuleApiResponse {
+  1750→      id: string
+  1751→      key: string
+  1752→      name: string
+  1753→      description: string
+  1754→      icon: string
+  1755→      category: string
+  1756→      priceETB: number
+  1757→      isFree: boolean
+  1758→      freeTrialDays: number
+  1759→      billingCycle: string
+  1760→      order: number
+  1761→      isActive: boolean // Platform-level active flag
+  1762→      orgStatus?: {
+  1763→        isActive: boolean
+  1764→        status: string
+  1765→        activatedAt: string | null
+  1766→        expiresAt: string | null
+  1767→        priceAtActivation: number
+  1768→        autoRenew: boolean
+  1769→      } | null
+  1770→    }
+  1771→    const data = await this.request<{ modules: ModuleApiResponse[] }>(`/api/modules?orgId=${orgId}`)
+  1772→    // Transform: isActive in ModuleData means "org has this module activated"
+  1773→    const modules: ModuleData[] = data.modules.map(m => ({
+  1774→      id: m.id,
+  1775→      key: m.key,
+  1776→      name: m.name,
+  1777→      description: m.description,
+  1778→      icon: m.icon,
+  1779→      category: m.category,
+  1780→      priceETB: m.priceETB,
+  1781→      isFree: m.isFree,
+  1782→      freeTrialDays: m.freeTrialDays,
+  1783→      billingCycle: m.billingCycle,
+  1784→      isActive: m.orgStatus?.isActive ?? false,
+  1785→      order: m.order,
+  1786→      orgStatus: m.orgStatus ?? null,
+  1787→    }))
+  1788→    return { modules }
+  1789→  }
+  1790→
+  1791→  async activateModule(orgId: string, moduleKey: string): Promise<{
+  1792→    orgModule: { id: string; moduleId: string; isActive: boolean; status: string }
+  1793→    module: { id: string; key: string; name: string }
+  1794→  }> {
+  1795→    return this.request('/api/modules/activate', {
+  1796→      method: 'POST',
+  1797→      body: JSON.stringify({ orgId, moduleKey }),
+  1798→    })
+  1799→  }
+  1800→
+  1801→  async deactivateModule(orgId: string, moduleKey: string): Promise<{
+  1802→    orgModule: { id: string; moduleId: string; isActive: boolean; status: string }
+  1803→    module: { id: string; key: string; name: string }
+  1804→  }> {
+  1805→    return this.request('/api/modules/deactivate', {
+  1806→      method: 'POST',
+  1807→      body: JSON.stringify({ orgId, moduleKey }),
+  1808→    })
+  1809→  }
+  1810→
+  1811→  async requestModule(orgId: string, moduleKey: string): Promise<{ success: boolean }> {
+  1812→    return this.request('/api/modules/request', {
+  1813→      method: 'POST',
+  1814→      body: JSON.stringify({ orgId, moduleKey }),
+  1815→    })
+  1816→  }
+  1817→
+  1818→  // ============================================
+  1819→  // NOTIFICATIONS
+  1820→  // ============================================
+  1821→
+  1822→  async getNotifications(orgId: string, params?: { unreadOnly?: boolean; limit?: number; shopId?: string }): Promise<{
+  1823→    notifications: Array<{
+  1824→      id: string
+  1825→      type: string
+  1826→      title: string
+  1827→      message: string
+  1828→      isRead: boolean
+  1829→      actionUrl: string | null
+  1830→      metadata: string | null
+  1831→      createdAt: string
+  1832→    }>
+  1833→    unreadCount: number
+  1834→  }> {
+  1835→    const searchParams = new URLSearchParams({ orgId })
+  1836→    if (params?.unreadOnly) searchParams.set('unreadOnly', 'true')
+  1837→    if (params?.limit) searchParams.set('limit', String(params.limit))
+  1838→    if (params?.shopId) searchParams.set('shopId', params.shopId)
+  1839→    return this.request(`/api/notifications?${searchParams.toString()}`)
+  1840→  }
+  1841→
+  1842→  async markNotificationRead(notificationId: string): Promise<{ success: boolean }> {
+  1843→    return this.request(`/api/notifications/${notificationId}/read`, { method: 'POST' })
+  1844→  }
+  1845→
+  1846→  async markAllNotificationsRead(orgId: string): Promise<{ success: boolean }> {
+  1847→    return this.request('/api/notifications/mark-all-read', {
+  1848→      method: 'POST',
+  1849→      body: JSON.stringify({ orgId }),
+  1850→    })
+  1851→  }
+  1852→
+  1853→  // ============================================
+  1854→  // MODULE SUBSCRIPTIONS
+  1855→  // ============================================
+  1856→
+  1857→  async subscribeModule(orgId: string, moduleKey: string, billingCycle: string = 'monthly'): Promise<{
+  1858→    orgModule: { id: string; status: string; isActive: boolean; expiresAt: string | null }
+  1859→  }> {
+  1860→    return this.request('/api/modules/subscribe', {
+  1861→      method: 'POST',
+  1862→      body: JSON.stringify({ orgId, moduleKey, billingCycle }),
+  1863→    })
+  1864→  }
+  1865→
+  1866→  async renewModule(orgId: string, moduleKey: string): Promise<{
+  1867→    orgModule: { id: string; status: string; isActive: boolean; expiresAt: string | null }
+  1868→  }> {
+  1869→    return this.request('/api/modules/renew', {
+  1870→      method: 'POST',
+  1871→      body: JSON.stringify({ orgId, moduleKey }),
+  1872→    })
+  1873→  }
+  1874→
+  1875→  // ============================================
+  1876→  // Admin Module Management
+  1877→  // ============================================
+  1878→
+  1879→  async getAdminModules(): Promise<{ modules: Array<{
+  1880→    id: string
+  1881→    key: string
+  1882→    name: string
+  1883→    description: string
+  1884→    icon: string
+  1885→    category: string
+  1886→    priceETB: number
+  1887→    isFree: boolean
+  1888→    freeTrialDays: number
+  1889→    billingCycle: string
+  1890→    isActive: boolean
+  1891→    order: number
+  1892→    orgCount: number
+  1893→    createdAt: string
+  1894→    updatedAt: string
+  1895→  }> }> {
+  1896→    return this.request('/api/admin/modules')
+  1897→  }
+  1898→
+  1899→  async createAdminModule(data: {
+  1900→    key: string
+  1901→    name: string
+  1902→    description: string
+  1903→    icon?: string
+  1904→    category?: string
+  1905→    priceETB?: number
+  1906→    isFree?: boolean
+  1907→    freeTrialDays?: number
+  1908→    billingCycle?: string
+  1909→    order?: number
+  1910→  }): Promise<{ module: ModuleData }> {
+  1911→    return this.request('/api/admin/modules', {
+  1912→      method: 'POST',
+  1913→      body: JSON.stringify(data),
+  1914→    })
+  1915→  }
+  1916→
+  1917→  async updateAdminModule(id: string, data: {
+  1918→    name?: string
+  1919→    description?: string
+  1920→    icon?: string
+  1921→    category?: string
+  1922→    priceETB?: number
+  1923→    isFree?: boolean
+  1924→    freeTrialDays?: number
+  1925→    billingCycle?: string
+  1926→    isActive?: boolean
+  1927→    order?: number
+  1928→  }): Promise<{ module: ModuleData }> {
+  1929→    return this.request(`/api/admin/modules/${id}`, {
+  1930→      method: 'PATCH',
+  1931→      body: JSON.stringify(data),
+  1932→    })
+  1933→  }
+  1934→
+  1935→  async deleteAdminModule(id: string): Promise<{ module: ModuleData }> {
+  1936→    return this.request(`/api/admin/modules/${id}`, {
+  1937→      method: 'DELETE',
+  1938→    })
+  1939→  }
+  1940→
+  1941→  async getAdminOrganizations(params?: {
+  1942→    search?: string
+  1943→    regionId?: string
+  1944→    page?: number
+  1945→    limit?: number
+  1946→  }): Promise<{
+  1947→    organizations: Array<{
+  1948→      id: string
+  1949→      name: string
+  1950→      slug: string
+  1951→      businessType: string
+  1952→      city: string | null
+  1953→      subscriptionPlan: string
+  1954→      subscriptionStatus: string
+  1955→      createdAt: string
+  1956→      memberCount: number
+  1957→      shopCount: number
+  1958→      productCount: number
+  1959→      salesCount: number
+  1960→      members: Array<{ id: string; role: string; name: string; email: string }>
+  1961→      shops: Array<{ id: string; name: string; city: string | null; isActive: boolean }>
+  1962→      modules: Array<{
+  1963→        id: string
+  1964→        key: string
+  1965→        name: string
+  1966→        status: string
+  1967→        isActive: boolean
+  1968→        expiresAt: string | null
+  1969→        priceAtActivation: number
+  1970→        autoRenew: boolean
+  1971→      }>
+  1972→    }>
+  1973→    pagination: Pagination
+  1974→  }> {
+  1975→    const searchParams = new URLSearchParams()
+  1976→    if (params?.search) searchParams.set('search', params.search)
+  1977→    if (params?.regionId) searchParams.set('regionId', params.regionId)
+  1978→    if (params?.page) searchParams.set('page', params.page.toString())
+  1979→    if (params?.limit) searchParams.set('limit', params.limit.toString())
+  1980→    return this.request(`/api/admin/organizations?${searchParams.toString()}`)
+  1981→  }
+  1982→
+  1983→  async assignModuleToOrg(orgId: string, data: {
+  1984→    moduleKey: string
+  1985→    status?: string
+  1986→    durationDays?: number
+  1987→    autoRenew?: boolean
+  1988→  }): Promise<{
+  1989→    orgModule: { id: string; status: string; isActive: boolean; expiresAt: string | null }
+  1990→    module: { id: string; key: string; name: string }
+  1991→  }> {
+  1992→    return this.request(`/api/admin/organizations/${orgId}/modules`, {
+  1993→      method: 'POST',
+  1994→      body: JSON.stringify(data),
+  1995→    })
+  1996→  }
+  1997→
+  1998→  async updateOrgModule(orgId: string, data: {
+  1999→    moduleKey: string
+  2000→    status?: string
+
+[showing lines 1-2000 of 2825; use offset=2001 with limit to continue reading]

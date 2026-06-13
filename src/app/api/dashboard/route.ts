@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
@@ -124,11 +125,12 @@ async function fetchDashboardData(
   // ============================================
   // OPTIMIZATION: Batch all independent queries with Promise.all
   // ============================================
-  // Key fixes:
-  // 1. N+1 FIX: topProducts now uses batch product fetch instead of per-product query
-  // 2. DOUBLE QUERY FIX: COGS uses single findMany instead of aggregate + findMany
-  // 3. AGGREGATE FIX: lowStockCount uses aggregate instead of fetch-all-then-filter
-  // 4. AGGREGATE FIX: totalStockValue uses aggregate instead of fetch-all-then-reduce
+  // Key optimizations:
+  // 1. N+1 FIX: topProducts uses batch product fetch instead of per-product query
+  // 2. RAW SQL: lowStockCount, totalStockValue, COGS, critical-low anomaly
+  //    all use $queryRaw for DB-side aggregation — no more loading rows into
+  //    memory and computing in JS. Removes take: 5000/10000 safety limits.
+  // 3. Prisma.sql composition for conditional shopId filters
   // ============================================
 
   const [
@@ -142,12 +144,13 @@ async function fetchDashboardData(
     prevPeriodSales,
     periodExpenses,
     prevPeriodExpenses,
-    periodCogsItems,
-    prevPeriodCogsItems,
+    periodCogsResult,
+    prevPeriodCogsResult,
     customerDebts,
     recentSales,
     topProductGroups,
     anomalies,
+    salesTrend,
   ] = await Promise.all([
     // Total active products
     db.product.count({
@@ -159,27 +162,31 @@ async function fetchDashboardData(
       where: { ...productWhere, quantity: 0 }
     }),
 
-    // Low stock - OPTIMIZED: Use aggregate to count in DB instead of fetching all products
-    // SQLite doesn't support comparing columns in WHERE, so we fetch only the needed fields
-    // and count in memory. This is still much better than fetching ALL product data.
-    // TODO: For production with PostgreSQL, replace with: SELECT COUNT(*) FROM product WHERE quantity <= low_stock_threshold
-    db.product.findMany({
-      where: { ...productWhere, quantity: { gt: 0 } },
-      select: { quantity: true, lowStockThreshold: true },
-      take: 5000, // Safety limit to prevent loading millions of products into memory
-    }).then(products => products.filter(p => p.quantity <= p.lowStockThreshold).length),
+    // Low stock — raw SQL: column comparison (quantity <= lowStockThreshold)
+    // not supported by Prisma where clause, but is trivial in SQL.
+    db.$queryRaw<Array<{ count: bigint }>>(
+      Prisma.sql`
+        SELECT COUNT(*) as count FROM Product
+        WHERE organizationId = ${orgId}
+        AND isActive = 1
+        AND quantity > 0
+        AND quantity <= lowStockThreshold
+        ${shopId ? Prisma.sql`AND (shopId = ${shopId} OR shopId IS NULL)` : Prisma.empty}
+      `
+    ).then(result => Number(result[0]?.count ?? 0)),
 
-    // Total stock value - OPTIMIZED: Removed redundant aggregate() call that preceded
-    // the findMany(). The aggregate can't multiply columns (quantity * price) in SQLite,
-    // so findMany with select is required. The aggregate was wasteful.
-    // TODO: For production with PostgreSQL, replace with: SELECT SUM(quantity * cost_price), SUM(quantity * selling_price) FROM product
-    db.product.findMany({
-      where: { ...productWhere, quantity: { gt: 0 } },
-      select: { quantity: true, costPrice: true, sellingPrice: true },
-      take: 5000, // Safety limit to prevent loading millions of products into memory
-    }).then(products => ({
-      costValue: products.reduce((sum, p) => sum + (p.quantity * p.costPrice), 0),
-      retailValue: products.reduce((sum, p) => sum + (p.quantity * p.sellingPrice), 0),
+    // Total stock value — raw SQL: DB-side SUM aggregation
+    db.$queryRaw<Array<{ costValue: number; retailValue: number }>>(
+      Prisma.sql`
+        SELECT COALESCE(SUM(quantity * costPrice), 0) as costValue,
+               COALESCE(SUM(quantity * sellingPrice), 0) as retailValue
+        FROM Product
+        WHERE organizationId = ${orgId} AND isActive = 1 AND quantity > 0
+        ${shopId ? Prisma.sql`AND (shopId = ${shopId} OR shopId IS NULL)` : Prisma.empty}
+      `
+    ).then(result => ({
+      costValue: result[0]?.costValue ?? 0,
+      retailValue: result[0]?.retailValue ?? 0,
     })),
 
     // Today's revenue and count
@@ -239,33 +246,29 @@ async function fetchDashboardData(
       _sum: { amount: true },
     }),
 
-    // Period COGS - OPTIMIZED: Single findMany instead of aggregate + findMany
-    // Previously: db.saleItem.aggregate() was called first, then db.saleItem.findMany()
-    // with the exact same where clause. Now we just do the findMany.
-    // TODO: For production with PostgreSQL, replace with: SELECT SUM(cost_price * quantity) FROM sale_item JOIN sale ...
-    db.saleItem.findMany({
-      where: {
-        sale: {
-          ...saleWhere,
-          saleDate: { gte: periodStart, lte: periodEnd },
-        }
-      },
-      select: { costPrice: true, quantity: true },
-      take: 10000, // Safety limit to prevent loading millions of sale items into memory
-    }),
+    // Period COGS — raw SQL: DB-side SUM with JOIN
+    db.$queryRaw<Array<{ cogs: number }>>(
+      Prisma.sql`
+        SELECT COALESCE(SUM(si.costPrice * si.quantity), 0) as cogs
+        FROM SaleItem si
+        JOIN Sale s ON si.saleId = s.id
+        WHERE s.organizationId = ${orgId} AND s.status = 'completed'
+        AND s.saleDate >= ${periodStart} AND s.saleDate <= ${periodEnd}
+        ${shopId ? Prisma.sql`AND s.shopId = ${shopId}` : Prisma.empty}
+      `
+    ),
 
-    // Previous period COGS
-    // TODO: For production with PostgreSQL, replace with SQL SUM aggregate
-    db.saleItem.findMany({
-      where: {
-        sale: {
-          ...saleWhere,
-          saleDate: { gte: prevPeriodStart, lte: prevPeriodEnd },
-        }
-      },
-      select: { costPrice: true, quantity: true },
-      take: 10000, // Safety limit
-    }),
+    // Previous period COGS — raw SQL: DB-side SUM with JOIN
+    db.$queryRaw<Array<{ cogs: number }>>(
+      Prisma.sql`
+        SELECT COALESCE(SUM(si.costPrice * si.quantity), 0) as cogs
+        FROM SaleItem si
+        JOIN Sale s ON si.saleId = s.id
+        WHERE s.organizationId = ${orgId} AND s.status = 'completed'
+        AND s.saleDate >= ${prevPeriodStart} AND s.saleDate <= ${prevPeriodEnd}
+        ${shopId ? Prisma.sql`AND s.shopId = ${shopId}` : Prisma.empty}
+      `
+    ),
 
     // Total debts owed by customers
     db.debt.aggregate({
@@ -331,20 +334,17 @@ async function fetchDashboardData(
         select: { id: true, name: true, sku: true, updatedAt: true },
         take: 5,
       }),
-      // Very low stock products (< 20% of threshold)
-      // TODO: For production with PostgreSQL, replace with raw SQL WHERE quantity <= low_stock_threshold * 0.2
-      db.product.findMany({
-        where: {
-          ...productWhere,
-          quantity: { gt: 0 },
-        },
-        select: { id: true, name: true, sku: true, quantity: true, lowStockThreshold: true },
-        take: 5000, // Safety limit to prevent loading millions of products
-      }).then(products =>
-        products
-          .filter(p => p.quantity > 0 && p.quantity <= p.lowStockThreshold * 0.2)
-          .slice(0, 5)
-          .map(p => ({ id: p.id, name: p.name, sku: p.sku, type: 'critical_low' as const, message: `${p.name} has only ${p.quantity} left (threshold: ${p.lowStockThreshold})` }))
+      // Very low stock products (< 20% of threshold) — raw SQL
+      db.$queryRaw<Array<{ id: string; name: string; sku: string | null; quantity: number; lowStockThreshold: number }>>(
+        Prisma.sql`
+          SELECT id, name, sku, quantity, lowStockThreshold FROM Product
+          WHERE organizationId = ${orgId} AND isActive = 1 AND quantity > 0
+          AND quantity <= lowStockThreshold * 0.2
+          ${shopId ? Prisma.sql`AND (shopId = ${shopId} OR shopId IS NULL)` : Prisma.empty}
+          LIMIT 5
+        `
+      ).then(products =>
+        products.map(p => ({ id: p.id, name: p.name, sku: p.sku, type: 'critical_low' as const, message: `${p.name} has only ${p.quantity} left (threshold: ${p.lowStockThreshold})` }))
       ),
       // Large expenses in the period
       db.expense.findMany({
@@ -392,6 +392,23 @@ async function fetchDashboardData(
 
       return anomalyList
     }),
+
+    // ============================================
+    // Sales trend: daily revenue for last 30 days — raw SQL
+    // This replaces the separate /api/reports call for chart data,
+    // eliminating an extra HTTP request and reducing dashboard load time.
+    // ============================================
+    db.$queryRaw<Array<{ saleDate: string; dailyRevenue: number }>>(
+      Prisma.sql`
+        SELECT DATE(saleDate) as saleDate, COALESCE(SUM(total), 0) as dailyRevenue
+        FROM Sale
+        WHERE organizationId = ${orgId} AND status = 'completed'
+        AND saleDate >= ${new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)}
+        ${shopId ? Prisma.sql`AND shopId = ${shopId}` : Prisma.empty}
+        GROUP BY DATE(saleDate)
+        ORDER BY saleDate ASC
+      `
+    ),
   ])
 
   // OPTIMIZED: Batch fetch top product names instead of N+1
@@ -419,9 +436,9 @@ async function fetchDashboardData(
     }
   })
 
-  // Calculate COGS from items
-  const periodCogs = periodCogsItems.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0)
-  const prevPeriodCogs = prevPeriodCogsItems.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0)
+  // COGS values from raw SQL aggregation
+  const periodCogs = periodCogsResult[0]?.cogs ?? 0
+  const prevPeriodCogs = prevPeriodCogsResult[0]?.cogs ?? 0
 
   // Calculate comparison metrics
   const periodRevenue = periodSales._sum.total || 0
@@ -485,5 +502,11 @@ async function fetchDashboardData(
     anomalies,
     recentSales,
     topProducts,
+    // Sales trend: daily revenue for last 30 days
+    // Allows dashboard to render chart without a separate /api/reports call
+    salesTrend: salesTrend.map(row => ({
+      date: row.saleDate,
+      revenue: row.dailyRevenue,
+    })),
   }
 }

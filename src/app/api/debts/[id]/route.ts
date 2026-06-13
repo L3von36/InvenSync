@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
+import { broadcastNotification, NotificationTypes } from '@/lib/notification-broadcast'
 
 // PATCH /api/debts/[id] - Update debt (add payment, update status)
 export async function PATCH(
@@ -55,6 +56,11 @@ export async function PATCH(
     // NOTE: We avoid db.$transaction (interactive transactions) because Supabase's
     // pgbouncer connection pooler does not support them. Use sequential queries instead.
 
+    // Track payment result for notification triggers
+    let paymentMade = false
+    let paidOff = false
+    let paymentAmount = 0
+
     // If payment is provided, add a payment
     if (payment && payment.amount > 0) {
       await db.debtPayment.create({
@@ -71,11 +77,15 @@ export async function PATCH(
 
       if (newPaidAmount >= existing.amount) {
         newStatus = 'paid'
+        paidOff = true
       } else if (newPaidAmount > 0) {
         newStatus = 'partial'
       } else {
         newStatus = existing.status
       }
+
+      paymentMade = true
+      paymentAmount = payment.amount
 
       await db.debt.update({
         where: { id },
@@ -104,6 +114,33 @@ export async function PATCH(
         payments: { orderBy: { paidAt: 'desc' } },
       }
     })
+
+    // --- Notification triggers (fire-and-forget) ---
+    // Debt payment received
+    if (paymentMade) {
+      void broadcastNotification({
+        organizationId: orgId,
+        type: NotificationTypes.DEBT_PAYMENT,
+        title: paidOff ? 'Debt Fully Paid' : 'Debt Payment Received',
+        message: paidOff
+          ? `Debt of ETB ${debt?.amount} has been fully paid off`
+          : `Payment of ETB ${paymentAmount} received`,
+        actionUrl: '/debts',
+        metadata: { debtId: id, paymentAmount, totalAmount: debt?.amount, paidAmount: debt?.paidAmount, paidOff }
+      }).catch(() => {})
+    }
+
+    // Debt overdue check: if dueDate is past and status is still pending/partial
+    if (debt?.dueDate && new Date(debt.dueDate) < new Date() && (debt.status === 'pending' || debt.status === 'partial')) {
+      void broadcastNotification({
+        organizationId: orgId,
+        type: NotificationTypes.DEBT_OVERDUE,
+        title: 'Debt Overdue',
+        message: `Debt of ETB ${debt.amount} is overdue`,
+        actionUrl: '/debts',
+        metadata: { debtId: id, amount: debt.amount, paidAmount: debt.paidAmount, dueDate: debt.dueDate }
+      }).catch(() => {})
+    }
 
     return NextResponse.json({ debt })
   } catch (error) {

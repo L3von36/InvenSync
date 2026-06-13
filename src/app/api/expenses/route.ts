@@ -3,6 +3,8 @@ import { db } from '@/lib/db'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
+import { broadcastNotification, NotificationTypes } from '@/lib/notification-broadcast'
+import { cache, CacheNamespaces } from '@/lib/cache'
 
 // GET /api/expenses?organizationId=xxx&category=xxx&shopId=xxx&page=1&limit=50
 export async function GET(request: Request) {
@@ -173,6 +175,22 @@ export async function POST(request: Request) {
         shop: { select: { id: true, name: true } },
       },
     })
+
+    // --- Notification triggers (fire-and-forget) ---
+    // Large expense notification (if amount >= 10000)
+    if (parsedAmount >= 10000) {
+      void broadcastNotification({
+        organizationId,
+        type: NotificationTypes.LARGE_EXPENSE,
+        title: 'Large Expense Recorded',
+        message: `Expense of ETB ${parsedAmount} recorded for category ${category}`,
+        actionUrl: '/expenses',
+        metadata: { expenseId: expense.id, amount: parsedAmount, category }
+      }).catch(() => {})
+    }
+
+    // Invalidate dashboard cache so fresh data is shown
+    cache.invalidate(CacheNamespaces.BUSINESS_DASHBOARD)
 
     return NextResponse.json({ expense }, { status: 201 })
   } catch (error) {

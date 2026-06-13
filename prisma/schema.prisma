@@ -294,6 +294,8 @@ model Product {
   @@index([organizationId, isActive])
   @@index([organizationId, isActive, shopId])
   @@index([organizationId, isActive, productTypeId])
+  @@index([organizationId, isActive, quantity])
+  @@index([organizationId, isActive, lowStockThreshold])
   @@index([organizationId, createdAt])
   @@index([sku])
 }
@@ -481,6 +483,7 @@ model Debt {
   @@index([supplierId])
   @@index([dueDate])
   @@index([organizationId, type, status])
+  @@index([organizationId, status, type])
   @@index([organizationId, shopId, type, status])
 }
 

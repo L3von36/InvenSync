@@ -1499,3 +1499,160 @@ Stage Summary:
    - Implement WebSocket/SSE for instant alerts
    - Low stock, large sales, security events
 
+---
+
+# Notification Triggers Integration Worklog
+
+**Date:** 2026-03-05
+**Project:** InvenSync
+**Engineer:** Notification Triggers Developer
+**Task ID:** 1b
+
+## Summary
+Added real-time notification triggers to 4 key business event API routes using the existing `broadcastNotification` helper. All notifications are fire-and-forget and use `NotificationTypes` constants for consistency.
+
+## Files Modified
+
+### 1. `src/app/api/sales/route.ts` (POST handler)
+- Added imports: `broadcastNotification`, `NotificationTypes`, `cache`, `CacheNamespaces`
+- **5 notification triggers** after successful sale creation:
+  - `NEW_SALE` — every completed sale
+  - `LARGE_SALE` — when total >= 50,000 ETB
+  - `OUT_OF_STOCK` — when a sold product's quantity hits 0
+  - `LOW_STOCK` — when a sold product's quantity falls below threshold
+  - `DEBT_REMINDER` — when a credit sale creates a debt
+- Cache invalidation: `BUSINESS_DASHBOARD`
+
+### 2. `src/app/api/inventory/route.ts` (POST handler)
+- Added import: `broadcastNotification`, `NotificationTypes`
+- **3 notification triggers** after stock movement:
+  - `STOCK_RECEIVED` — when movement type is 'in'
+  - `OUT_OF_STOCK` — when product quantity hits 0
+  - `LOW_STOCK` — when product quantity falls below threshold
+- Cache invalidation: `BUSINESS_INVENTORY`, `BUSINESS_DASHBOARD`
+
+### 3. `src/app/api/debts/[id]/route.ts` (PATCH handler)
+- Added import: `broadcastNotification`, `NotificationTypes`
+- **2 notification triggers** after debt update:
+  - `DEBT_PAYMENT` — when a payment is recorded (title varies: "Debt Fully Paid" vs "Debt Payment Received")
+  - `DEBT_OVERDUE` — when dueDate is past and status is still pending/partial
+- Added tracking variables (`paymentMade`, `paidOff`, `paymentAmount`) for notification context
+
+### 4. `src/app/api/expenses/route.ts` (POST handler)
+- Added imports: `broadcastNotification`, `NotificationTypes`, `cache`, `CacheNamespaces`
+- **1 notification trigger** after expense creation:
+  - `LARGE_EXPENSE` — when amount >= 10,000 ETB
+- Cache invalidation: `BUSINESS_DASHBOARD`
+
+## Design Patterns
+- All notifications use `void broadcastNotification(...).catch(() => {})` for fire-and-forget
+- Stock checks query DB post-transaction for accurate current values, wrapped in try/catch
+- Notification types use `NotificationTypes` constants for type safety
+- Cache invalidation is always synchronous (no error risk)
+
+---
+
+# Dashboard SQL Optimization Worklog
+
+**Date:** 2026-03-06
+**Project:** InvenSync
+**Task ID:** 2a+2b
+**Engineer:** Dashboard SQL Optimization Engineer
+
+## Summary
+
+Replaced all in-memory JS aggregations in the dashboard API with Prisma `$queryRaw` (DB-side SQL) and added composite database indexes to the Prisma schema for faster query execution.
+
+## Changes Made
+
+### A. `src/app/api/dashboard/route.ts` — Raw SQL Replacements
+
+1. **Added `Prisma` import** from `@prisma/client` for `Prisma.sql` and `Prisma.empty` composition
+
+2. **lowStockCount** — Replaced `findMany({take:5000}).filter().length` with:
+   ```sql
+   SELECT COUNT(*) FROM Product
+   WHERE organizationId = ? AND isActive = 1 AND quantity > 0 AND quantity <= lowStockThreshold
+   ```
+   DB now handles column comparison and counting. No rows loaded into memory.
+
+3. **totalStockValue** — Replaced `findMany({take:5000}).reduce()` with:
+   ```sql
+   SELECT COALESCE(SUM(quantity * costPrice), 0), COALESCE(SUM(quantity * sellingPrice), 0)
+   FROM Product WHERE organizationId = ? AND isActive = 1 AND quantity > 0
+   ```
+   DB now handles multiplication and summation.
+
+4. **Period COGS** — Replaced `saleItem.findMany({take:10000}).reduce()` with:
+   ```sql
+   SELECT COALESCE(SUM(si.costPrice * si.quantity), 0) as cogs
+   FROM SaleItem si JOIN Sale s ON si.saleId = s.id
+   WHERE s.organizationId = ? AND s.status = 'completed' AND s.saleDate >= ? AND s.saleDate <= ?
+   ```
+
+5. **Previous period COGS** — Same raw SQL pattern with `prevPeriodStart` / `prevPeriodEnd`
+
+6. **Anomaly: critical low stock** — Replaced `findMany({take:5000}).filter().slice().map()` with:
+   ```sql
+   SELECT id, name, sku, quantity, lowStockThreshold FROM Product
+   WHERE organizationId = ? AND isActive = 1 AND quantity > 0
+   AND quantity <= lowStockThreshold * 0.2 LIMIT 5
+   ```
+
+7. **Conditional shopId filters** — Used `Prisma.sql` + `Prisma.empty` composition pattern for optional `AND (shopId = ? OR shopId IS NULL)` clauses
+
+8. **Removed all safety limits** (`take: 5000`, `take: 10000`) — no longer needed since DB handles aggregation directly
+
+9. **COGS calculation** — Changed from `.reduce()` on item arrays to `result[0]?.cogs ?? 0`
+
+### B. `prisma/schema.prisma` — New Indexes
+
+| Model | Index | Status |
+|-------|-------|--------|
+| Product | `@@index([organizationId, isActive, quantity])` | **ADDED** |
+| Product | `@@index([organizationId, isActive, lowStockThreshold])` | **ADDED** |
+| Debt | `@@index([organizationId, status, type])` | **ADDED** |
+| Sale | `@@index([organizationId, status, saleDate])` | Already existed |
+| SaleItem | `@@index([saleId])`, `@@index([productId])` | Already existed |
+| Expense | `@@index([organizationId, expenseDate])` | Already existed |
+| StockMovement | `@@index([organizationId, createdAt])` | Already existed |
+
+## Verification
+
+- `bun run db:push` — ✅ Database synced in 25ms
+- `bun run lint` — ✅ 0 errors, 0 warnings
+- Dev server — ✅ No compilation errors
+
+---
+Task ID: 1a + 1b + 1d + 2a + 2b + 2c
+Agent: Main Developer
+Task: Real-time Notifications + Dashboard SQL Optimization
+
+Work Log:
+- Created `/home/z/my-project/src/lib/notification-broadcast.ts` — broadcastNotification helper that persists to DB + pushes via WebSocket
+- Added notification triggers to 4 API routes: sales, inventory, debts, expenses
+- Each trigger uses fire-and-forget pattern (void + .catch(() => {}))
+- Notification types: new_sale, large_sale, out_of_stock, low_stock, debt_reminder, debt_payment, debt_overdue, stock_received, large_expense
+- Enhanced NotificationBell component with:
+  - Category tabs (All, Stock, Sales, Finance, System)
+  - Per-notification icons with colored backgrounds
+  - Unread badges per category
+  - Popover-based UI instead of DropdownMenu
+  - Better empty states
+  - Real-time status footer
+- Dashboard SQL optimization: replaced 5 in-memory JS aggregations with $queryRaw raw SQL
+  - lowStockCount: SELECT COUNT(*) with column comparison
+  - totalStockValue: SELECT SUM(quantity * costPrice), SUM(quantity * sellingPrice)
+  - Period COGS + Prev COGS: SELECT SUM(si.costPrice * si.quantity) with JOIN
+  - Critical low anomaly: SELECT with quantity <= lowStockThreshold * 0.2
+  - Added salesTrend (30-day daily revenue) to dashboard response
+- Added 3 new database indexes: Product(quantity), Product(lowStockThreshold), Debt(status,type)
+- Updated DashboardData type to include comparison, period, anomalies, salesTrend fields
+- All changes pass lint with 0 errors
+
+Stage Summary:
+- Real-time notifications: broadcast helper + triggers on 4 routes + enhanced UI with categories
+- Dashboard SQL: 5 raw SQL queries replacing in-memory aggregation, removes take:5000 limits
+- Sales trend data now included in dashboard response (eliminates separate /api/reports call)
+- 3 new composite indexes for dashboard query performance
+- Notification service running on port 3003

@@ -185,7 +185,34 @@ export interface DashboardData {
     todaySalesCount: number
     monthRevenue: number
     totalCustomerDebt: number
+    periodRevenue: number
+    periodExpenses: number
+    periodCogs: number
+    periodNetProfit: number
+    periodSalesCount: number
   }
+  comparison: {
+    revenueChange: number
+    expenseChange: number
+    netProfitChange: number
+    salesCountChange: number
+    prevRevenue: number
+    prevExpenses: number
+    prevNetProfit: number
+    prevSalesCount: number
+  }
+  period: {
+    from: string
+    to: string
+    prevFrom: string
+    prevTo: string
+  }
+  anomalies: Array<{
+    id: string
+    type: string
+    message: string
+    severity: string
+  }>
   recentSales: Sale[]
   topProducts: Array<{
     id: string
@@ -194,6 +221,10 @@ export interface DashboardData {
     imageUrl?: string | null
     totalRevenue: number
     totalQuantity: number
+  }>
+  salesTrend: Array<{
+    date: string
+    revenue: number
   }>
 }
 

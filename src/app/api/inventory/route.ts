@@ -4,6 +4,7 @@ import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
 import { cache, CacheNamespaces, CacheTTL } from '@/lib/cache'
+import { broadcastNotification, NotificationTypes } from '@/lib/notification-broadcast'
 
 // GET /api/inventory?orgId=xxx - Stock overview
 export async function GET(request: Request) {
@@ -204,6 +205,58 @@ export async function POST(request: Request) {
 
       return movement
     })
+
+    // --- Notification triggers (fire-and-forget) ---
+    // Stock received notification
+    if (type === 'in') {
+      void broadcastNotification({
+        organizationId: orgId,
+        type: NotificationTypes.STOCK_RECEIVED,
+        title: 'Stock Received',
+        message: `${quantity} units of ${product.name} received`,
+        actionUrl: '/inventory',
+        metadata: { productId, quantity, previousStock, newStock }
+      }).catch(() => {})
+    }
+
+    // Low stock / out of stock check after quantity update
+    try {
+      const updatedProduct = await db.product.findFirst({
+        where: { id: productId, organizationId: orgId },
+        select: { id: true, name: true, quantity: true, lowStockThreshold: true }
+      })
+
+      if (updatedProduct) {
+        if (updatedProduct.quantity === 0) {
+          // Out of stock notification
+          void broadcastNotification({
+            organizationId: orgId,
+            type: NotificationTypes.OUT_OF_STOCK,
+            title: 'Out of Stock',
+            message: `Product ${updatedProduct.name} is now out of stock`,
+            actionUrl: '/inventory',
+            metadata: { productId: updatedProduct.id, quantity: 0, lowStockThreshold: updatedProduct.lowStockThreshold }
+          }).catch(() => {})
+        } else if (updatedProduct.quantity <= updatedProduct.lowStockThreshold) {
+          // Low stock notification
+          void broadcastNotification({
+            organizationId: orgId,
+            type: NotificationTypes.LOW_STOCK,
+            title: 'Low Stock Alert',
+            message: `Product ${updatedProduct.name} is running low (${updatedProduct.quantity} remaining)`,
+            actionUrl: '/inventory',
+            metadata: { productId: updatedProduct.id, quantity: updatedProduct.quantity, lowStockThreshold: updatedProduct.lowStockThreshold }
+          }).catch(() => {})
+        }
+      }
+    } catch (notifErr) {
+      // Don't break the inventory flow if stock check fails
+      console.error('Post-movement stock notification error:', notifErr)
+    }
+
+    // Invalidate inventory cache so fresh data is shown
+    cache.invalidate(CacheNamespaces.BUSINESS_INVENTORY)
+    cache.invalidate(CacheNamespaces.BUSINESS_DASHBOARD)
 
     return NextResponse.json({ movement }, { status: 201 })
   } catch (error) {
