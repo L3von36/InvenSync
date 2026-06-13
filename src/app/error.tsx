@@ -16,6 +16,18 @@ export default function Error({
     message: error.message,
   })
 
+  // ChunkLoadError means stale deployment — must hard-reload to get new chunks
+  const isChunkError = error.message?.includes('Failed to load chunk') ||
+    error.message?.includes('ChunkLoadError')
+
+  const handleRetry = () => {
+    if (isChunkError) {
+      window.location.reload()
+    } else {
+      reset()
+    }
+  }
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center" role="alert">
       <div className="size-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
@@ -23,12 +35,13 @@ export default function Error({
       </div>
       <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
       <p className="text-muted-foreground max-w-md text-sm">
-        An unexpected error occurred. Please try again or contact support if the
-        problem persists.
+        {isChunkError
+          ? 'A new version of the app is available. Please reload to get the latest version.'
+          : 'An unexpected error occurred. Please try again or contact support if the problem persists.'}
       </p>
-      <Button onClick={reset} variant="outline" className="mt-6 gap-2">
+      <Button onClick={handleRetry} variant="outline" className="mt-6 gap-2">
         <RefreshCw className="size-4" />
-        Try Again
+        {isChunkError ? 'Reload Page' : 'Try Again'}
       </Button>
     </div>
   )

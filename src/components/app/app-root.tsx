@@ -55,7 +55,11 @@ export default function AppRoot() {
   useEffect(() => {
     let cancelled = false
     fetch('/api/setup/status')
-      .then(res => res.json())
+      .then(res => {
+        // Non-200 (e.g. 404 in older deployments) — treat as ok to avoid redirect loop
+        if (!res.ok) return { database: { status: 'connected' } }
+        return res.json()
+      })
       .then(data => {
         if (cancelled) return
         if (data.database?.status === 'unreachable' || data.database?.status === 'auth_failed') {

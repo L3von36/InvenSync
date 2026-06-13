@@ -9,9 +9,24 @@ interface DatabaseInfo {
 }
 
 export async function GET(request: NextRequest) {
-  // Block in production
+  // In production, return a healthy status — the DB is managed (Neon/Vercel)
+  // and setup is not applicable. Returning 404 caused frontend infinite retry loops.
   if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Not available in production' }, { status: 404 })
+    return NextResponse.json({
+      supabase: {
+        configured: !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL || null,
+        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      },
+      database: {
+        status: 'connected',
+        tableCount: 0,
+        provider: 'postgresql',
+      },
+      auth: {
+        mode: 'jwt',
+      },
+    })
   }
 
   // Secret check for non-production
