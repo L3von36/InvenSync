@@ -7,22 +7,10 @@ export async function middleware(request: NextRequest) {
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)')
 
-  // Build CSP with Supabase URL if configured
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseHost = supabaseUrl ? new URL(supabaseUrl).hostname : ''
-
-  // CSP - allow inline styles and scripts from self, plus fonts, and Supabase connections
-  const connectSrc = [
-    "'self'",
-    'ws:',
-    'wss:',
-    // Allow connections to Supabase (auth, realtime, storage)
-    supabaseHost ? `https://${supabaseHost}` : '',
-    // Allow Supabase realtime WebSocket
-    supabaseHost ? `wss://${supabaseHost}` : '',
-  ].filter(Boolean).join(' ')
+  // CSP - allow inline styles and scripts from self, plus fonts
+  const connectSrc = "'self' ws: wss:"
 
   response.headers.set(
     'Content-Security-Policy',

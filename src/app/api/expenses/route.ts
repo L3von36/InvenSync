@@ -76,24 +76,13 @@ export async function GET(request: Request) {
       }),
     ])
 
-    const monthlyMap = new Map<string, Record<string, number>>()
-    for (const exp of monthlyExpenses) {
-      const monthKey = exp.expenseDate.toISOString().slice(0, 7)
-      const existing = monthlyMap.get(monthKey) || {}
-      existing[exp.category] = (existing[exp.category] || 0) + exp.amount
-      existing['total'] = (existing['total'] || 0) + exp.amount
-      monthlyMap.set(monthKey, existing)
-    }
-
-    const monthlySummary = Array.from(monthlyExpenses.reduce((map, exp) => {
+    const monthlySummary = [...monthlyExpenses.reduce((map, exp) => {
       const monthKey = exp.expenseDate.toISOString().slice(0, 7)
       const existing = map.get(monthKey) || { month: monthKey, total: 0 }
       existing.total += exp.amount
       map.set(monthKey, existing)
       return map
-    }, new Map<string, { month: string; total: number }>()))
-      .values()
-      .toArray()
+    }, new Map<string, { month: string; total: number }>()).values()]
       .sort((a, b) => a.month.localeCompare(b.month))
 
     return NextResponse.json({

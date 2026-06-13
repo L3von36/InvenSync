@@ -173,7 +173,7 @@ function KPICard({
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-xs sm:text-sm text-muted-foreground font-medium">{title}</p>
-              <p className="text-lg sm:text-2xl font-bold tracking-tight">{value}</p>
+              <p className="text-sm sm:text-lg md:text-xl font-bold tracking-tight">{value}</p>
               {description && (
                 <p className="text-xs text-muted-foreground">{description}</p>
               )}
@@ -266,7 +266,7 @@ export function ProfitLossPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         <KPICard
           title="Total Revenue"
           value={formatETB(data?.revenue ?? 0)}

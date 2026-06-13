@@ -130,42 +130,30 @@ export async function POST(request: Request) {
         }
       })
 
-      // Activate ALL active modules for the new org with a 30-day trial
-      const allActiveModules = await tx.module.findMany({
-        where: { isActive: true }
+      // Activate only core free modules for the new org (clean sidebar)
+      // Other modules must be requested by the user from the "My Modules" page
+      // Free modules auto-activate on request; paid modules need admin approval
+      const coreModuleKeys = ['inventory', 'sales', 'expenses']
+
+      const coreModules = await tx.module.findMany({
+        where: {
+          isActive: true,
+          key: { in: coreModuleKeys },
+        }
       })
 
-      const trialExpiresAt = new Date()
-      trialExpiresAt.setDate(trialExpiresAt.getDate() + 30)
-
-      for (const mod of allActiveModules) {
-        if (mod.isFree) {
-          // Free modules get permanent active status (no expiry)
-          await tx.organizationModule.create({
-            data: {
-              organizationId: organization.id,
-              moduleId: mod.id,
-              status: 'active',
-              isActive: true,
-              expiresAt: null,
-              priceAtActivation: mod.priceETB,
-              autoRenew: false,
-            }
-          })
-        } else {
-          // Paid modules get a 30-day trial
-          await tx.organizationModule.create({
-            data: {
-              organizationId: organization.id,
-              moduleId: mod.id,
-              status: 'trial',
-              isActive: true,
-              expiresAt: trialExpiresAt,
-              priceAtActivation: mod.priceETB,
-              autoRenew: false,
-            }
-          })
-        }
+      for (const mod of coreModules) {
+        await tx.organizationModule.create({
+          data: {
+            organizationId: organization.id,
+            moduleId: mod.id,
+            status: 'active',
+            isActive: true,
+            expiresAt: null, // Core free modules — permanent active status
+            priceAtActivation: mod.priceETB,
+            autoRenew: false,
+          }
+        })
       }
 
       // Handle sales rep linking if provided

@@ -18,6 +18,7 @@ export const ROUTE_MODULE_MAP: Record<string, string> = {
   'suppliers': 'suppliers',
   'debts': 'debts',
   'reports': 'reports',
+  'expenses': 'expenses',
   'service-types': 'services',
   'service-bookings': 'services',
   'ai/inventory-assistant': 'ai-inventory-assistant',
@@ -118,6 +119,7 @@ const FREE_MODULE_KEYS = new Set([
   'suppliers',
   'multi-shop',
   'reports',
+  'expenses',
 ])
 
 // Auto-activate a free module for an org.
