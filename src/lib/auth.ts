@@ -19,13 +19,22 @@ import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { db } from '@/lib/db'
 
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
+// Lazy getter for JWT_SECRET — avoids throwing during `next build` (which runs in production mode)
+// when no auth operations are actually performed. The error is raised at runtime instead.
+let _jwtSecret: string | undefined
+function getJwtSecret(): string {
+  if (_jwtSecret) return _jwtSecret
+  if (process.env.JWT_SECRET) {
+    _jwtSecret = process.env.JWT_SECRET
+    return _jwtSecret
+  }
   if (process.env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET environment variable is required in production')
   }
   console.warn('[AUTH] WARNING: Using random JWT_SECRET. Set JWT_SECRET env var for production.')
-  return crypto.randomBytes(32).toString('hex')
-})()
+  _jwtSecret = crypto.randomBytes(32).toString('hex')
+  return _jwtSecret
+}
 const JWT_EXPIRES_IN = '24h'
 
 // Check if Supabase is configured
@@ -260,12 +269,12 @@ export async function comparePassword(password: string, hash: string): Promise<b
 }
 
 export function generateToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })
+  return jwt.sign({ userId }, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN })
 }
 
 export function verifyToken(token: string): { userId: string } | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string }
+    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string }
     return decoded
   } catch {
     return null
