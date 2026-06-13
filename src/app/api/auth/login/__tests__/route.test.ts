@@ -1,5 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// Mock rate-limit
+const mockApplyRateLimit = vi.fn()
+vi.mock('@/lib/rate-limit', () => ({
+  applyRateLimit: (...args: any[]) => mockApplyRateLimit(...args),
+  RateLimitTiers: {
+    AUTH: { maxRequests: 5, windowMs: 60000, keyPrefix: 'auth' },
+  },
+}))
+
+// Mock api-error
+vi.mock('@/lib/api-error', () => ({
+  isDatabaseError: (err: unknown) => {
+    if (err instanceof Error) {
+      return err.message.includes('connect') || err.message.includes('ECONNREFUSED') || err.name === 'DatabaseUnavailableError'
+    }
+    return false
+  },
+}))
+
 // Mock auth
 const mockComparePassword = vi.fn()
 const mockGenerateToken = vi.fn()
@@ -47,6 +66,8 @@ import { POST } from '@/app/api/auth/login/route'
 describe('POST /api/auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Default: allow rate limit
+    mockApplyRateLimit.mockReturnValue({ allowed: true, remaining: 4 })
     mockParseUserAgent.mockReturnValue({ browser: 'Chrome', os: 'Windows', deviceType: 'desktop', deviceName: 'Chrome on Windows' })
   })
 
@@ -164,7 +185,7 @@ describe('POST /api/auth/login', () => {
     expect(body.tempToken).toBe('temp-token-123')
   })
 
-  it('should auto-set password for Supabase-only user (no passwordHash)', async () => {
+  it('should return 401 for Supabase-only user (no passwordHash)', async () => {
     const mockUser = {
       id: 'user-1',
       email: 'test@test.com',
@@ -173,17 +194,9 @@ describe('POST /api/auth/login', () => {
       role: 'owner',
       passwordHash: '',
       twoFactorEnabled: false,
-      memberships: [{
-        organization: { id: 'org-1', name: 'Test Org', slug: 'test-org', currency: 'ETB', country: 'ET', businessType: 'retail', city: null },
-        role: 'owner',
-      }],
+      memberships: [],
     }
     mockFindUnique.mockResolvedValue(mockUser)
-    mockHashPassword.mockResolvedValue('newhashedpassword')
-    mockUpdate.mockResolvedValue({ ...mockUser, passwordHash: 'newhashedpassword' })
-    mockGenerateToken.mockReturnValue('jwt-token-123')
-    mockDeviceFindFirst.mockResolvedValue(null)
-    mockDeviceCreate.mockResolvedValue({ id: 'device-1' })
 
     const request = new Request('http://localhost/api/auth/login', {
       method: 'POST',
@@ -191,8 +204,9 @@ describe('POST /api/auth/login', () => {
       body: JSON.stringify({ email: 'test@test.com', password: 'newpassword' }),
     })
     const response = await POST(request)
-    expect(response.status).toBe(200)
-    expect(mockHashPassword).toHaveBeenCalledWith('newpassword')
+    expect(response.status).toBe(401)
+    const body = await response.json()
+    expect(body.error).toContain('not configured for password login')
   })
 
   it('should return 503 when database is unreachable', async () => {
@@ -208,5 +222,129 @@ describe('POST /api/auth/login', () => {
     expect(response.status).toBe(503)
     const body = await response.json()
     expect(body.code).toBe('DB_UNREACHABLE')
+  })
+
+  // ============================================
+  // Account Lockout Tests
+  // ============================================
+  it('should return 423 when account is currently locked', async () => {
+    const lockoutUntil = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes from now
+    mockFindUnique.mockResolvedValue({
+      id: 'user-1',
+      email: 'test@test.com',
+      passwordHash: 'hashedpassword',
+      twoFactorEnabled: false,
+      lockedUntil: lockoutUntil,
+      failedLoginAttempts: 5,
+      memberships: [],
+    })
+
+    const request = new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'test@test.com', password: 'test123' }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(423)
+    const body = await response.json()
+    expect(body.error).toContain('locked')
+    expect(body.error).toContain('minute')
+  })
+
+  it('should lock account after 5 failed attempts', async () => {
+    mockFindUnique.mockResolvedValue({
+      id: 'user-1',
+      email: 'test@test.com',
+      passwordHash: 'hashedpassword',
+      twoFactorEnabled: false,
+      failedLoginAttempts: 4, // Already 4 failed, this will be the 5th
+      lockedUntil: null,
+      memberships: [],
+    })
+    mockComparePassword.mockResolvedValue(false)
+    mockUpdate.mockResolvedValue({})
+
+    const request = new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'test@test.com', password: 'wrong' }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(423)
+    const body = await response.json()
+    expect(body.error).toContain('locked')
+    // Verify that the lockout was set
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          lockedUntil: expect.any(Date),
+        }),
+      })
+    )
+  })
+
+  it('should reset failed attempts counter after lockout expires', async () => {
+    const expiredLockout = new Date(Date.now() - 1000) // Expired 1 second ago
+    mockFindUnique.mockResolvedValue({
+      id: 'user-1',
+      email: 'test@test.com',
+      passwordHash: 'hashedpassword',
+      twoFactorEnabled: false,
+      lockedUntil: expiredLockout,
+      failedLoginAttempts: 5,
+      memberships: [],
+    })
+    mockComparePassword.mockResolvedValue(false)
+    mockUpdate.mockResolvedValue({})
+
+    const request = new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'test@test.com', password: 'wrong' }),
+    })
+    const response = await POST(request)
+    // Should not be locked anymore, just get 401 for wrong password
+    expect(response.status).toBe(401)
+    // Should have reset the failed attempts
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ failedLoginAttempts: 0, lockedUntil: null }),
+      })
+    )
+  })
+
+  // ============================================
+  // Rate Limiting Tests
+  // ============================================
+  it('should return 429 when rate limit is exceeded', async () => {
+    mockApplyRateLimit.mockReturnValue({
+      allowed: false,
+      remaining: 0,
+    })
+
+    const request = new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'test@test.com', password: 'test123' }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(429)
+    const body = await response.json()
+    expect(body.error).toContain('Too many requests')
+  })
+
+  // ============================================
+  // Invalid Request Body Tests
+  // ============================================
+  it('should return 400 for invalid JSON body', async () => {
+    const request = new Request('http://localhost/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'not-json{{{',
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(400)
+    const body = await response.json()
+    expect(body.error).toContain('Invalid request body')
   })
 })

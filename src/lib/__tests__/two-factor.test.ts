@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll } from 'vitest'
 import {
   generateTotpSecret,
   verifyTotpCode,
@@ -8,6 +8,11 @@ import {
   verifyTempToken,
   parseUserAgent,
 } from '@/lib/two-factor'
+
+// Set JWT_SECRET so that generateTempToken and verifyTempToken use the same secret
+beforeAll(() => {
+  process.env.JWT_SECRET = 'test-jwt-secret-for-two-factor-tests'
+})
 
 describe('two-factor authentication', () => {
   // ============================================

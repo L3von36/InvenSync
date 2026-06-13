@@ -6,6 +6,164 @@
 
 ---
 
+# Automated Testing Foundation Worklog
+
+**Date:** 2026-03-05  
+**Project:** InvenSync  
+**Engineer:** Senior QA Engineer
+
+---
+
+## Testing Foundation Summary
+
+### 1. Testing Dependencies Installed
+- `vitest` — Unit/integration test runner
+- `@playwright/test` — E2E test framework (config only, browsers not installed)
+- `@testing-library/react` — React component testing utilities
+- `@testing-library/jest-dom` — DOM assertion matchers
+
+### 2. Vitest Configuration (`vitest.config.ts`)
+- Environment: Node
+- Globals: enabled
+- Path alias: `@` → `src/`
+- Coverage: V8 provider, targeting `src/lib/**/*.ts` and `src/app/api/**/*.ts`
+- Test pattern: `src/**/*.test.ts`, `src/**/*.test.tsx`
+
+### 3. Unit Tests Created/Extended
+
+#### `src/lib/__tests__/currency.test.ts` (Extended)
+- Added `formatETB` test suite:
+  - Positive number formatting
+  - Zero formatting
+  - Negative number formatting
+  - Large numbers (millions) with thousand separators
+  - Fallback when `Intl.NumberFormat` throws
+  - Very small positive numbers
+  - Integer values
+
+#### `src/lib/__tests__/validation.test.ts` (Extended)
+- Added `validatePasswordStrength` tests from `auth.ts`:
+  - Strong password acceptance
+  - Short password rejection (<8 chars)
+  - Missing uppercase rejection
+  - Missing lowercase rejection
+  - Missing digit rejection
+  - Missing special character rejection
+  - Empty password rejection
+  - Multiple errors collection
+- Added `sanitizeInput` tests from `sanitize.ts`:
+  - HTML tag stripping
+  - Event handler removal
+  - javascript: URL removal
+  - data:text/html URL removal
+  - Normal text passthrough
+  - SQL injection passthrough (handled by parameterized queries)
+  - Whitespace trimming
+  - Empty input handling
+  - HTML entity decoding
+- Added `sanitizeAndTruncate` tests
+- Added `validateSanitizedField` tests
+
+#### `src/lib/__tests__/auth.test.ts` (Extended)
+- Added `validatePasswordStrength` extended tests:
+  - Boundary tests (7 chars vs 8 chars)
+  - Special character acceptance
+  - Multiple error aggregation
+- Added `generateToken & verifyToken` extended tests:
+  - Different tokens for different user IDs
+  - Payload userId verification
+  - Tampered signature rejection
+- Added `verifyOrgAccess` extended tests:
+  - Multiple memberships including target org
+  - Admin without memberships behavior
+
+#### `src/lib/__tests__/api-client.test.ts` (New)
+- Rate Limiter unit tests:
+  - Token bucket allows when tokens available
+  - Denies when bucket exhausted
+  - Tracks different identifiers independently
+  - Correct tier configs
+  - Retry-after calculation
+- Response Cache behavior unit tests:
+  - Cache key format verification
+  - TTL-based expiry concept
+
+### 4. API Integration Tests Created/Extended
+
+#### `src/app/api/auth/login/__tests__/route.test.ts` (Extended)
+- Added rate-limit, api-error mocks
+- Fixed Supabase-only user test (now returns 401 instead of auto-setting password)
+- Added account lockout tests:
+  - 423 when account is currently locked
+  - Lock account after 5 failed attempts
+  - Reset failed attempts after lockout expires
+- Added rate limiting test:
+  - 429 when rate limit exceeded
+- Added invalid JSON body test
+
+#### `src/app/api/auth/register/__tests__/route.test.ts` (Extended)
+- Used `vi.hoisted()` for proper mock hoisting with `$transaction`
+- Added `applyRateLimit`, `api-error`, `sanitize` mocks
+- Updated tests to use strong password (`Str0ng!Pass123`)
+- Added password strength tests:
+  - Weak password rejection
+  - Missing uppercase rejection
+  - Missing special character rejection
+- Updated Supabase migration test (now returns 409 for ALL existing users)
+- Added rate limiting test (429)
+- Added invalid JSON body test
+
+#### `src/app/api/products/__tests__/route.test.ts` (New)
+- GET tests: 401, 400 (missing orgId), 403, 200 with pagination, 503
+- POST tests: 401, 400 (missing fields), 400 (zero cost price), 400 (negative selling price), 403, 404 (product type not found), 201, 400 (invalid JSON), 400 (name only HTML tags)
+
+#### `src/app/api/expenses/__tests__/route.test.ts` (Extended)
+- Added api-error and sanitize mocks
+- Added 503 database unreachable test
+- Added all valid categories test
+- Added zero amount rejection test
+- Added string amount parsing test
+- Added invalid JSON body test
+
+### 5. Playwright E2E Test Setup
+
+#### `playwright.config.ts`
+- Test directory: `./e2e`
+- Timeout: 30s
+- Retries: 1
+- Base URL: `https://invensync-peach.vercel.app`
+- Trace: on-first-retry
+
+#### `e2e/auth.spec.ts`
+- Visit landing page
+- Navigate to login
+- Invalid credentials error
+- Registration form navigation
+
+#### `e2e/dashboard.spec.ts`
+- App shell display
+- Navigation elements
+- Login prompt for unauthenticated access
+- Module content display
+
+### 6. Test Scripts Added to `package.json`
+- `test` → `vitest run`
+- `test:watch` → `vitest`
+- `test:coverage` → `vitest run --coverage`
+- `test:e2e` → `playwright test`
+
+### 7. Pre-existing Test Fixes
+- Fixed `two-factor.test.ts`: Added `JWT_SECRET` env var to prevent token verification failures
+- Fixed `analytics/profit-loss/__tests__/route.test.ts`: Added missing `db.sale.aggregate`, `db.saleItem.findMany`, `db.saleItem.groupBy`, `db.expense.aggregate`, `db.product.findMany` mocks; Added cache mock to prevent SWR caching between tests
+
+### 8. Test Results
+- **18 test files** all passing
+- **330 tests** all passing
+- **0 errors, 0 warnings** from ESLint
+- Duration: ~2.2s
+
+---
+
 ## 1. Bundle Analysis
 
 ### Current Configuration (`next.config.ts`)

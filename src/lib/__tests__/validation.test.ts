@@ -12,6 +12,8 @@ import {
   getNetworkErrorMessage,
   getErrorMessage,
 } from '@/lib/validation'
+import { validatePasswordStrength } from '@/lib/auth'
+import { sanitizeInput, sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
 
 describe('validation utilities', () => {
   // ============================================
@@ -330,6 +332,160 @@ describe('validation utilities', () => {
     it('should pass through non-technical error messages', () => {
       const err = new Error('Invalid email or password')
       expect(getErrorMessage(err)).toBe('Invalid email or password')
+    })
+  })
+
+  // ============================================
+  // Password Strength Validation (auth.ts)
+  // ============================================
+  describe('validatePasswordStrength', () => {
+    it('should return valid for a strong password', () => {
+      const result = validatePasswordStrength('MyP@ss1234')
+      expect(result.valid).toBe(true)
+      expect(result.errors).toHaveLength(0)
+    })
+
+    it('should reject passwords shorter than 8 characters', () => {
+      const result = validatePasswordStrength('Sh1!rt')
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.includes('8 characters'))).toBe(true)
+    })
+
+    it('should reject passwords without an uppercase letter', () => {
+      const result = validatePasswordStrength('lowercase1!')
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.includes('uppercase'))).toBe(true)
+    })
+
+    it('should reject passwords without a lowercase letter', () => {
+      const result = validatePasswordStrength('UPPERCASE1!')
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.includes('lowercase'))).toBe(true)
+    })
+
+    it('should reject passwords without a digit', () => {
+      const result = validatePasswordStrength('NoDigits!!')
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.includes('digit'))).toBe(true)
+    })
+
+    it('should reject passwords without a special character', () => {
+      const result = validatePasswordStrength('NoSpecial1')
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.includes('special'))).toBe(true)
+    })
+
+    it('should reject empty password', () => {
+      const result = validatePasswordStrength('')
+      expect(result.valid).toBe(false)
+      expect(result.errors.length).toBeGreaterThan(0)
+    })
+
+    it('should collect multiple errors for a very weak password', () => {
+      const result = validatePasswordStrength('a')
+      expect(result.valid).toBe(false)
+      expect(result.errors.length).toBeGreaterThanOrEqual(3)
+    })
+  })
+
+  // ============================================
+  // Input Sanitization (sanitize.ts)
+  // ============================================
+  describe('sanitizeInput', () => {
+    it('should strip HTML tags', () => {
+      expect(sanitizeInput('<script>alert("xss")</script>')).toBe('alert("xss")')
+      expect(sanitizeInput('<b>Hello</b>')).toBe('Hello')
+    })
+
+    it('should remove event handlers', () => {
+      expect(sanitizeInput('<img onerror="alert(1)">')).toBe('')
+      expect(sanitizeInput('<div onclick="steal()">text</div>')).toBe('text')
+    })
+
+    it('should remove javascript: URLs', () => {
+      // The sanitizeInput removes "javascript:" prefix but leaves remaining text
+      const result1 = sanitizeInput('javascript:alert(1)')
+      expect(result1).not.toContain('javascript')
+      expect(result1).toBe('alert(1)') // Remaining text after removing javascript:
+      const result2 = sanitizeInput('JAVASCRIPT:alert(1)')
+      expect(result2).not.toContain('javascript')
+      expect(result2).not.toContain('JAVASCRIPT')
+    })
+
+    it('should remove data:text/html URLs', () => {
+      // The sanitizeInput removes "data:text/html" prefix and strips HTML tags
+      const result = sanitizeInput('data:text/html,<script>alert(1)</script>')
+      expect(result).not.toContain('data:text/html')
+      expect(result).not.toContain('<script>')
+    })
+
+    it('should pass through normal text unchanged', () => {
+      expect(sanitizeInput('Hello World')).toBe('Hello World')
+      expect(sanitizeInput('Product Name 123')).toBe('Product Name 123')
+    })
+
+    it('should handle SQL injection patterns as plain text (no special handling needed)', () => {
+      // sanitizeInput focuses on XSS, not SQL injection — that's handled by parameterized queries
+      const sqlInput = "'; DROP TABLE users; --"
+      const result = sanitizeInput(sqlInput)
+      // The input has no HTML, so it should pass through
+      expect(result).toContain('DROP TABLE')
+    })
+
+    it('should trim whitespace', () => {
+      expect(sanitizeInput('  hello  ')).toBe('hello')
+    })
+
+    it('should return empty string for empty input', () => {
+      expect(sanitizeInput('')).toBe('')
+    })
+
+    it('should decode HTML entities and re-sanitize', () => {
+      // Hex-encoded entities that resolve to control characters should be stripped
+      const result = sanitizeInput('&#x00;test')
+      expect(result).toBe('test')
+    })
+  })
+
+  describe('sanitizeAndTruncate', () => {
+    it('should truncate long input to the specified max length', () => {
+      const longInput = 'A'.repeat(300)
+      const result = sanitizeAndTruncate(longInput, 255)
+      expect(result.length).toBe(255)
+    })
+
+    it('should not truncate input shorter than max length', () => {
+      expect(sanitizeAndTruncate('Hello', 255)).toBe('Hello')
+    })
+
+    it('should sanitize before truncating', () => {
+      const input = '<b>' + 'A'.repeat(300) + '</b>'
+      const result = sanitizeAndTruncate(input, 255)
+      expect(result).not.toContain('<b>')
+      expect(result.length).toBe(255)
+    })
+
+    it('should return empty string for empty input', () => {
+      expect(sanitizeAndTruncate('', 255)).toBe('')
+    })
+  })
+
+  describe('validateSanitizedField', () => {
+    it('should return null when original and sanitized are both present', () => {
+      expect(validateSanitizedField('Hello', 'Hello', 'Name')).toBeNull()
+    })
+
+    it('should return an error when original has content but sanitized is empty', () => {
+      const result = validateSanitizedField('<script>x</script>', '', 'Name')
+      expect(result).toContain('invalid characters')
+    })
+
+    it('should return null when both original and sanitized are empty', () => {
+      expect(validateSanitizedField('', '', 'Name')).toBeNull()
+    })
+
+    it('should return null when original is null and sanitized is null', () => {
+      expect(validateSanitizedField(null, null, 'Name')).toBeNull()
     })
   })
 })

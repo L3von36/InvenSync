@@ -22,6 +22,12 @@ vi.mock('@/lib/api-error', () => ({
   },
 }))
 
+// Mock module-guard
+const mockRequireModule = vi.fn()
+vi.mock('@/lib/module-guard', () => ({
+  requireModule: (...args: any[]) => mockRequireModule(...args),
+}))
+
 // Mock sanitize
 vi.mock('@/lib/sanitize', async (importOriginal) => {
   const actual = await importOriginal() as any
@@ -29,20 +35,27 @@ vi.mock('@/lib/sanitize', async (importOriginal) => {
 })
 
 // Mock db
-const mockFindMany = vi.fn()
-const mockCount = vi.fn()
-const mockAggregate = vi.fn()
-const mockCreate = vi.fn()
+const mockProductFindMany = vi.fn()
+const mockProductCount = vi.fn()
+const mockProductCreate = vi.fn()
+const mockProductTypeFindFirst = vi.fn()
+const mockTransaction = vi.fn()
+
 vi.mock('@/lib/db', () => ({
   db: {
-    expense: {
-      findMany: (...args: any[]) => mockFindMany(...args),
-      count: (...args: any[]) => mockCount(...args),
-      aggregate: (...args: any[]) => mockAggregate(...args),
-      create: (...args: any[]) => mockCreate(...args),
+    product: {
+      findMany: (...args: any[]) => mockProductFindMany(...args),
+      count: (...args: any[]) => mockProductCount(...args),
+      create: (...args: any[]) => mockProductCreate(...args),
     },
+    productType: {
+      findFirst: (...args: any[]) => mockProductTypeFindFirst(...args),
+    },
+    $transaction: (...args: any[]) => mockTransaction(...args),
   },
 }))
+
+import { GET, POST } from '@/app/api/products/route'
 
 const mockUser = {
   id: 'user-1',
@@ -52,62 +65,60 @@ const mockUser = {
   memberships: [{ organizationId: 'org-1' }],
 }
 
-import { GET, POST } from '@/app/api/expenses/route'
-
-describe('GET /api/expenses', () => {
+describe('GET /api/products', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockRequireModule.mockResolvedValue(null) // No module error for owner/admin
   })
 
   it('should return 401 when not authenticated', async () => {
     mockGetUserFromRequest.mockResolvedValue(null)
-    const request = new Request('http://localhost/api/expenses')
+    const request = new Request('http://localhost/api/products')
     const response = await GET(request)
     expect(response.status).toBe(401)
     const body = await response.json()
     expect(body.error).toBe('Unauthorized')
   })
 
-  it('should return 400 when organizationId is missing', async () => {
+  it('should return 400 when orgId is missing', async () => {
     mockGetUserFromRequest.mockResolvedValue(mockUser)
-    const request = new Request('http://localhost/api/expenses')
+    const request = new Request('http://localhost/api/products')
     const response = await GET(request)
     expect(response.status).toBe(400)
     const body = await response.json()
-    expect(body.error).toContain('organizationId')
+    expect(body.error).toContain('orgId')
   })
 
   it('should return 403 when user does not have org access', async () => {
     mockGetUserFromRequest.mockResolvedValue(mockUser)
     mockVerifyOrgAccess.mockResolvedValue(false)
-    const request = new Request('http://localhost/api/expenses?organizationId=org-1')
+    const request = new Request('http://localhost/api/products?orgId=org-1')
     const response = await GET(request)
     expect(response.status).toBe(403)
     const body = await response.json()
     expect(body.error).toBe('Forbidden')
   })
 
-  it('should return expenses with pagination on success', async () => {
+  it('should return products with pagination on success', async () => {
     mockGetUserFromRequest.mockResolvedValue(mockUser)
     mockVerifyOrgAccess.mockResolvedValue(true)
-    mockFindMany.mockResolvedValueOnce([{ id: 'exp-1', amount: 100 }]) // expenses
-    mockCount.mockResolvedValue(1)
-    mockAggregate.mockResolvedValue({ _sum: { amount: 100 } })
-    mockFindMany.mockResolvedValueOnce([]) // monthlyExpenses
+    mockProductFindMany.mockResolvedValue([
+      { id: 'prod-1', name: 'Test Product', productType: { id: 'pt-1', name: 'Type 1', icon: null }, attributeValues: [] },
+    ])
+    mockProductCount.mockResolvedValue(1)
 
-    const request = new Request('http://localhost/api/expenses?organizationId=org-1')
+    const request = new Request('http://localhost/api/products?orgId=org-1')
     const response = await GET(request)
     expect(response.status).toBe(200)
     const body = await response.json()
-    expect(body).toHaveProperty('expenses')
-    expect(body).toHaveProperty('pagination')
-    expect(body).toHaveProperty('summary')
-    expect(body).toHaveProperty('monthlySummary')
+    expect(body.products).toHaveLength(1)
+    expect(body.pagination).toBeDefined()
+    expect(body.pagination.total).toBe(1)
   })
 
   it('should return 503 when database is unreachable', async () => {
     mockGetUserFromRequest.mockRejectedValue(new Error('ECONNREFUSED'))
-    const request = new Request('http://localhost/api/expenses?organizationId=org-1')
+    const request = new Request('http://localhost/api/products?orgId=org-1')
     const response = await GET(request)
     expect(response.status).toBe(503)
     const body = await response.json()
@@ -115,17 +126,18 @@ describe('GET /api/expenses', () => {
   })
 })
 
-describe('POST /api/expenses', () => {
+describe('POST /api/products', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockRequireModule.mockResolvedValue(null)
   })
 
   it('should return 401 when not authenticated', async () => {
     mockGetUserFromRequest.mockResolvedValue(null)
-    const request = new Request('http://localhost/api/expenses', {
+    const request = new Request('http://localhost/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organizationId: 'org-1', category: 'rent', amount: 1000 }),
+      body: JSON.stringify({ orgId: 'org-1', productTypeId: 'pt-1', name: 'Test', costPrice: 10, sellingPrice: 20 }),
     })
     const response = await POST(request)
     expect(response.status).toBe(401)
@@ -133,10 +145,10 @@ describe('POST /api/expenses', () => {
 
   it('should return 400 when required fields are missing', async () => {
     mockGetUserFromRequest.mockResolvedValue(mockUser)
-    const request = new Request('http://localhost/api/expenses', {
+    const request = new Request('http://localhost/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organizationId: 'org-1' }),
+      body: JSON.stringify({ orgId: 'org-1' }),
     })
     const response = await POST(request)
     expect(response.status).toBe(400)
@@ -144,115 +156,85 @@ describe('POST /api/expenses', () => {
     expect(body.error).toContain('required')
   })
 
-  it('should return 400 for invalid category', async () => {
+  it('should return 400 when cost price is zero or negative', async () => {
     mockGetUserFromRequest.mockResolvedValue(mockUser)
-    const request = new Request('http://localhost/api/expenses', {
+    const request = new Request('http://localhost/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organizationId: 'org-1', category: 'invalid', amount: 1000 }),
+      body: JSON.stringify({ orgId: 'org-1', productTypeId: 'pt-1', name: 'Test', costPrice: 0, sellingPrice: 20 }),
     })
     const response = await POST(request)
     expect(response.status).toBe(400)
     const body = await response.json()
-    expect(body.error).toContain('Invalid category')
+    expect(body.error).toContain('Cost price')
   })
 
-  it('should accept all valid expense categories', async () => {
-    const validCategories = ['rent', 'salary', 'utilities', 'marketing', 'supplies', 'transport', 'other']
+  it('should return 400 when selling price is zero or negative', async () => {
     mockGetUserFromRequest.mockResolvedValue(mockUser)
-    mockVerifyOrgAccess.mockResolvedValue(true)
-    mockCreate.mockResolvedValue({ id: 'exp-1', amount: 1000 })
-
-    for (const category of validCategories) {
-      vi.clearAllMocks()
-      mockGetUserFromRequest.mockResolvedValue(mockUser)
-      mockVerifyOrgAccess.mockResolvedValue(true)
-      mockCreate.mockResolvedValue({ id: `exp-${category}`, amount: 1000, category })
-
-      const request = new Request('http://localhost/api/expenses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ organizationId: 'org-1', category, amount: 1000 }),
-      })
-      const response = await POST(request)
-      expect(response.status).toBe(201)
-    }
-  })
-
-  it('should return 400 for non-positive amount', async () => {
-    mockGetUserFromRequest.mockResolvedValue(mockUser)
-    const request = new Request('http://localhost/api/expenses', {
+    const request = new Request('http://localhost/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organizationId: 'org-1', category: 'rent', amount: -100 }),
+      body: JSON.stringify({ orgId: 'org-1', productTypeId: 'pt-1', name: 'Test', costPrice: 10, sellingPrice: -5 }),
     })
     const response = await POST(request)
     expect(response.status).toBe(400)
     const body = await response.json()
-    expect(body.error).toContain('positive number')
-  })
-
-  it('should return 400 for zero amount', async () => {
-    mockGetUserFromRequest.mockResolvedValue(mockUser)
-    const request = new Request('http://localhost/api/expenses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organizationId: 'org-1', category: 'rent', amount: 0 }),
-    })
-    const response = await POST(request)
-    expect(response.status).toBe(400)
+    expect(body.error).toContain('Selling price')
   })
 
   it('should return 403 when user lacks org access', async () => {
     mockGetUserFromRequest.mockResolvedValue(mockUser)
     mockVerifyOrgAccess.mockResolvedValue(false)
-    const request = new Request('http://localhost/api/expenses', {
+    const request = new Request('http://localhost/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organizationId: 'org-1', category: 'rent', amount: 1000 }),
+      body: JSON.stringify({ orgId: 'org-1', productTypeId: 'pt-1', name: 'Test', costPrice: 10, sellingPrice: 20 }),
     })
     const response = await POST(request)
     expect(response.status).toBe(403)
   })
 
-  it('should create an expense and return 201', async () => {
+  it('should return 404 when product type is not found', async () => {
     mockGetUserFromRequest.mockResolvedValue(mockUser)
     mockVerifyOrgAccess.mockResolvedValue(true)
-    mockCreate.mockResolvedValue({ id: 'exp-1', amount: 1000, category: 'rent' })
+    mockProductTypeFindFirst.mockResolvedValue(null)
 
-    const request = new Request('http://localhost/api/expenses', {
+    const request = new Request('http://localhost/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organizationId: 'org-1', category: 'rent', amount: 1000 }),
+      body: JSON.stringify({ orgId: 'org-1', productTypeId: 'pt-missing', name: 'Test', costPrice: 10, sellingPrice: 20 }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(404)
+    const body = await response.json()
+    expect(body.error).toContain('Product type not found')
+  })
+
+  it('should create a product and return 201', async () => {
+    mockGetUserFromRequest.mockResolvedValue(mockUser)
+    mockVerifyOrgAccess.mockResolvedValue(true)
+    mockProductTypeFindFirst.mockResolvedValue({ id: 'pt-1', attributes: [] })
+    mockTransaction.mockResolvedValue({
+      id: 'prod-1',
+      name: 'Test Product',
+      productType: { id: 'pt-1', name: 'Type 1', icon: null },
+      attributeValues: [],
+    })
+
+    const request = new Request('http://localhost/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgId: 'org-1', productTypeId: 'pt-1', name: 'Test Product', costPrice: 10, sellingPrice: 20 }),
     })
     const response = await POST(request)
     expect(response.status).toBe(201)
     const body = await response.json()
-    expect(body).toHaveProperty('expense')
-  })
-
-  it('should accept amount as a string and parse it', async () => {
-    mockGetUserFromRequest.mockResolvedValue(mockUser)
-    mockVerifyOrgAccess.mockResolvedValue(true)
-    mockCreate.mockResolvedValue({ id: 'exp-1', amount: 500, category: 'supplies' })
-
-    const request = new Request('http://localhost/api/expenses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organizationId: 'org-1', category: 'supplies', amount: '500' }),
-    })
-    const response = await POST(request)
-    expect(response.status).toBe(201)
-    expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ amount: 500 }),
-      })
-    )
+    expect(body.product).toBeDefined()
   })
 
   it('should return 400 for invalid JSON body', async () => {
     mockGetUserFromRequest.mockResolvedValue(mockUser)
-    const request = new Request('http://localhost/api/expenses', {
+    const request = new Request('http://localhost/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: 'not-json{{{',
@@ -261,5 +243,21 @@ describe('POST /api/expenses', () => {
     expect(response.status).toBe(400)
     const body = await response.json()
     expect(body.error).toContain('Invalid request body')
+  })
+
+  it('should return 400 when name contains only HTML tags after sanitization', async () => {
+    mockGetUserFromRequest.mockResolvedValue(mockUser)
+    mockVerifyOrgAccess.mockResolvedValue(true)
+    // Send a name that becomes empty after HTML tag stripping
+    const request = new Request('http://localhost/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgId: 'org-1', productTypeId: 'pt-1', name: '<b></b>', costPrice: 10, sellingPrice: 20 }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(400)
+    const body = await response.json()
+    // After sanitization, the name is empty, so it should fail required validation
+    expect(body.error).toMatch(/invalid characters|required/)
   })
 })

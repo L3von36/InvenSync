@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   convertCurrency,
   formatCurrency,
+  formatETB,
   getCurrencySymbol,
   getExchangeRate,
   SUPPORTED_CURRENCIES,
@@ -167,6 +168,57 @@ describe('currency utilities', () => {
         expect(currency).toHaveProperty('flag')
         expect(currency).toHaveProperty('decimalPlaces')
       }
+    })
+  })
+
+  // ============================================
+  // formatETB — Safe ETB formatter with fallback
+  // ============================================
+  describe('formatETB', () => {
+    it('should format a positive number with ETB currency', () => {
+      const result = formatETB(1234.56)
+      expect(result).toContain('1,234.56')
+      // ETB is typically represented with Br or ETB
+      expect(result).toMatch(/Br|ETB/)
+    })
+
+    it('should format zero', () => {
+      const result = formatETB(0)
+      expect(result).toContain('0.00')
+    })
+
+    it('should format negative numbers', () => {
+      const result = formatETB(-500)
+      expect(result).toContain('500')
+      expect(result).toMatch(/-/)
+    })
+
+    it('should format large numbers (millions) with thousand separators', () => {
+      const result = formatETB(1000000)
+      expect(result).toContain('1,000,000')
+    })
+
+    it('should fallback gracefully when Intl.NumberFormat fails', () => {
+      // Temporarily make Intl.NumberFormat throw to test fallback
+      const originalNumberFormat = Intl.NumberFormat
+      ;(globalThis as any).Intl = { ...Intl, NumberFormat: class { constructor() { throw new RangeError('Unsupported locale') } format() { return '' } } }
+
+      const result = formatETB(1234.56)
+      expect(result).toContain('1,234.56')
+      expect(result).toContain('Br')
+
+      // Restore original
+      ;(globalThis as any).Intl = { ...globalThis.Intl, NumberFormat: originalNumberFormat }
+    })
+
+    it('should format very small positive numbers', () => {
+      const result = formatETB(0.01)
+      expect(result).toContain('0.01')
+    })
+
+    it('should handle integer values', () => {
+      const result = formatETB(100)
+      expect(result).toContain('100')
     })
   })
 })
