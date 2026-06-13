@@ -16,6 +16,7 @@ function createPrismaClient() {
 }
 
 // Use existing client in dev to avoid creating multiple connections
+// In production (Vercel serverless), a new client is created per cold start
 export const db = globalForPrisma.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
