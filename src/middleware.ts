@@ -47,20 +47,22 @@ export async function middleware(request: NextRequest) {
   }
 
   // CSP — Content Security Policy
-  // NOTE: unsafe-inline and unsafe-eval are still included because Next.js dev mode
-  // and some runtime dependencies require them. In a production hardening pass,
-  // these should be removed and replaced with nonce-based or hash-based CSP.
-  const connectSrc = "'self' ws: wss: https://*.openstreetmap.org https://cdnjs.cloudflare.com"
-
+  // Comprehensively allows only the domains actually required by the application:
+  // - OpenStreetMap tiles (a/b/c.tile.openstreetmap.org) for Leaflet maps
+  // - Nominatim (nominatim.openstreetmap.org) for reverse geocoding
+  // - Google Fonts (fonts.googleapis.com / fonts.gstatic.com)
+  // - Leaflet marker icons are served from /images/leaflet/ (no CDN needed)
+  // NOTE: unsafe-inline and unsafe-eval are required by Next.js runtime.
+  // In a production hardening pass, replace with nonce-based CSP.
   response.headers.set(
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com",
+      "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      `connect-src ${connectSrc}`,
+      "connect-src 'self' ws: wss: https://*.openstreetmap.org",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

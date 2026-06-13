@@ -21,12 +21,22 @@ export function LocationPicker({ latitude, longitude, onChange }: LocationPicker
   const [detectError, setDetectError] = useState<string | null>(null)
 
   // Reverse geocode coordinates to get a place name
-  const reverseGeocode = async (lat: number, lng: number) => {
+  // With retry and fallback for Nominatim 503/rate-limiting
+  const reverseGeocode = async (lat: number, lng: number, retries = 2) => {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
         { headers: { 'Accept-Language': 'en' } }
       )
+      if (res.status === 503 && retries > 0) {
+        // Nominatim rate limited — retry after delay
+        await new Promise(r => setTimeout(r, 1000))
+        return reverseGeocode(lat, lng, retries - 1)
+      }
+      if (!res.ok) {
+        setLocationName(null)
+        return
+      }
       const data = await res.json()
       if (data.display_name) {
         // Shorten to just the relevant part
@@ -105,9 +115,9 @@ export function LocationPicker({ latitude, longitude, onChange }: LocationPicker
 
       // Fix for default marker icon in leaflet + webpack/next
       const defaultIcon = L.icon({
-        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-        iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+        iconUrl: '/images/leaflet/marker-icon.png',
+        iconRetinaUrl: '/images/leaflet/marker-icon-2x.png',
+        shadowUrl: '/images/leaflet/marker-shadow.png',
         iconSize: [25, 41],
         iconAnchor: [12, 41],
         popupAnchor: [1, -34],

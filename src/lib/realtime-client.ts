@@ -1,7 +1,5 @@
 'use client'
 
-import { io, Socket } from 'socket.io-client'
-
 export interface RealtimeNotification {
   id: string
   organizationId: string
@@ -14,164 +12,210 @@ export interface RealtimeNotification {
 
 type NotificationHandler = (notification: RealtimeNotification) => void
 
+/**
+ * RealtimeClient — Notification polling with optional WebSocket on dev
+ *
+ * Production (Vercel): Uses HTTP polling every 30s to check for new notifications.
+ * Vercel's serverless architecture does NOT support persistent WebSocket connections,
+ * so we gracefully degrade to polling which works reliably.
+ *
+ * Development (local): Tries WebSocket via socket.io on port 3003 first,
+ * falls back to polling if unavailable.
+ */
 class RealtimeClient {
-  private socket: Socket | null = null
   private currentOrgId: string | null = null
   private handlers: Set<NotificationHandler> = new Set()
-  private reconnectAttempts = 0
-  private maxReconnectAttempts = 3
-  private isConnecting = false
-  private pingInterval: ReturnType<typeof setInterval> | null = null
+  private pollInterval: ReturnType<typeof setInterval> | null = null
+  private lastPollTimestamp: string | null = null
+  private isPolling = false
+  private socket: unknown | null = null // Socket.IO client, loaded dynamically
   private isDisabled = false
   private hasLoggedInitialError = false
+  private useWebSocket = false
+  private reconnectAttempts = 0
+  private maxReconnectAttempts = 2
 
   connect(organizationId: string): void {
-    // Don't try to connect if disabled due to previous failures
-    if (this.isDisabled) return
+    if (this.isDisabled && !this.useWebSocket) return
 
-    if (this.socket?.connected && this.currentOrgId === organizationId) {
+    // If already connected to the same org, skip
+    if (this.currentOrgId === organizationId && (this.isPolling || (this.socket as { connected?: boolean })?.connected)) {
       return
     }
 
-    // If already connected to a different org, leave first
-    if (this.socket?.connected && this.currentOrgId && this.currentOrgId !== organizationId) {
-      this.socket.emit('leave-org', this.currentOrgId)
+    // If connected to a different org, switch
+    if (this.currentOrgId && this.currentOrgId !== organizationId) {
+      this.leaveOrg(this.currentOrgId)
     }
 
     this.currentOrgId = organizationId
 
-    if (!this.socket) {
-      this.isConnecting = true
-      // Connect to the notification service via the gateway
-      this.socket = io('/?XTransformPort=3003', {
+    // In development, try WebSocket first
+    if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+      this.tryWebSocket(organizationId)
+    }
+
+    // Always start polling as primary/fallback mechanism
+    this.startPolling()
+  }
+
+  private async tryWebSocket(_organizationId: string): Promise<void> {
+    if (this.socket) return
+
+    try {
+      const { io } = await import('socket.io-client')
+      const socket = io('/?XTransformPort=3003', {
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 10000,
+        reconnectionDelay: 2000,
         timeout: 5000,
         forceNew: false,
       })
 
-      this.setupEventHandlers()
-    }
-
-    // Join the org room
-    if (this.socket.connected) {
-      this.socket.emit('join-org', organizationId)
-    }
-
-    this.startPing()
-  }
-
-  private setupEventHandlers(): void {
-    if (!this.socket) return
-
-    this.socket.on('connect', () => {
-      console.log('[RealtimeClient] Connected to notification service')
-      this.isConnecting = false
-      this.reconnectAttempts = 0
-
-      // Re-join org room after reconnection
-      if (this.currentOrgId) {
-        this.socket!.emit('join-org', this.currentOrgId)
-      }
-    })
-
-    this.socket.on('disconnect', (reason) => {
-      console.log(`[RealtimeClient] Disconnected: ${reason}`)
-      this.stopPing()
-    })
-
-    this.socket.on('connect_error', (error) => {
-      if (!this.hasLoggedInitialError) {
-        console.warn(`[RealtimeClient] Connection error: ${error.message}. Real-time notifications unavailable.`)
-        this.hasLoggedInitialError = true
-      }
-      this.reconnectAttempts++
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.warn('[RealtimeClient] Max reconnection attempts reached. Disabling real-time notifications.')
-        this.isDisabled = true
-        this.disconnect()
-      }
-    })
-
-    this.socket.on('joined-org', (data: { organizationId: string; roomName: string }) => {
-      console.log(`[RealtimeClient] Joined org room: ${data.roomName}`)
-    })
-
-    this.socket.on('left-org', (data: { organizationId: string; roomName: string }) => {
-      console.log(`[RealtimeClient] Left org room: ${data.roomName}`)
-    })
-
-    this.socket.on('notification', (notification: RealtimeNotification) => {
-      // Notify all registered handlers
-      this.handlers.forEach((handler) => {
-        try {
-          handler(notification)
-        } catch (err) {
-          console.warn('[RealtimeClient] Error in notification handler:', err)
+      socket.on('connect', () => {
+        console.log('[RealtimeClient] WebSocket connected')
+        this.useWebSocket = true
+        this.reconnectAttempts = 0
+        if (this.currentOrgId) {
+          socket.emit('join-org', this.currentOrgId)
         }
       })
-    })
 
-    this.socket.on('pong', (data: { timestamp: number }) => {
-      const latency = Date.now() - data.timestamp
-      if (latency > 5000) {
-        console.warn(`[RealtimeClient] High latency: ${latency}ms`)
-      }
-    })
-  }
+      socket.on('disconnect', () => {
+        this.useWebSocket = false
+      })
 
-  private startPing(): void {
-    this.stopPing()
-    this.pingInterval = setInterval(() => {
-      if (this.socket?.connected) {
-        this.socket.emit('ping')
-      }
-    }, 30000) // Ping every 30 seconds
-  }
+      socket.on('connect_error', (error: Error) => {
+        if (!this.hasLoggedInitialError) {
+          console.info('[RealtimeClient] WebSocket unavailable, using polling fallback')
+          this.hasLoggedInitialError = true
+        }
+        this.reconnectAttempts++
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+          this.useWebSocket = false
+          socket.disconnect()
+          this.socket = null
+        }
+      })
 
-  private stopPing(): void {
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval)
-      this.pingInterval = null
+      socket.on('notification', (notification: RealtimeNotification) => {
+        this.notifyHandlers(notification)
+      })
+
+      socket.on('joined-org', () => {
+        console.log('[RealtimeClient] Joined org room via WebSocket')
+      })
+
+      this.socket = socket
+    } catch {
+      // socket.io-client not available or failed to load
+      this.useWebSocket = false
     }
+  }
+
+  /**
+   * HTTP Polling — fetches recent notifications from the REST API.
+   * This is the primary mechanism on Vercel (serverless) since
+   * WebSocket connections cannot persist across serverless invocations.
+   */
+  private startPolling(): void {
+    this.stopPolling()
+    this.isPolling = true
+
+    // Initial poll immediately
+    this.poll()
+
+    // Then poll every 30 seconds
+    this.pollInterval = setInterval(() => {
+      this.poll()
+    }, 30_000)
+  }
+
+  private stopPolling(): void {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval)
+      this.pollInterval = null
+    }
+    this.isPolling = false
+  }
+
+  private async poll(): Promise<void> {
+    if (!this.currentOrgId) return
+
+    try {
+      const params = new URLSearchParams({ orgId: this.currentOrgId })
+      if (this.lastPollTimestamp) {
+        params.set('since', this.lastPollTimestamp)
+      }
+
+      const response = await fetch(`/api/notifications?${params}`)
+      if (!response.ok) return
+
+      const data = await response.json()
+      const notifications: RealtimeNotification[] = data.notifications || []
+
+      // Update the timestamp for next poll
+      if (notifications.length > 0) {
+        this.lastPollTimestamp = notifications[0].createdAt
+
+        // Notify handlers of new notifications
+        for (const notification of notifications) {
+          this.notifyHandlers(notification)
+        }
+      }
+
+      // Update timestamp even if no new notifications
+      if (!this.lastPollTimestamp) {
+        this.lastPollTimestamp = new Date().toISOString()
+      }
+    } catch {
+      // Silently fail — polling will retry
+    }
+  }
+
+  private notifyHandlers(notification: RealtimeNotification): void {
+    this.handlers.forEach((handler) => {
+      try {
+        handler(notification)
+      } catch (err) {
+        console.warn('[RealtimeClient] Error in notification handler:', err)
+      }
+    })
   }
 
   disconnect(): void {
-    if (this.currentOrgId && this.socket?.connected) {
-      this.socket.emit('leave-org', this.currentOrgId)
-    }
     this.currentOrgId = null
-    this.stopPing()
+    this.lastPollTimestamp = null
+    this.stopPolling()
     this.handlers.clear()
 
     if (this.socket) {
-      this.socket.disconnect()
+      const s = this.socket as { disconnect: () => void }
+      s.disconnect()
       this.socket = null
     }
   }
 
   leaveOrg(organizationId: string): void {
-    if (this.socket?.connected) {
-      this.socket.emit('leave-org', organizationId)
+    if (this.socket && (this.socket as { connected?: boolean })?.connected) {
+      (this.socket as { emit: (event: string, data: string) => void }).emit('leave-org', organizationId)
     }
     if (this.currentOrgId === organizationId) {
       this.currentOrgId = null
+      this.stopPolling()
     }
   }
 
   onNotification(handler: NotificationHandler): () => void {
     this.handlers.add(handler)
-    // Return unsubscribe function
     return () => {
       this.handlers.delete(handler)
     }
   }
 
   isConnected(): boolean {
-    return this.socket?.connected ?? false
+    return this.isPolling || (this.socket as { connected?: boolean })?.connected === true
   }
 
   getCurrentOrgId(): string | null {

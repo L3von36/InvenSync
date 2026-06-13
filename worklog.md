@@ -1656,3 +1656,46 @@ Stage Summary:
 - Sales trend data now included in dashboard response (eliminates separate /api/reports call)
 - 3 new composite indexes for dashboard query performance
 - Notification service running on port 3003
+
+---
+
+## Dashboard SQL SQLite → PostgreSQL Migration Fix
+
+**Date:** 2026-03-05
+**Task ID:** 1
+**Agent:** Dashboard SQL Fix
+
+### Problem
+After migrating from SQLite to PostgreSQL (Neon) for Vercel deployment, the raw SQL queries in the dashboard API (`/api/dashboard/route.ts`) still used SQLite boolean syntax (`isActive = 1`), causing HTTP 500 errors. PostgreSQL uses `TRUE/FALSE` for boolean comparisons instead of SQLite's `0/1`.
+
+### Changes Made
+**File:** `src/app/api/dashboard/route.ts`
+
+Three `$queryRaw` SQL queries were fixed — all changed `isActive = 1` → `isActive = TRUE`:
+
+1. **Line 171** — Low stock count query:
+   ```sql
+   AND isActive = 1  →  AND isActive = TRUE
+   ```
+
+2. **Line 184** — Total stock value query:
+   ```sql
+   WHERE organizationId = ${orgId} AND isActive = 1 AND quantity > 0
+   → WHERE organizationId = ${orgId} AND isActive = TRUE AND quantity > 0
+   ```
+
+3. **Line 341** — Critical low stock anomaly query:
+   ```sql
+   WHERE organizationId = ${orgId} AND isActive = 1 AND quantity > 0
+   → WHERE organizationId = ${orgId} AND isActive = TRUE AND quantity > 0
+   ```
+
+### What Was NOT Changed
+- **Prisma ORM queries** (e.g., `db.product.count()`, `db.sale.aggregate()`) — Prisma auto-translates boolean values across dialects, no changes needed.
+- **`DATE(saleDate)`** on lines 403/408 — `DATE()` function works in PostgreSQL, no change required.
+- **All `Prisma.sql` template literal syntax** — preserved as-is.
+
+### Verification
+- ✅ Zero remaining `isActive = 1` instances in raw SQL queries
+- ✅ All three `isActive = TRUE` changes confirmed at lines 171, 184, 341
+- ✅ `bun run lint` passes with no errors

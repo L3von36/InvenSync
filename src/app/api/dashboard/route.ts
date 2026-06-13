@@ -168,7 +168,7 @@ async function fetchDashboardData(
       Prisma.sql`
         SELECT COUNT(*) as count FROM Product
         WHERE organizationId = ${orgId}
-        AND isActive = 1
+        AND isActive = TRUE
         AND quantity > 0
         AND quantity <= lowStockThreshold
         ${shopId ? Prisma.sql`AND (shopId = ${shopId} OR shopId IS NULL)` : Prisma.empty}
@@ -181,7 +181,7 @@ async function fetchDashboardData(
         SELECT COALESCE(SUM(quantity * costPrice), 0) as costValue,
                COALESCE(SUM(quantity * sellingPrice), 0) as retailValue
         FROM Product
-        WHERE organizationId = ${orgId} AND isActive = 1 AND quantity > 0
+        WHERE organizationId = ${orgId} AND isActive = TRUE AND quantity > 0
         ${shopId ? Prisma.sql`AND (shopId = ${shopId} OR shopId IS NULL)` : Prisma.empty}
       `
     ).then(result => ({
@@ -338,7 +338,7 @@ async function fetchDashboardData(
       db.$queryRaw<Array<{ id: string; name: string; sku: string | null; quantity: number; lowStockThreshold: number }>>(
         Prisma.sql`
           SELECT id, name, sku, quantity, lowStockThreshold FROM Product
-          WHERE organizationId = ${orgId} AND isActive = 1 AND quantity > 0
+          WHERE organizationId = ${orgId} AND isActive = TRUE AND quantity > 0
           AND quantity <= lowStockThreshold * 0.2
           ${shopId ? Prisma.sql`AND (shopId = ${shopId} OR shopId IS NULL)` : Prisma.empty}
           LIMIT 5

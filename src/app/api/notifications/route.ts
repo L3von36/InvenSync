@@ -24,6 +24,7 @@ export async function GET(request: Request) {
 
     const shopId = searchParams.get('shopId')
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
+    const since = searchParams.get('since')
     const limit = parseInt(searchParams.get('limit') || '50', 10)
 
     const whereClause: Record<string, unknown> = {
@@ -37,6 +38,14 @@ export async function GET(request: Request) {
 
     if (unreadOnly) {
       whereClause.isRead = false
+    }
+
+    // Support for polling: only return notifications created after 'since' timestamp
+    if (since) {
+      const sinceDate = new Date(since)
+      if (!isNaN(sinceDate.getTime())) {
+        whereClause.createdAt = { gt: sinceDate }
+      }
     }
 
     const unreadWhere: Record<string, unknown> = {
