@@ -93,6 +93,11 @@ export async function GET(request: Request) {
         total,
         totalPages: Math.ceil(total / limit)
       }
+    }, {
+      headers: {
+        // Product lists change infrequently - short browser cache with SWR
+        'Cache-Control': 'private, max-age=5, stale-while-revalidate=15',
+      }
     })
   } catch (error) {
     if (isDatabaseError(error)) {
@@ -256,16 +261,15 @@ export async function POST(request: Request) {
       })
 
       // Create attribute values inside the transaction
+      // OPTIMIZATION: Use createMany for batch insert instead of sequential create calls
       if (attributeValues && Array.isArray(attributeValues) && attributeValues.length > 0) {
-        for (const av of attributeValues) {
-          await tx.productAttributeValue.create({
-            data: {
-              productId: product.id,
-              attributeDefinitionId: av.attributeDefinitionId,
-              value: String(av.value),
-            }
-          })
-        }
+        await tx.productAttributeValue.createMany({
+          data: attributeValues.map((av: { attributeDefinitionId: string; value: string }) => ({
+            productId: product.id,
+            attributeDefinitionId: av.attributeDefinitionId,
+            value: String(av.value),
+          }))
+        })
       }
 
       // Create initial stock movement if quantity > 0

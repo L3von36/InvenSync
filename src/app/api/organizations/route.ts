@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
+import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
 
 // GET /api/organizations - List user's orgs
 export async function GET(request: Request) {
@@ -62,7 +63,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Organization name is required' }, { status: 400 })
     }
 
-    const slug = name
+    // Sanitize text inputs
+    const sanitizedName = sanitizeAndTruncate(name, 255)
+    const nameError = validateSanitizedField(name, sanitizedName, 'Organization name')
+    if (nameError) {
+      return NextResponse.json({ error: nameError }, { status: 400 })
+    }
+
+    if (!sanitizedName) {
+      return NextResponse.json({ error: 'Organization name is required' }, { status: 400 })
+    }
+
+    const slug = sanitizedName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '') + '-' + Date.now().toString(36)
@@ -72,7 +84,7 @@ export async function POST(request: Request) {
 
     const organization = await db.organization.create({
       data: {
-        name,
+        name: sanitizedName,
         slug,
         currency: currency || 'ETB',
         country: country || 'Ethiopia',

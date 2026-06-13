@@ -93,6 +93,10 @@ export async function GET(request: Request) {
         totalExpenses: totalAmount._sum.amount || 0,
       },
       monthlySummary,
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=5, stale-while-revalidate=15',
+      }
     })
   } catch (error) {
     if (isDatabaseError(error)) {

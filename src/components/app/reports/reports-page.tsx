@@ -274,7 +274,7 @@ export function ReportsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-base font-semibold tracking-tight">Reports</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Reports</h1>
           <p className="text-muted-foreground text-sm">Analyze your sales, profit, and inventory performance</p>
         </div>
         <Button
@@ -375,7 +375,7 @@ export function ReportsPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <BarChart3 className="size-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-1">No sales data for this period</h3>
+                <h3 className="text-base font-semibold mb-1">No sales data for this period</h3>
                 <p className="text-muted-foreground text-sm mb-4">
                   Try selecting a different date range, or make your first sale to see reports here
                 </p>
@@ -393,7 +393,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Total Revenue</p>
-                        <p className="text-base font-semibold">{formatETB(summary?.totalRevenue || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalRevenue || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -406,7 +406,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Total Transactions</p>
-                        <p className="text-base font-semibold">{summary?.totalSales || 0}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{summary?.totalSales || 0}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -419,7 +419,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Avg Transaction</p>
-                        <p className="text-base font-semibold">{formatETB(summary?.averageSaleValue || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.averageSaleValue || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -431,7 +431,7 @@ export function ReportsPage() {
                 {/* Daily Sales Bar Chart */}
                 <Card className="lg:col-span-2">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Daily Sales</CardTitle>
+                    <CardTitle className="text-sm font-semibold">Daily Sales</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {salesByDate.length > 0 ? (
@@ -470,7 +470,7 @@ export function ReportsPage() {
                 {/* Payment Method Pie */}
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">By Payment Method</CardTitle>
+                    <CardTitle className="text-sm font-semibold">By Payment Method</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={300}>
@@ -501,7 +501,7 @@ export function ReportsPage() {
               {/* Sales Table */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Daily Sales Breakdown</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Daily Sales Breakdown</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   {/* Desktop table */}
@@ -585,7 +585,7 @@ export function ReportsPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <TrendingUp className="size-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-1">No profit data for this period</h3>
+                <h3 className="text-base font-semibold mb-1">No profit data for this period</h3>
                 <p className="text-muted-foreground text-sm mb-4">
                   Try selecting a different date range, or make your first sale to see profit reports here
                 </p>
@@ -603,7 +603,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Gross Revenue</p>
-                        <p className="text-base font-semibold">{formatETB(summary?.totalRevenue || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalRevenue || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -616,7 +616,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Total Cost</p>
-                        <p className="text-base font-semibold">{formatETB(summary?.totalCost || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalCost || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -629,7 +629,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Gross Profit</p>
-                        <p className="text-base font-semibold">{formatETB(summary?.totalProfit || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalProfit || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -642,7 +642,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Profit Margin</p>
-                        <p className="text-base font-semibold">
+                        <p className="text-xl sm:text-2xl font-bold">
                           {summary && summary.totalRevenue > 0
                             ? `${((summary.totalProfit / summary.totalRevenue) * 100).toFixed(1)}%`
                             : '0%'}
@@ -656,7 +656,7 @@ export function ReportsPage() {
               {/* Profit Trend Line Chart */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Profit Trend</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Profit Trend</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {salesByDate.length > 0 ? (
@@ -718,7 +718,7 @@ export function ReportsPage() {
               {/* Daily Profit Table */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Daily Profit Breakdown</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Daily Profit Breakdown</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   {/* Desktop table */}
@@ -828,7 +828,7 @@ export function ReportsPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <Package className="size-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-1">No product sales data for this period</h3>
+                <h3 className="text-base font-semibold mb-1">No product sales data for this period</h3>
                 <p className="text-muted-foreground text-sm mb-4">
                   Try selecting a different date range, or sell some products to see best sellers here
                 </p>
@@ -839,7 +839,7 @@ export function ReportsPage() {
               {/* Top 10 by Revenue Chart */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Top 10 Products by Revenue</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Top 10 Products by Revenue</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {bestSelling.length > 0 ? (
@@ -866,7 +866,7 @@ export function ReportsPage() {
               {/* Top 10 by Quantity Chart */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Top 10 Products by Quantity Sold</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Top 10 Products by Quantity Sold</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {bestSelling.length > 0 ? (
@@ -891,7 +891,7 @@ export function ReportsPage() {
               {/* Best Sellers Table */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Product Performance</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Product Performance</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   {/* Desktop table */}
@@ -976,7 +976,7 @@ export function ReportsPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <Package className="size-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-1">No inventory data yet</h3>
+                <h3 className="text-base font-semibold mb-1">No inventory data yet</h3>
                 <p className="text-muted-foreground text-sm mb-4">
                   Add products to your inventory to see valuation reports here
                 </p>
@@ -994,7 +994,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Cost Value</p>
-                        <p className="text-base font-semibold">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1007,7 +1007,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Retail Value</p>
-                        <p className="text-base font-semibold">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1020,7 +1020,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Potential Profit</p>
-                        <p className="text-base font-semibold">{formatETB(inventoryVal?.potentialProfit || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.potentialProfit || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1033,7 +1033,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Total Items</p>
-                        <p className="text-base font-semibold">{inventoryVal?.totalItems || 0}</p>
+                        <p className="text-xl sm:text-2xl font-bold">{inventoryVal?.totalItems || 0}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1043,7 +1043,7 @@ export function ReportsPage() {
               {/* Inventory by Category Pie */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Inventory Value Distribution</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Inventory Value Distribution</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
@@ -1074,7 +1074,7 @@ export function ReportsPage() {
               {/* Products Table */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Inventory Valuation Details</CardTitle>
+                  <CardTitle className="text-sm font-semibold">Inventory Valuation Details</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-4">
@@ -1084,19 +1084,19 @@ export function ReportsPage() {
                     <Card className="bg-muted/50">
                       <CardContent className="p-4 text-center">
                         <p className="text-sm text-muted-foreground">Total at Cost</p>
-                        <p className="text-lg font-semibold">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
+                        <p className="text-sm font-semibold">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-muted/50">
                       <CardContent className="p-4 text-center">
                         <p className="text-sm text-muted-foreground">Total at Retail</p>
-                        <p className="text-lg font-semibold">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
+                        <p className="text-sm font-semibold">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-muted/50">
                       <CardContent className="p-4 text-center">
                         <p className="text-sm text-muted-foreground">Profit Margin</p>
-                        <p className="text-lg font-semibold">
+                        <p className="text-sm font-semibold">
                           {inventoryVal && inventoryVal.totalRetailValue > 0
                             ? `${((inventoryVal.potentialProfit / inventoryVal.totalRetailValue) * 100).toFixed(1)}%`
                             : '0%'}

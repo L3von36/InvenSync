@@ -66,6 +66,10 @@ export async function GET(request: Request) {
     return NextResponse.json({
       customers,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=5, stale-while-revalidate=15',
+      }
     })
   } catch (error) {
     if (isDatabaseError(error)) {

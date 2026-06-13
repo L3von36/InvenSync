@@ -219,7 +219,7 @@ export function BranchesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-base font-semibold tracking-tight">Branches</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Branches</h1>
           <p className="text-sm text-muted-foreground">Manage your shop locations and branch teams</p>
         </div>
         <Button onClick={openCreateDialog} className="gap-2 w-full sm:w-auto">
@@ -237,7 +237,7 @@ export function BranchesPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Total Branches</p>
-                <p className="text-base font-semibold">{branchList.length}</p>
+                <p className="text-xl sm:text-2xl font-bold">{branchList.length}</p>
               </div>
             </div>
           </CardContent>
@@ -250,7 +250,7 @@ export function BranchesPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Active</p>
-                <p className="text-base font-semibold">{activeBranches}</p>
+                <p className="text-xl sm:text-2xl font-bold">{activeBranches}</p>
               </div>
             </div>
           </CardContent>
@@ -263,7 +263,7 @@ export function BranchesPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Total Products</p>
-                <p className="text-base font-semibold">{totalProducts}</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalProducts}</p>
               </div>
             </div>
           </CardContent>
@@ -276,7 +276,7 @@ export function BranchesPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Team Members</p>
-                <p className="text-base font-semibold">{totalMembers}</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalMembers}</p>
               </div>
             </div>
           </CardContent>

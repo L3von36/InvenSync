@@ -279,7 +279,7 @@ export function DebtsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-base font-semibold tracking-tight">Debts & Credits</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Debts & Credits</h1>
           <p className="text-muted-foreground text-sm">Track customer and supplier debts, record payments</p>
         </div>
         <Button onClick={openAddDebt} className="gap-2">
@@ -298,7 +298,7 @@ export function DebtsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Customer Debts</p>
-                <p className="text-base font-semibold">{formatETB(summary.totalCustomerDebt)}</p>
+                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalCustomerDebt)}</p>
               </div>
             </div>
           </CardContent>
@@ -311,7 +311,7 @@ export function DebtsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Supplier Debts</p>
-                <p className="text-base font-semibold">{formatETB(summary.totalSupplierDebt)}</p>
+                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalSupplierDebt)}</p>
               </div>
             </div>
           </CardContent>
@@ -324,7 +324,7 @@ export function DebtsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Overdue Debts</p>
-                <p className="text-base font-semibold">{overdueCount}</p>
+                <p className="text-xl sm:text-2xl font-bold">{overdueCount}</p>
               </div>
             </div>
           </CardContent>
@@ -337,7 +337,7 @@ export function DebtsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Collected This Month</p>
-                <p className="text-base font-semibold">{formatETB(collectedThisMonth)}</p>
+                <p className="text-xl sm:text-2xl font-bold">{formatETB(collectedThisMonth)}</p>
               </div>
             </div>
           </CardContent>

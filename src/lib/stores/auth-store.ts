@@ -39,6 +39,7 @@ interface AuthState {
   shops: Shop[]
   currentShop: Shop | null
   activeModules: string[]
+  modulesLoaded: boolean  // True once fetchModules has completed (success or error)
 
   // Actions
   login: (email: string, password: string) => Promise<void>
@@ -100,6 +101,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   shops: [],
   currentShop: null,
   activeModules: [],
+  modulesLoaded: false,
 
   login: async (email: string, password: string) => {
     // Generate a new session ID to invalidate any stale 401 responses
@@ -138,6 +140,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       shops: [],
       currentShop: null,
       activeModules: [],
+      modulesLoaded: false,
       isAuthenticated: true,
       isLoading: false,
     })
@@ -167,6 +170,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       shops: [],
       currentShop: null,
       activeModules: [],
+      modulesLoaded: false,
       isAuthenticated: true,
       isLoading: false,
     })
@@ -226,6 +230,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       shops: [],
       currentShop: null,
       activeModules: [],
+      modulesLoaded: false,
       isAuthenticated: true,
       isLoading: false,
     })
@@ -258,6 +263,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       shops: [],
       currentShop: null,
       activeModules: [],
+      modulesLoaded: false,
       isAuthenticated: false,
       isLoading: false,
     })
@@ -274,6 +280,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       shops: [],
       currentShop: null,
       activeModules: [],
+      modulesLoaded: false,
     })
     // Fetch shops and modules for the new org
     get().fetchShops()
@@ -323,11 +330,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const activeKeys = data.modules
         .filter(m => m.isActive && m.orgStatus?.isActive && !['expired', 'cancelled', 'requested'].includes(m.orgStatus?.status || ''))
         .map(m => m.key)
-      set({ activeModules: activeKeys })
+      set({ activeModules: activeKeys, modulesLoaded: true })
     } catch {
-      // Silently fail - all modules shown as fallback
+      // Silently fail - modules will be empty, modulesLoaded=true prevents fallback
       if (get().isAuthenticated) {
-        set({ activeModules: [] })
+        set({ activeModules: [], modulesLoaded: true })
       }
     }
   },
@@ -397,6 +404,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         shops: [],
         currentShop: null,
         activeModules: [],
+        modulesLoaded: false,
         isAuthenticated: true,
         isLoading: false,
       })
@@ -439,6 +447,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         shops: [],
         currentShop: null,
         activeModules: [],
+        modulesLoaded: false,
         isAuthenticated: false,
         isLoading: false,
         dbUnreachable: isDbUnreachable,

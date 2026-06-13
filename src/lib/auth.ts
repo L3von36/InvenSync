@@ -23,7 +23,7 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
   console.warn('[AUTH] WARNING: JWT_SECRET not set. Using generated secret. Set JWT_SECRET in production!')
   return crypto.randomBytes(32).toString('hex')
 })()
-const JWT_EXPIRES_IN = '7d'
+const JWT_EXPIRES_IN = '24h'
 
 // Check if Supabase is configured
 const isSupabaseConfigured = !!process.env.NEXT_PUBLIC_SUPABASE_URL && 
@@ -218,6 +218,35 @@ export function isSupabaseAuth(): boolean {
 // ============================================
 // Password & Token Utilities
 // ============================================
+
+/**
+ * Validate password strength.
+ * Requirements:
+ * - At least 8 characters
+ * - At least one uppercase letter
+ * - At least one lowercase letter
+ * - At least one digit
+ * - At least one special character
+ */
+export function validatePasswordStrength(password: string): { valid: boolean; errors: string[] } {
+  const errors: string[] = []
+  if (!password || password.length < 8) {
+    errors.push('Password must be at least 8 characters long')
+  }
+  if (password && !/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter')
+  }
+  if (password && !/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter')
+  }
+  if (password && !/\d/.test(password)) {
+    errors.push('Password must contain at least one digit')
+  }
+  if (password && !/[!@#$%^&*()_+\-=[\]{}|;:'",.<>?/`~]/.test(password)) {
+    errors.push('Password must contain at least one special character')
+  }
+  return { valid: errors.length === 0, errors }
+}
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12)

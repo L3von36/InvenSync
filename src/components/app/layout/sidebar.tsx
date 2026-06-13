@@ -143,7 +143,7 @@ const aiNavItems: Array<{
 ]
 
 export function AppSidebar() {
-  const { user, organizations, currentOrg, currentOrgRole, setCurrentOrg, logout, shops, currentShop, setCurrentShop, activeModules } = useAuthStore()
+  const { user, organizations, currentOrg, currentOrgRole, setCurrentOrg, logout, shops, currentShop, setCurrentShop, activeModules, modulesLoaded } = useAuthStore()
   const { currentPage, setPage } = useAppStore()
 
   const isAdmin = user?.role === 'admin'
@@ -154,10 +154,11 @@ export function AppSidebar() {
   const showShopSelector = !isAdmin && (shops.length > 1 || (activeModules.length > 0 && activeModules.includes('multi-shop')))
 
   // Check if a module is accessible
-  // Graceful degradation: if activeModules is empty (not loaded yet), show all items
+  // Graceful degradation: if modules haven't loaded yet, show all items
+  // Once loaded, only show items whose moduleKey is in activeModules (or have no moduleKey like Dashboard)
   const isModuleActive = (moduleKey?: string): boolean => {
     if (!moduleKey) return true // Dashboard and items without moduleKey always shown
-    if (activeModules.length === 0) return true // Graceful degradation: if modules not loaded yet, show all
+    if (!modulesLoaded) return true // Graceful degradation: modules not loaded yet, show all
     return activeModules.includes(moduleKey)
   }
 
@@ -556,7 +557,7 @@ export function AppSidebar() {
 // ============================================
 export function MobileBottomNav() {
   const { currentPage, setPage } = useAppStore()
-  const { user, currentOrg, currentOrgRole, activeModules } = useAuthStore()
+  const { user, currentOrg, currentOrgRole, activeModules, modulesLoaded } = useAuthStore()
   const { theme, setTheme } = useTheme()
   const [showMore, setShowMore] = useState(false)
   const morePanelRef = useRef<HTMLDivElement>(null)
@@ -570,7 +571,7 @@ export function MobileBottomNav() {
   // Check if a module is accessible
   const isModuleActive = (moduleKey?: string): boolean => {
     if (!moduleKey) return true
-    if (activeModules.length === 0) return true // Graceful degradation
+    if (!modulesLoaded) return true // Graceful degradation: modules not loaded yet, show all
     return activeModules.includes(moduleKey)
   }
 

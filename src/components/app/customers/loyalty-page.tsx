@@ -267,7 +267,7 @@ export function LoyaltyPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-base font-semibold tracking-tight">Customer Loyalty</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Customer Loyalty</h1>
           <p className="text-muted-foreground text-sm">Manage loyalty accounts, tiers, and points adjustments</p>
         </div>
       </div>
@@ -307,7 +307,7 @@ export function LoyaltyPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Accounts</p>
-                <p className="text-base font-semibold">{total}</p>
+                <p className="text-xl sm:text-2xl font-bold">{total}</p>
               </div>
             </div>
           </CardContent>
@@ -320,7 +320,7 @@ export function LoyaltyPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Earned</p>
-                <p className="text-base font-semibold">{totalEarned.toLocaleString()}</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalEarned.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -333,7 +333,7 @@ export function LoyaltyPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Redeemed</p>
-                <p className="text-base font-semibold">{totalRedeemed.toLocaleString()}</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalRedeemed.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -346,7 +346,7 @@ export function LoyaltyPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Active Points</p>
-                <p className="text-base font-semibold">{totalPoints.toLocaleString()}</p>
+                <p className="text-xl sm:text-2xl font-bold">{totalPoints.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -357,7 +357,7 @@ export function LoyaltyPage() {
       <div className="grid grid-cols-4 gap-2">
         {Object.entries(TIER_CONFIG).map(([key, config]) => (
           <div key={key} className={`rounded-lg border p-3 text-center ${config.bgClass}`}>
-            <p className="text-lg font-bold">{tierCounts[key as keyof typeof tierCounts]}</p>
+            <p className="text-xl sm:text-2xl font-bold">{tierCounts[key as keyof typeof tierCounts]}</p>
             <p className="text-xs">{config.label}</p>
           </div>
         ))}
@@ -490,7 +490,7 @@ export function LoyaltyPage() {
                         <p className="text-xs text-muted-foreground">{account.customer.phone}</p>
                       )}
                     </div>
-                    <p className="text-lg font-bold ml-2">{account.points.toLocaleString()}</p>
+                    <p className="text-sm font-bold ml-2">{account.points.toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-4 mt-3 text-xs">
                     <span className="text-emerald-600">+{account.totalEarned.toLocaleString()} earned</span>
@@ -595,15 +595,15 @@ export function LoyaltyPage() {
               {/* Points Summary */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border p-3 text-center">
-                  <p className="text-2xl font-bold">{selectedAccount.points.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl font-bold">{selectedAccount.points.toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">Current Points</p>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
-                  <p className="text-2xl font-bold text-emerald-600">+{selectedAccount.totalEarned.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-emerald-600">+{selectedAccount.totalEarned.toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">Total Earned</p>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
-                  <p className="text-2xl font-bold text-red-600">-{selectedAccount.totalRedeemed.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-red-600">-{selectedAccount.totalRedeemed.toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">Total Redeemed</p>
                 </div>
               </div>

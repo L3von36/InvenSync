@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from '@/components/ui/recharts-exports'
 import { api } from '@/lib/api-client'
+import { formatETB } from '@/lib/currency'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -83,9 +84,6 @@ type ExpenseFormData = z.infer<typeof expenseFormSchema>
 // ============================================
 // Helpers
 // ============================================
-
-const etbFormatter = new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' })
-const formatETB = (val: number) => etbFormatter.format(val)
 
 const CATEGORY_LABELS: Record<string, string> = {
   rent: 'Rent', salary: 'Salary', utilities: 'Utilities',
@@ -296,7 +294,7 @@ export function ExpensesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Expenses</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Expenses</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Track and manage your business expenses
           </p>
@@ -313,7 +311,7 @@ export function ExpensesPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground font-medium">Total Expenses</p>
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight">
+              <p className="text-xl sm:text-2xl font-bold tracking-tight">
                 {isLoading ? <Skeleton className="h-9 w-32 inline-block" /> : formatETB(totalExpenses)}
               </p>
             </div>
@@ -327,7 +325,7 @@ export function ExpensesPage() {
       {/* Monthly Chart */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Monthly Expense Summary</CardTitle>
+          <CardTitle className="text-sm font-semibold">Monthly Expense Summary</CardTitle>
           <CardDescription>Last 6 months expense trend</CardDescription>
         </CardHeader>
         <CardContent>

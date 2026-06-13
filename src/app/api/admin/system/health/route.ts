@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getUserFromRequest } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { cache } from '@/lib/cache'
-import { getRateLimitStats } from '@/lib/rate-limit'
+import { getRateLimitStats, applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 import { getResilienceStats } from '@/lib/resilience'
 import { db } from '@/lib/db'
 
@@ -12,6 +12,15 @@ import { db } from '@/lib/db'
 // ============================================
 
 export async function GET(request: Request) {
+  // Rate limit admin endpoints
+  const rateLimitResult = applyRateLimit(request, RateLimitTiers.ADMIN)
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429 }
+    )
+  }
+
   try {
     const user = await getUserFromRequest(request)
     if (!user || user.role !== 'admin') {

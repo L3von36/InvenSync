@@ -120,7 +120,7 @@ function SalesStatsCards({ sales }: { sales: Sale[] }) {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground truncate">{card.title}</p>
-                <p className="text-base font-semibold truncate">{card.value}</p>
+                <p className="text-xl sm:text-2xl font-bold truncate">{card.value}</p>
               </div>
             </div>
           </CardContent>
@@ -163,11 +163,11 @@ function SaleDetailDialog({
           {/* Header */}
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-base font-semibold">{orgName}</h2>
+              <h2 className="text-sm font-semibold">{orgName}</h2>
               <p className="text-sm text-muted-foreground">Invoice</p>
             </div>
             <div className="text-right">
-              <p className="text-base font-semibold">{sale.invoiceNumber}</p>
+              <p className="text-sm font-semibold">{sale.invoiceNumber}</p>
               <p className="text-sm text-muted-foreground">{formatDateShort(sale.saleDate)}</p>
             </div>
           </div>
@@ -242,7 +242,7 @@ function SaleDetailDialog({
                 </div>
               )}
               <Separator />
-              <div className="flex justify-between font-bold text-base">
+              <div className="flex justify-between font-bold text-sm">
                 <span>Total</span>
                 <span>{formatETB(sale.total)}</span>
               </div>
@@ -419,7 +419,7 @@ function AllSalesTab({
         <Card>
           <CardContent className="py-12 text-center">
             <ShoppingCart className="size-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-1">
+            <h3 className="text-base font-semibold mb-1">
               {search || filterStatus !== 'all' || filterPayment !== 'all' ? 'No sales match your filters' : 'No sales yet'}
             </h3>
             <p className="text-muted-foreground text-sm mb-4">
@@ -698,7 +698,7 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
         {/* Customer Selection */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Customer</CardTitle>
+            <CardTitle className="text-sm font-semibold">Customer</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {showNewCustomer ? (
@@ -755,7 +755,7 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Items</CardTitle>
+              <CardTitle className="text-sm font-semibold">Items</CardTitle>
               <Button type="button" size="sm" onClick={() => append({ productId: '', quantity: 1, unitPrice: 0 })}>
                 <Plus className="size-4 mr-1" /> Add Item
               </Button>
@@ -883,7 +883,7 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
           {/* Totals */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Summary</CardTitle>
+                <CardTitle className="text-sm font-semibold">Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">
@@ -896,7 +896,7 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
                   <FormInputField name="tax" label="Tax (ETB)" type="number" min={0} step="0.01" inputClassName="text-xs" />
                 </div>
                 <Separator />
-                <div className="flex justify-between text-base font-semibold">
+                <div className="flex justify-between text-sm font-semibold">
                   <span>Grand Total</span>
                   <span>{formatETB(grandTotal)}</span>
                 </div>
@@ -907,7 +907,7 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
           {/* Payment */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Payment</CardTitle>
+              <CardTitle className="text-sm font-semibold">Payment</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -1051,7 +1051,7 @@ export function SalesPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-base font-semibold tracking-tight">Sales</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Sales</h1>
           <p className="text-muted-foreground">Record sales, view transactions, and manage invoices.</p>
         </div>
         <ErrorState title="Failed to load sales data" message={pageError} onRetry={fetchSales} />
@@ -1063,7 +1063,7 @@ export function SalesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-base font-semibold tracking-tight">Sales</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Sales</h1>
         <p className="text-muted-foreground">Record sales, view transactions, and manage invoices.</p>
       </div>
 

@@ -236,7 +236,7 @@ export function SuppliersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-base font-semibold tracking-tight">Suppliers</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Suppliers</h1>
           <p className="text-muted-foreground text-sm">Manage supplier information and track supplier debts</p>
         </div>
         <Button onClick={openAddDialog} className="gap-2">
@@ -255,7 +255,7 @@ export function SuppliersPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Suppliers</p>
-                <p className="text-base font-semibold">{total}</p>
+                <p className="text-xl sm:text-2xl font-bold">{total}</p>
               </div>
             </div>
           </CardContent>
@@ -268,7 +268,7 @@ export function SuppliersPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-muted-foreground">Active Suppliers</p>
-                <p className="text-base font-semibold">{activeSuppliers}</p>
+                <p className="text-xl sm:text-2xl font-bold">{activeSuppliers}</p>
               </div>
             </div>
           </CardContent>
@@ -281,7 +281,7 @@ export function SuppliersPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Owed to Suppliers</p>
-                <p className="text-base font-semibold">{formatETB(totalOwedToSuppliers)}</p>
+                <p className="text-xl sm:text-2xl font-bold">{formatETB(totalOwedToSuppliers)}</p>
               </div>
             </div>
           </CardContent>
@@ -575,7 +575,7 @@ export function SuppliersPage() {
                     </div>
                     <div className="flex-1 space-y-3">
                       <div>
-                        <h3 className="text-base font-semibold">{selectedSupplier.name}</h3>
+                        <h3 className="text-sm font-semibold">{selectedSupplier.name}</h3>
                         <p className="text-xs text-muted-foreground">
                           Supplier since {formatDate(selectedSupplier.createdAt)}
                         </p>
@@ -610,7 +610,7 @@ export function SuppliersPage() {
                 <Card>
                   <CardContent className="p-4 text-center">
                     <DollarSign className="size-6 text-red-500 mx-auto mb-2" />
-                    <p className="text-base font-semibold">
+                    <p className="text-sm font-semibold">
                       {formatETB(
                         supplierDebts
                           .filter((d) => d.status !== 'paid')

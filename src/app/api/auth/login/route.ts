@@ -5,6 +5,10 @@ import { generateTempToken, parseUserAgent } from '@/lib/two-factor'
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 
+// Account lockout constants
+const MAX_FAILED_ATTEMPTS = 5
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
+
 export async function POST(request: Request) {
   // Rate limit auth endpoints (5 req/min per IP)
   const rateLimitResult = applyRateLimit(request, RateLimitTiers.AUTH)
@@ -48,11 +52,31 @@ export async function POST(request: Request) {
     })
 
     if (!user) {
-      console.log('[Login] User not found')
+      // Use generic error to prevent user enumeration
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
       )
+    }
+
+    // Check if account is locked
+    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      const remainingMs = new Date(user.lockedUntil).getTime() - Date.now()
+      const remainingMin = Math.ceil(remainingMs / 60000)
+      return NextResponse.json(
+        { error: `Account is temporarily locked due to too many failed attempts. Please try again in ${remainingMin} minute${remainingMin !== 1 ? 's' : ''}.` },
+        { status: 423 }
+      )
+    }
+
+    // If lockout has expired, reset the counter
+    if (user.lockedUntil && new Date(user.lockedUntil) <= new Date()) {
+      await db.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null }
+      })
+      user.failedLoginAttempts = 0
+      user.lockedUntil = null
     }
 
     // If user has no password set (e.g., created via Supabase Auth only),
@@ -68,11 +92,42 @@ export async function POST(request: Request) {
     // Verify password using bcrypt
     const isValid = await comparePassword(password, user.passwordHash)
     if (!isValid) {
-      console.log('[Login] Password comparison failed')
+      // Increment failed login attempts
+      const newAttempts = (user.failedLoginAttempts || 0) + 1
+      const lockoutData: { failedLoginAttempts: number; lockedUntil?: Date } = {
+        failedLoginAttempts: newAttempts,
+      }
+
+      // Lock account if max attempts reached
+      if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+        lockoutData.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS)
+      }
+
+      await db.user.update({
+        where: { id: user.id },
+        data: lockoutData,
+      })
+
+      const remainingAttempts = MAX_FAILED_ATTEMPTS - newAttempts
+      if (remainingAttempts <= 0) {
+        return NextResponse.json(
+          { error: `Account locked due to too many failed attempts. Please try again in 15 minutes.` },
+          { status: 423 }
+        )
+      }
+
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
       )
+    }
+
+    // Reset failed login attempts on successful password verification
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await db.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null }
+      })
     }
 
     // Check if 2FA is enabled for this user

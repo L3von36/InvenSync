@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, memo } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
   TrendingUp,
@@ -216,25 +216,25 @@ interface StatCardProps {
   comparisonBadge?: React.ReactNode
 }
 
-function StatCard({ title, value, subtitle, icon, iconBgClass, iconTextClass, comparisonBadge }: StatCardProps) {
+const StatCard = memo(function StatCard({ title, value, subtitle, icon, iconBgClass, iconTextClass, comparisonBadge }: StatCardProps) {
   return (
     <Card className="gap-2 sm:gap-4">
       <CardHeader className="flex flex-row items-center justify-between pb-0 space-y-0">
-        <CardDescription className="text-[11px] sm:text-sm font-medium pr-1 line-clamp-1">{title}</CardDescription>
+        <CardDescription className="text-xs text-muted-foreground font-medium pr-1 line-clamp-1">{title}</CardDescription>
         <div className={`flex items-center justify-center size-7 sm:size-10 rounded-lg ${iconBgClass} shrink-0`}>
           <div className={`${iconTextClass} [&_svg]:size-3.5 sm:[&_svg]:size-5`}>{icon}</div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="text-xs sm:text-lg font-semibold tracking-tight leading-tight whitespace-nowrap">{value}</div>
+        <div className="text-xl sm:text-2xl font-bold tracking-tight leading-tight whitespace-nowrap">{value}</div>
         <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1">
-          <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{subtitle}</p>
+          <p className="text-xs text-muted-foreground line-clamp-1">{subtitle}</p>
           {comparisonBadge}
         </div>
       </CardContent>
     </Card>
   )
-}
+})
 
 function StatCardSkeleton() {
   return (
@@ -251,7 +251,7 @@ function StatCardSkeleton() {
   )
 }
 
-function ComparisonBadge({ value, label }: { value: number; label?: string }) {
+const ComparisonBadge = memo(function ComparisonBadge({ value, label }: { value: number; label?: string }) {
   if (value === 0) return null
 
   const isPositive = value > 0
@@ -271,9 +271,9 @@ function ComparisonBadge({ value, label }: { value: number; label?: string }) {
       {isPositive ? '↑' : '↓'} {Math.abs(value).toFixed(1)}%
     </Badge>
   )
-}
+})
 
-function StatusBadge({ status }: { status: string }) {
+const StatusBadge = memo(function StatusBadge({ status }: { status: string }) {
   switch (status) {
     case 'completed':
       return (
@@ -296,7 +296,7 @@ function StatusBadge({ status }: { status: string }) {
     default:
       return <Badge variant="outline">{status}</Badge>
   }
-}
+})
 
 interface QuickActionCardProps {
   icon: React.ReactNode
@@ -333,7 +333,7 @@ function DashboardHeader({ title, subtitle, isRefreshing, onRefresh, dateRangePi
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h1 className="text-base font-semibold tracking-tight">{title}</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h1>
         <p className="text-muted-foreground text-sm">{subtitle}</p>
       </div>
       <div className="flex items-center gap-2">
@@ -352,7 +352,7 @@ function DashboardHeader({ title, subtitle, isRefreshing, onRefresh, dateRangePi
   )
 }
 
-function RecentSalesList({ sales, onItemClick }: { sales: Sale[]; onItemClick?: (sale: Sale) => void }) {
+const RecentSalesList = memo(function RecentSalesList({ sales, onItemClick }: { sales: Sale[]; onItemClick?: (sale: Sale) => void }) {
   const { setPage } = useAppStore()
   const handleClick = (sale: Sale) => {
     if (onItemClick) {
@@ -393,7 +393,7 @@ function RecentSalesList({ sales, onItemClick }: { sales: Sale[]; onItemClick?: 
       ))}
     </div>
   )
-}
+})
 
 // ============================================
 // Date Range Picker
@@ -487,7 +487,7 @@ function DateRangePicker({
 // Anomaly Alert Widget
 // ============================================
 
-function AnomalyAlertWidget({ anomalies }: { anomalies: DashboardAnomaly[] }) {
+const AnomalyAlertWidget = memo(function AnomalyAlertWidget({ anomalies }: { anomalies: DashboardAnomaly[] }) {
   const { setPage } = useAppStore()
 
   if (anomalies.length === 0) return null
@@ -572,7 +572,7 @@ function AnomalyAlertWidget({ anomalies }: { anomalies: DashboardAnomaly[] }) {
       </CardContent>
     </Card>
   )
-}
+})
 
 // ============================================
 // LOADING / ERROR States

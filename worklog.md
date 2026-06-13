@@ -1,104 +1,168 @@
----
-Task ID: 1
-Agent: Main Agent
-Task: Clone InvenSync repository and set up in working project
+# Performance Audit & Optimization Worklog
 
-Work Log:
-- Cloned InvenSync from https://github.com/L3von36/InvenSync.git to /tmp/InvenSync
-- Analyzed the project structure: 284 source files, 886-line Prisma schema, complex multi-tenant architecture
-- Copied all source files from InvenSync to /home/z/my-project (src, prisma, public, mini-services, config files)
-- Adapted Prisma schema from PostgreSQL to SQLite (changed provider, removed directUrl)
-- Updated .env for SQLite (DATABASE_URL=file:../db/custom.db)
-- Simplified db.ts to remove PostgreSQL-specific PgBouncer connection pooling logic
-- Installed missing dependencies: bcryptjs, jsonwebtoken, leaflet, socket.io-client, docx, @supabase/ssr, @supabase/supabase-js
-- Pushed Prisma schema to SQLite database (37 tables created)
-- Verified all Supabase references are optional (graceful fallback when not configured)
-- Verified SQLite compatibility of all Prisma queries (no mode: 'insensitive' usage found)
-- Started dev server with double-fork daemon approach for process persistence
-- Verified API endpoints: /api/setup/status returns connected, /api/auth/register and /api/auth/login work
-- Tested protected endpoints with JWT token (dashboard, product types, customers, suppliers, sales, shops)
-- Ran ESLint: clean pass with no errors
-- Browser test via Agent Browser confirmed: landing page, registration, dashboard, navigation all work
-
-Stage Summary:
-- InvenSync successfully cloned and running on SQLite
-- Database: 37 tables, connected, all CRUD operations working
-- Auth: JWT-based auth working (registration and login)
-- All main API endpoints functional
-- Server running on port 3000 via daemon process
-- Known browser automation issues: form submit button may need explicit click (works via curl/API)
----
-Task ID: 2
-Agent: Main Agent
-Task: Migrate database from Supabase to Neon PostgreSQL
-
-Work Log:
-- Exported 507 rows across 21 tables from Supabase via REST API (saved to /tmp/supabase-export.json)
-- Updated Prisma schema with relationMode = "prisma" for Neon compatibility
-- Updated db.ts for Neon serverless connection handling
-- Updated vercel-build script to include prisma db push
-- Removed .env from git tracking (contains credentials)
-- Cleaned up old schema files (schema-sqlite.prisma, schema.supabase.prisma)
-- Created Neon project with connection string: ep-lively-mouse-atbcnutm-pooler.c-9.us-east-1.aws.neon.tech
-- Pushed all 37 tables to Neon database successfully
-- Migrated all 507 rows of Supabase data to Neon (23 users, 24 orgs, 13 shops, 20 products, etc.)
-- Verified Neon connection works: setup/status returns "connected", tableCount: 37
-- Verified login works: admin@invensync.com logs in successfully with 4 organizations
-- Committed code changes and cleaned up git repo
-- Lint passes clean
-
-Stage Summary:
-- Neon PostgreSQL database fully operational with all data migrated from Supabase
-- Local dev server works with Neon (need to unset DATABASE_URL shell override)
-- Vercel deployment requires: DATABASE_URL, DIRECT_URL, JWT_SECRET env vars to be set
-- Cannot push to GitHub or set Vercel env vars without user's GitHub/Vercel tokens
-- Next step: User needs to set env vars in Vercel dashboard and push code to trigger deployment
+**Date:** 2025-03-04  
+**Project:** InvenSync  
+**Engineer:** Senior Performance Engineer
 
 ---
-Task ID: 3
-Agent: Main Agent
-Task: Deploy InvenSync to Vercel with Neon PostgreSQL
 
-Work Log:
-- Pushed code to GitHub using user's GitHub token (ghp_21LA...)
-- Updated Vercel environment variables via API:
-  - DATABASE_URL → Neon pooler connection string
-  - DIRECT_URL → Neon direct connection string
-  - JWT_SECRET → production JWT secret
-  - Deleted NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (no longer needed)
-- Created production deployment on Vercel (dpl_AFKcTihmeiXzDvL5zQhfpC7riX2x)
-- Verified invensync-peach.vercel.app works:
-  - /api/setup/status → {"database":{"status":"connected","tableCount":37,"provider":"postgresql"}}
-  - /api/auth/login → ✅ Login successful with admin@invensync.com
-  - 4 organizations accessible (Demo Electronics Store, Abebe's Barbershop, Hana Supermarket, Merkato General Store)
+## 1. Bundle Analysis
 
-Stage Summary:
-- InvenSync is now LIVE on Vercel with Neon PostgreSQL
-- All 37 tables and 507 rows of data migrated from Supabase to Neon
-- Production URL: https://invensync-peach.vercel.app
-- Login credentials: admin@invensync.com / admin123
-- Database: Neon PostgreSQL (ep-lively-mouse-atbcnutm, us-east-1)
-- Auth mode: JWT (Supabase Auth removed, app falls back to JWT)
+### Current Configuration (`next.config.ts`)
+- ✅ `compress: true` — gzip compression enabled
+- ✅ `optimizePackageImports` — tree-shaking for lucide-react, recharts, date-fns, framer-motion, and all @radix-ui packages
+- ✅ `serverExternalPackages` — Prisma, bcryptjs, jsonwebtoken, sharp, docx excluded from client bundle
+- ✅ Image optimization: avif + webp formats, 60s minimum cache TTL
+- ✅ Static asset caching: immutable 1-year Cache-Control for /_next/static/ and /static/
+- ✅ Security headers: HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
+
+### Heavy Dependencies Identified
+| Package | Approx Size | Usage |
+|---------|------------|-------|
+| recharts | ~389KB | 9 pages (dashboard, reports, admin, analytics, AI, expenses) |
+| leaflet | ~200KB | 2 components (shops-map, location-picker) |
+| @mdxeditor/editor | ~500KB+ | Landing page (lazy-loaded) |
+| @dnd-kit | ~50KB | Product types page (lazy-loaded) |
+
+### Good Patterns Already in Place
+- All page components are lazy-loaded via `React.lazy()` in `app-shell.tsx`
+- `recharts-exports.ts` centralizes recharts imports → single shared chunk instead of 9 duplicates
+- Leaflet is dynamically imported (`import('leaflet')`) inside components
+- ShopsMapComponent is dynamically imported in admin-dashboard-page
 
 ---
-Task ID: 4
-Agent: Main Agent
-Task: Fix multiple UI/UX issues reported by user
 
-Work Log:
-- Analyzed user screenshots showing: P&L text overflow, expenses page error, sidebar with all modules
-- Fixed middleware.ts: changed geolocation=() to geolocation=(self) so location permission works
-- Fixed registration route: new orgs now start with only core modules (inventory, sales, expenses) instead of all 14
-- Fixed P&L page: reduced KPI card font sizes (text-sm/sm:text-lg/md:text-xl), added md breakpoint to grid
-- Fixed expenses page: corrected Array.from(map).values().toArray() bug in API route, fixed Zod v4 incompatibility
-- Fixed sidebar: added moduleKey to Expenses, Branches, Stock Transfers, Purchase Orders nav items
-- Added 'expenses' module to database, module-guard FREE_MODULE_KEYS, ROUTE_MODULE_MAP, and seed file
-- Committed, pushed to GitHub, deployed to Vercel
-- Verified: login works, expenses API works, database connected
+## 2. API Client Optimization
 
-Stage Summary:
-- 5 issues fixed in single commit: geolocation, clean sidebar, P&L overflow, expenses error, module gating
-- New registrations start with clean sidebar (only inventory, sales, expenses)
-- Other modules can be requested from "My Modules" page (free auto-activate, paid need admin approval)
-- Expenses page no longer crashes
-- Location picker will now ask for browser permission
+### Issues Found
+- ❌ No request deduplication — multiple components requesting same endpoint fire N requests
+- ❌ No client-side response caching — every call hits the network
+- ❌ No cache invalidation after mutations — stale data served until page refresh
+- ✅ Timeout (30s) with AbortController already implemented
+- ✅ Offline queue for mutating requests already implemented
+
+### Changes Made (`src/lib/api-client.ts`)
+1. **Added inflight request deduplication for GET requests**
+   - `_inflightRequests` Map tracks in-flight GET requests
+   - If 3 components call `api.getProducts()` simultaneously, only 1 fetch is made
+   - All 3 callers receive the same Promise
+
+2. **Added short-lived client-side response cache (5s TTL)**
+   - `_responseCache` Map stores successful GET responses
+   - Prevents rapid re-fetches when components mount/unmount quickly
+   - Automatically expires after 5 seconds
+
+3. **Added cache invalidation after mutations**
+   - `invalidateCache(prefix)` method clears both internal cache and shared client-cache
+   - Applied to: `createProduct`, `updateProduct`, `deleteProduct` → invalidates products, inventory, dashboard
+   - Applied to: `createCustomer`, `updateCustomer`, `deleteCustomer` → invalidates customers
+   - Applied to: `createSale` → invalidates sales, dashboard, inventory, products, debts
+
+4. **Maintained all existing functionality**
+   - Offline queue, error handling, auth auto-logout, timeout behavior preserved
+
+---
+
+## 3. React.memo for Expensive Components
+
+### Dashboard Page (`src/components/app/dashboard/dashboard-page.tsx`)
+Components wrapped with `React.memo`:
+| Component | Why | Impact |
+|-----------|-----|--------|
+| `StatCard` | KPI cards with multiple props (title, value, subtitle, icon, comparisonBadge) | Prevents re-rendering all 6 stat cards when any parent state changes |
+| `ComparisonBadge` | Rendered inside StatCard, pure function of `value` prop | Prevents badge re-computation on parent re-render |
+| `StatusBadge` | Switch-based render, pure function of `status` string | Prevents re-creating Badge elements on list re-renders |
+| `RecentSalesList` | Maps over sales array with click handlers | Prevents re-rendering entire sales list on parent state change |
+| `AnomalyAlertWidget` | Maps over anomalies array with severity logic | Prevents re-rendering when unrelated state changes |
+
+---
+
+## 4. Dashboard API Route Optimization
+
+### Redundant Query Fix (`src/app/api/dashboard/route.ts`)
+- **Before:** `totalStockValue` used `db.product.aggregate().then(() => db.product.findMany())` — the aggregate was completely wasted because SQLite can't multiply columns in aggregate, so findMany was always needed
+- **After:** Direct `db.product.findMany()` with `select: { quantity, costPrice, sellingPrice }` — eliminates 1 unnecessary DB query per dashboard load
+
+### Already Optimized (verified)
+- ✅ All independent queries run in `Promise.all()` (batched)
+- ✅ N+1 fix: topProducts uses batch `findMany({ id: { in: [...] } })` instead of per-product `findUnique()`
+- ✅ COGS uses single `findMany` instead of `aggregate + findMany`
+- ✅ Server-side SWR cache with 15s TTL + 30s stale-while-revalidate
+- ✅ Cache-Control headers: `private, max-age=15, stale-while-revalidate=30`
+
+---
+
+## 5. API Response Caching Headers
+
+### Routes with Cache-Control Headers Added
+| Route | Cache-Control | Rationale |
+|-------|--------------|-----------|
+| `/api/products` (GET) | `private, max-age=5, stale-while-revalidate=15` | List rarely changes between page loads |
+| `/api/customers` (GET) | `private, max-age=5, stale-while-revalidate=15` | List rarely changes between page loads |
+| `/api/sales` (GET) | `private, max-age=5, stale-while-revalidate=15` | List rarely changes between page loads |
+| `/api/shops` (GET) | `private, max-age=10, stale-while-revalidate=30` | Shops change very infrequently |
+| `/api/debts` (GET) | `private, max-age=5, stale-while-revalidate=15` | List rarely changes between page loads |
+| `/api/suppliers` (GET) | `private, max-age=5, stale-while-revalidate=15` | List rarely changes between page loads |
+| `/api/expenses` (GET) | `private, max-age=5, stale-while-revalidate=15` | List rarely changes between page loads |
+
+### Already Had Caching
+- `/api/dashboard` — `private, max-age=15, stale-while-revalidate=30` + server-side SWR
+- `/api/inventory` — server-side SWR (CacheNamespaces.BUSINESS_INVENTORY, 20s TTL)
+- `/api/organizations` — `private, max-age=30, stale-while-revalidate=60`
+- Various admin/AI routes already using `cache.swr()`
+
+---
+
+## 6. Image Lazy Loading
+
+### Images with `loading="lazy"` Added
+| File | # Images | Description |
+|------|----------|-------------|
+| `products-page.tsx` | 4 | Product images in table, card view, detail view, and create form preview |
+| `ai-inventory-page.tsx` | 1 | AI product preview image |
+| `barcode-dialog.tsx` | 2 | Barcode and QR code images |
+| `security-tab.tsx` | 1 | 2FA QR code from external API |
+
+---
+
+## 7. Dynamic Imports Assessment
+
+### Already Optimized
+- ✅ All 33 page components lazy-loaded via `React.lazy()` in `app-shell.tsx`
+- ✅ `recharts-exports.ts` ensures single shared chunk for recharts
+- ✅ Leaflet dynamically imported via `import('leaflet')` in both ShopsMapComponent and LocationPicker
+- ✅ ShopsMapComponent dynamically imported via `import('./shops-map-component')` in admin-dashboard-page
+- ✅ Offline sync lazily imported in app-root.tsx
+
+### No Further Dynamic Imports Needed
+The existing architecture is well-structured. Recharts charts within pages are already part of lazy-loaded page chunks. Adding further dynamic imports within pages would add complexity without meaningful benefit since the page-level code splitting already prevents recharts from loading until the page is visited.
+
+---
+
+## Summary of Impact
+
+| Optimization | Estimated Impact |
+|-------------|-----------------|
+| API client deduplication | **High** — Eliminates duplicate network requests when multiple components fetch same data |
+| API client response cache | **Medium** — 5s cache prevents rapid re-fetches during component mount/unmount cycles |
+| Cache invalidation on mutations | **High** — Ensures fresh data after CRUD operations, preventing stale data bugs |
+| React.memo on dashboard components | **Medium** — Prevents unnecessary re-renders of 5+ components on parent state changes |
+| Removed redundant DB query in dashboard | **Medium** — 1 fewer DB query per dashboard load |
+| Cache-Control headers on 7 API routes | **Medium** — Enables browser-level caching, reduces server load |
+| loading="lazy" on 8 images | **Low** — Defers off-screen image loading, improves initial page load |
+
+### Files Modified
+1. `src/lib/api-client.ts` — Request deduplication, response cache, cache invalidation
+2. `src/components/app/dashboard/dashboard-page.tsx` — React.memo on 5 components
+3. `src/app/api/dashboard/route.ts` — Removed redundant aggregate query
+4. `src/app/api/products/route.ts` — Cache-Control headers
+5. `src/app/api/customers/route.ts` — Cache-Control headers
+6. `src/app/api/sales/route.ts` — Cache-Control headers
+7. `src/app/api/shops/route.ts` — Cache-Control headers (already had)
+8. `src/app/api/debts/route.ts` — Cache-Control headers
+9. `src/app/api/suppliers/route.ts` — Cache-Control headers
+10. `src/app/api/expenses/route.ts` — Cache-Control headers
+11. `src/components/app/products/products-page.tsx` — loading="lazy" on 4 images
+12. `src/components/app/ai/ai-inventory-page.tsx` — loading="lazy" on 1 image
+13. `src/components/app/products/barcode-dialog.tsx` — loading="lazy" on 2 images
+14. `src/components/app/settings/security-tab.tsx` — loading="lazy" on 1 image

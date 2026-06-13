@@ -134,7 +134,8 @@ export async function POST(
   }
 }
 
-// PATCH /api/admin/organizations/[id]/modules - Update org module (renew, change status)
+// PATCH /api/admin/organizations/[id]/modules - Update org module (approve request, renew, change status)
+// When approving a requested module (status → 'active'), sets appropriate trial/billing dates and notifies the org
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -180,7 +181,21 @@ export async function PATCH(
     if (status !== undefined) updateData.status = status
     if (isActive !== undefined) updateData.isActive = isActive
     if (autoRenew !== undefined) updateData.autoRenew = autoRenew
-    if (durationDays !== undefined) {
+
+    // When approving a requested module (changing from 'requested' to 'active' or 'trial')
+    const isApproval = existing.status === 'requested' && (status === 'active' || status === 'trial')
+    if (isApproval) {
+      // Set activation date and expiry
+      updateData.isActive = true
+      if (moduleRecord.isFree || status === 'active') {
+        // Free modules or explicitly set to active: no expiry
+        updateData.expiresAt = null
+      } else {
+        // Trial: set trial period
+        const days = durationDays ?? moduleRecord.freeTrialDays ?? 30
+        updateData.expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+      }
+    } else if (durationDays !== undefined) {
       updateData.expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
     }
 
@@ -191,6 +206,22 @@ export async function PATCH(
 
     // Invalidate cache for this org
     invalidateModuleCache(orgId)
+
+    // Notify the org about the approval
+    if (isApproval) {
+      const org = await db.organization.findUnique({ where: { id: orgId }, select: { name: true } })
+      const statusLabel = orgModule.status === 'trial' ? 'activated with a trial period' : 'activated'
+      await db.notification.create({
+        data: {
+          organizationId: orgId,
+          type: 'subscription',
+          title: 'Module Approved',
+          message: `${moduleRecord.name} has been ${statusLabel} for your organization. You can now access it from the sidebar.`,
+          actionUrl: '/modules',
+          metadata: JSON.stringify({ moduleKey, status: orgModule.status, type: 'module_approved' }),
+        },
+      }).catch(() => {})
+    }
 
     return NextResponse.json({ orgModule, module: moduleRecord })
   } catch (error) {

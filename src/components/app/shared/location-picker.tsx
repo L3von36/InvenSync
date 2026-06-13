@@ -48,42 +48,7 @@ export function LocationPicker({ latitude, longitude, onChange }: LocationPicker
     setDetecting(true)
     setDetectError(null)
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude: lat, longitude: lng } = position.coords
-        onChange(lat, lng)
-        reverseGeocode(lat, lng)
-        setDetecting(false)
-      },
-      (error) => {
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            setDetectError('Location permission denied. Please enable it in your browser settings.')
-            break
-          case error.POSITION_UNAVAILABLE:
-            setDetectError('Location information is unavailable.')
-            break
-          case error.TIMEOUT:
-            setDetectError('Location request timed out. Please try again.')
-            break
-          default:
-            setDetectError('An unknown error occurred.')
-        }
-        setDetecting(false)
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
-    )
-  }
-
-  useEffect(() => {
-    setMounted(true)
-    // Auto-detect location on mount if no coordinates are set
-    if (!latitude && !longitude && navigator.geolocation) {
-      setDetecting(true)
+    try {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude: lat, longitude: lng } = position.coords
@@ -91,13 +56,36 @@ export function LocationPicker({ latitude, longitude, onChange }: LocationPicker
           reverseGeocode(lat, lng)
           setDetecting(false)
         },
-        () => {
-          // Silently fail on auto-detect — user can still click the button
+        (error) => {
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              setDetectError('Location permission denied. Please enable it in your browser settings.')
+              break
+            case error.POSITION_UNAVAILABLE:
+              setDetectError('Location information is unavailable.')
+              break
+            case error.TIMEOUT:
+              setDetectError('Location request timed out. Please try again.')
+              break
+            default:
+              setDetectError('An unknown error occurred.')
+          }
           setDetecting(false)
         },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
       )
+    } catch {
+      setDetectError('Geolocation is not available in this environment.')
+      setDetecting(false)
     }
+  }
+
+  useEffect(() => {
+    setMounted(true)
   }, [])
 
   useEffect(() => {

@@ -543,6 +543,38 @@ class ApiClient {
   // stale background requests from interfering with an active login attempt.
   private _isLoggingIn: boolean = false
 
+  // Request deduplication: prevent concurrent identical GET requests
+  // If 3 components request the same endpoint simultaneously, only 1 fetch is made.
+  private _inflightRequests = new Map<string, Promise<unknown>>()
+
+  // Short-lived client-side response cache for GET requests (5s TTL)
+  // Prevents rapid re-fetches when multiple components mount simultaneously
+  private _responseCache = new Map<string, { data: unknown; expiresAt: number }>()
+  private static RESPONSE_CACHE_TTL = 5_000 // 5 seconds
+
+  /**
+   * Invalidate client-side response cache entries matching a prefix.
+   * Called after mutating operations to ensure stale data is not served.
+   */
+  invalidateCache(prefix: string): void {
+    // Invalidate our internal response cache
+    this._responseCache.forEach((_, key) => {
+      if (key.startsWith(prefix)) {
+        this._responseCache.delete(key)
+      }
+    })
+    // Also invalidate the shared client-cache (used by swrFetch)
+    try {
+      import('@/lib/client-cache').then(({ invalidateKeysByPrefix }) => {
+        invalidateKeysByPrefix(prefix)
+      }).catch(() => {
+        // client-cache may not be available during SSR
+      })
+    } catch {
+      // client-cache may not be available during SSR
+    }
+  }
+
   private getToken(): string | null {
     if (typeof window === 'undefined') return null
     // Check memory first, then fallback to localStorage (for migration)
@@ -580,6 +612,26 @@ class ApiClient {
     // Offline interceptor: queue mutating requests, reject GET requests
     const method = (options.method || 'GET').toUpperCase()
     const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+    const isGet = method === 'GET'
+
+    // ---- Request deduplication for GET requests ----
+    // If an identical GET request is already in-flight, return the same promise
+    // instead of firing a duplicate network request.
+    if (isGet) {
+      const cacheKey = `${method}:${endpoint}`
+
+      // Check short-lived response cache first
+      const cached = this._responseCache.get(cacheKey)
+      if (cached && Date.now() < cached.expiresAt) {
+        return cached.data as T
+      }
+
+      // Check for in-flight deduplication
+      const inflight = this._inflightRequests.get(cacheKey)
+      if (inflight) {
+        return inflight as Promise<T>
+      }
+    }
 
     if (typeof window !== 'undefined' && !navigator.onLine) {
       if (isMutating) {
@@ -606,106 +658,145 @@ class ApiClient {
     const timeoutId = setTimeout(() => controller.abort(), 30000)
     const signal = options.signal || controller.signal
 
-    let response: Response
-    try {
-      response = await fetch(endpoint, {
-        ...options,
-        headers,
-        signal,
-      })
-    } catch (err) {
-      clearTimeout(timeoutId)
-      // If we got a network error during a mutating request, try to queue it
-      if (err instanceof TypeError && err.message === 'Failed to fetch' && isMutating) {
-        try {
-          const { queueOperation } = await import('@/lib/offline-queue')
-          await queueOperation(
-            endpoint,
-            method,
-            headers,
-            options.body ? String(options.body) : null
-          )
-          return { offline: true, queued: true } as unknown as T
-        } catch {
-          // Fall through to original error handling
+    // For GET requests, register the inflight promise for deduplication
+    const cacheKey = `${method}:${endpoint}`
+    let isInflightRegistered = false
+
+    if (isGet) {
+      isInflightRegistered = true
+    }
+
+    // Create the fetch promise (may be shared across callers)
+    const fetchPromise = (async () => {
+      let response: Response
+      try {
+        response = await fetch(endpoint, {
+          ...options,
+          headers,
+          signal,
+        })
+      } catch (err) {
+        clearTimeout(timeoutId)
+        // Clean up inflight registration
+        if (isInflightRegistered) {
+          this._inflightRequests.delete(cacheKey)
         }
-      }
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        throw new Error('Request timed out — the server took too long to respond. Please try again.')
-      }
-      if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        throw new Error('Network error — please check your internet connection and try again.')
-      }
-      throw new Error(err instanceof Error ? err.message : 'An unexpected network error occurred')
-    }
-
-    clearTimeout(timeoutId)
-
-    // Handle non-JSON responses gracefully
-    let data: Record<string, unknown>
-    try {
-      data = await response.json() as Record<string, unknown>
-    } catch {
-      if (!response.ok) {
-        // Map common HTTP error codes to user-friendly messages — never expose raw status codes
-        if (response.status === 401) throw new Error('Your session has expired. Please log in again.')
-        if (response.status === 403) throw new Error('You do not have permission to perform this action')
-        if (response.status === 404) throw new Error('The requested resource was not found')
-        if (response.status === 429) throw new Error('Too many requests — please wait a moment and try again')
-        if (response.status >= 500) throw new Error('Server error — please try again later')
-        throw new Error('An unexpected error occurred. Please try again.')
-      }
-      throw new Error('Server returned an invalid response')
-    }
-
-    if (!response.ok) {
-      const errorMessage = (data.error as string) || (data.message as string) || 'An unexpected error occurred. Please try again.'
-      const errorCode = data.code as string | undefined
-
-      // Handle database unreachable errors
-      if (response.status === 503 && errorCode === 'DB_UNREACHABLE') {
-        const dbError = new Error('Database is unreachable') as Error & { code: string }
-        dbError.code = 'DB_UNREACHABLE'
-        throw dbError
-      }
-
-      // Handle auth errors — clear token and trigger logout if 401 from a non-auth endpoint
-      // Auth endpoints (login, register, me) legitimately return 401 for wrong credentials
-      // Also suppress auto-logout during active login to prevent race conditions
-      const isAuthEndpoint = endpoint.startsWith('/api/auth/login') || endpoint.startsWith('/api/auth/register') || endpoint.startsWith('/api/auth/me')
-      if (response.status === 401 && token && !isAuthEndpoint && !this._isLoggingIn) {
-        // Only clear token and trigger logout if the token we sent is STILL the current token.
-        // This prevents a stale background request from clearing a freshly-set token
-        // after the user logged out and logged back in.
-        const currentToken = this.getToken()
-        if (token === currentToken) {
-          this.clearToken()
-          // Trigger logout via auth store to update UI state
+        // If we got a network error during a mutating request, try to queue it
+        if (err instanceof TypeError && err.message === 'Failed to fetch' && isMutating) {
           try {
-            const { useAuthStore } = await import('@/lib/stores/auth-store')
-            const store = useAuthStore.getState()
-            if (store.isAuthenticated) {
-              // Use setTimeout to avoid race conditions with concurrent requests.
-              // If multiple 401s come in at the same time, only the first one will
-              // trigger logout (subsequent ones will see isAuthenticated = false).
-              setTimeout(() => {
-                const currentStore = useAuthStore.getState()
-                if (currentStore.isAuthenticated) {
-                  currentStore.logout()
-                }
-              }, 100)
-            }
+            const { queueOperation } = await import('@/lib/offline-queue')
+            await queueOperation(
+              endpoint,
+              method,
+              headers,
+              options.body ? String(options.body) : null
+            )
+            return { offline: true, queued: true } as unknown as T
           } catch {
-            // If import fails (e.g. during SSR), just clear the token
+            // Fall through to original error handling
           }
         }
-        throw new Error('Your session has expired. Please log in again.')
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          throw new Error('Request timed out — the server took too long to respond. Please try again.')
+        }
+        if (err instanceof TypeError && err.message === 'Failed to fetch') {
+          throw new Error('Network error — please check your internet connection and try again.')
+        }
+        throw new Error(err instanceof Error ? err.message : 'An unexpected network error occurred')
       }
 
-      throw new Error(errorMessage)
+      clearTimeout(timeoutId)
+
+      // Handle non-JSON responses gracefully
+      let data: Record<string, unknown>
+      try {
+        data = await response.json() as Record<string, unknown>
+      } catch {
+        // Clean up inflight registration on parse error
+        if (isInflightRegistered) {
+          this._inflightRequests.delete(cacheKey)
+        }
+        if (!response.ok) {
+          // Map common HTTP error codes to user-friendly messages — never expose raw status codes
+          if (response.status === 401) throw new Error('Your session has expired. Please log in again.')
+          if (response.status === 403) throw new Error('You do not have permission to perform this action')
+          if (response.status === 404) throw new Error('The requested resource was not found')
+          if (response.status === 429) throw new Error('Too many requests — please wait a moment and try again')
+          if (response.status >= 500) throw new Error('Server error — please try again later')
+          throw new Error('An unexpected error occurred. Please try again.')
+        }
+        throw new Error('Server returned an invalid response')
+      }
+
+      // Clean up inflight registration after response is parsed
+      if (isInflightRegistered) {
+        this._inflightRequests.delete(cacheKey)
+      }
+
+      if (!response.ok) {
+        const errorMessage = (data.error as string) || (data.message as string) || 'An unexpected error occurred. Please try again.'
+        const errorCode = data.code as string | undefined
+
+        // Handle database unreachable errors
+        if (response.status === 503 && errorCode === 'DB_UNREACHABLE') {
+          const dbError = new Error('Database is unreachable') as Error & { code: string }
+          dbError.code = 'DB_UNREACHABLE'
+          throw dbError
+        }
+
+        // Handle auth errors — clear token and trigger logout if 401 from a non-auth endpoint
+        // Auth endpoints (login, register, me) legitimately return 401 for wrong credentials
+        // Also suppress auto-logout during active login to prevent race conditions
+        const isAuthEndpoint = endpoint.startsWith('/api/auth/login') || endpoint.startsWith('/api/auth/register') || endpoint.startsWith('/api/auth/me')
+        if (response.status === 401 && token && !isAuthEndpoint && !this._isLoggingIn) {
+          // Only clear token and trigger logout if the token we sent is STILL the current token.
+          // This prevents a stale background request from clearing a freshly-set token
+          // after the user logged out and logged back in.
+          const currentToken = this.getToken()
+          if (token === currentToken) {
+            this.clearToken()
+            // Trigger logout via auth store to update UI state
+            try {
+              const { useAuthStore } = await import('@/lib/stores/auth-store')
+              const store = useAuthStore.getState()
+              if (store.isAuthenticated) {
+                // Use setTimeout to avoid race conditions with concurrent requests.
+                // If multiple 401s come in at the same time, only the first one will
+                // trigger logout (subsequent ones will see isAuthenticated = false).
+                setTimeout(() => {
+                  const currentStore = useAuthStore.getState()
+                  if (currentStore.isAuthenticated) {
+                    currentStore.logout()
+                  }
+                }, 100)
+              }
+            } catch {
+              // If import fails (e.g. during SSR), just clear the token
+            }
+          }
+          throw new Error('Your session has expired. Please log in again.')
+        }
+
+        throw new Error(errorMessage)
+      }
+
+      // Cache successful GET responses for short TTL
+      if (isGet) {
+        this._responseCache.set(cacheKey, {
+          data: data as T,
+          expiresAt: Date.now() + ApiClient.RESPONSE_CACHE_TTL,
+        })
+      }
+
+      return data as T
+    })()
+
+    // Register the inflight promise for GET deduplication
+    if (isGet) {
+      this._inflightRequests.set(cacheKey, fetchPromise)
     }
 
-    return data as T
+    return fetchPromise
   }
 
   // ============================================
@@ -974,10 +1065,14 @@ class ApiClient {
     attributeValues?: Array<{ attributeDefinitionId: string; value: string }>
     shopId?: string
   }): Promise<{ product: Product }> {
-    return this.request('/api/products', {
+    const result = await this.request('/api/products', {
       method: 'POST',
       body: JSON.stringify({ orgId, ...data }),
     })
+    this.invalidateCache('GET:/api/products')
+    this.invalidateCache('GET:/api/inventory')
+    this.invalidateCache('GET:/api/dashboard')
+    return result
   }
 
   async updateProduct(id: string, orgId: string, data: {
@@ -990,16 +1085,23 @@ class ApiClient {
     lowStockThreshold?: number
     attributeValues?: Array<{ attributeDefinitionId: string; value: string }>
   }): Promise<{ product: Product }> {
-    return this.request(`/api/products/${id}`, {
+    const result = await this.request(`/api/products/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ orgId, ...data }),
     })
+    this.invalidateCache('GET:/api/products')
+    this.invalidateCache('GET:/api/inventory')
+    this.invalidateCache('GET:/api/dashboard')
+    return result
   }
 
   async deleteProduct(id: string, orgId: string): Promise<void> {
     await this.request(`/api/products/${id}?orgId=${orgId}`, {
       method: 'DELETE',
     })
+    this.invalidateCache('GET:/api/products')
+    this.invalidateCache('GET:/api/inventory')
+    this.invalidateCache('GET:/api/dashboard')
   }
 
   // ============================================
@@ -1055,10 +1157,12 @@ class ApiClient {
     address?: string
     shopId?: string
   }): Promise<{ customer: Customer }> {
-    return this.request('/api/customers', {
+    const result = await this.request('/api/customers', {
       method: 'POST',
       body: JSON.stringify({ orgId, ...data }),
     })
+    this.invalidateCache('GET:/api/customers')
+    return result
   }
 
   async updateCustomer(id: string, orgId: string, data: {
@@ -1067,16 +1171,19 @@ class ApiClient {
     phone?: string
     address?: string
   }): Promise<{ customer: Customer }> {
-    return this.request(`/api/customers/${id}`, {
+    const result = await this.request(`/api/customers/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ orgId, ...data }),
     })
+    this.invalidateCache('GET:/api/customers')
+    return result
   }
 
   async deleteCustomer(id: string, orgId: string): Promise<void> {
     await this.request(`/api/customers/${id}?orgId=${orgId}`, {
       method: 'DELETE',
     })
+    this.invalidateCache('GET:/api/customers')
   }
 
   // ============================================
@@ -1160,10 +1267,17 @@ class ApiClient {
     notes?: string
     shopId?: string
   }): Promise<{ sale: Sale }> {
-    return this.request('/api/sales', {
+    const result = await this.request('/api/sales', {
       method: 'POST',
       body: JSON.stringify({ orgId, ...data }),
     })
+    // Invalidate all related caches after sale creation
+    this.invalidateCache('GET:/api/sales')
+    this.invalidateCache('GET:/api/dashboard')
+    this.invalidateCache('GET:/api/inventory')
+    this.invalidateCache('GET:/api/products')
+    this.invalidateCache('GET:/api/debts')
+    return result
   }
 
   async getSale(id: string, orgId: string): Promise<{ sale: Sale }> {

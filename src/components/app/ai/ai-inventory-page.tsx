@@ -417,6 +417,7 @@ export function AIInventoryPage() {
                       src={imagePreview}
                       alt="Product preview"
                       className="w-full h-64 object-contain bg-background"
+                      loading="lazy"
                     />
                   </div>
                   <Button

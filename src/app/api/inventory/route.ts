@@ -61,7 +61,16 @@ export async function GET(request: Request) {
           }),
           db.stockMovement.findMany({
             where: movementWhere,
-            include: {
+            select: {
+              id: true,
+              productId: true,
+              type: true,
+              quantity: true,
+              previousStock: true,
+              newStock: true,
+              reason: true,
+              reference: true,
+              createdAt: true,
               product: { select: { id: true, name: true, sku: true } }
             },
             orderBy: { createdAt: 'desc' },

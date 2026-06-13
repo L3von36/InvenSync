@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { hashPassword, generateToken } from '@/lib/auth'
+import { hashPassword, generateToken, validatePasswordStrength } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
+import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
 
 export async function POST(request: Request) {
   // Rate limiting
@@ -25,9 +26,36 @@ export async function POST(request: Request) {
       latitude, longitude, phone, salesRepId, referralCode
     } = body
 
-    if (!email || !name || !password || !organizationName) {
+    // Sanitize text inputs
+    const sanitizedName = sanitizeAndTruncate(name, 255)
+    const sanitizedOrganizationName = sanitizeAndTruncate(organizationName, 255)
+    const sanitizedDescription = description ? sanitizeAndTruncate(description, 1000) : description
+    const sanitizedAddress = address ? sanitizeAndTruncate(address, 500) : address
+    const sanitizedCity = city ? sanitizeAndTruncate(city, 100) : city
+    const sanitizedPhone = phone ? sanitizeAndTruncate(phone, 50) : phone
+
+    if (!email || !sanitizedName || !password || !sanitizedOrganizationName) {
       return NextResponse.json(
         { error: 'Email, name, password, and organization name are required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate sanitized fields are not empty after sanitization
+    const nameError = validateSanitizedField(name, sanitizedName, 'Name')
+    if (nameError) {
+      return NextResponse.json({ error: nameError }, { status: 400 })
+    }
+    const orgNameError = validateSanitizedField(organizationName, sanitizedOrganizationName, 'Organization name')
+    if (orgNameError) {
+      return NextResponse.json({ error: orgNameError }, { status: 400 })
+    }
+
+    // Validate password strength
+    const passwordValidation = validatePasswordStrength(password)
+    if (!passwordValidation.valid) {
+      return NextResponse.json(
+        { error: passwordValidation.errors.join('. ') },
         { status: 400 }
       )
     }
@@ -39,7 +67,6 @@ export async function POST(request: Request) {
     const resolvedBusinessType = validBusinessTypes.includes(businessType) ? businessType : 'retail'
 
     // Check if user already exists — block registration for ANY existing user
-    // Previously, passwordless users could be taken over via registration.
     const existingUser = await db.user.findUnique({ where: { email: normalizedEmail } })
     if (existingUser) {
       return NextResponse.json(
@@ -49,7 +76,7 @@ export async function POST(request: Request) {
     }
 
     // Generate slug from organization name
-    const slug = organizationName
+    const slug = sanitizedOrganizationName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '') + '-' + Date.now().toString(36)
@@ -82,20 +109,20 @@ export async function POST(request: Request) {
     // (e.g., user created but org fails, org created but membership fails, etc.)
     const { newUser, organization, salesRepName } = await db.$transaction(async (tx) => {
       const newUser = await tx.user.create({
-        data: { email: normalizedEmail, name, passwordHash }
+        data: { email: normalizedEmail, name: sanitizedName, passwordHash }
       })
 
       const organization = await tx.organization.create({
         data: {
-          name: organizationName,
+          name: sanitizedOrganizationName,
           slug,
           businessType: resolvedBusinessType,
-          description: description || null,
-          address: address || null,
-          city: city || null,
+          description: sanitizedDescription || null,
+          address: sanitizedAddress || null,
+          city: sanitizedCity || null,
           latitude: latitude != null ? parseFloat(String(latitude)) : null,
           longitude: longitude != null ? parseFloat(String(longitude)) : null,
-          phone: phone || null,
+          phone: sanitizedPhone || null,
           referredById: effectiveSalesRepId || null,
         }
       })
@@ -113,11 +140,11 @@ export async function POST(request: Request) {
         data: {
           organizationId: organization.id,
           name: 'Main Shop',
-          address: address || null,
-          city: city || null,
+          address: sanitizedAddress || null,
+          city: sanitizedCity || null,
           latitude: latitude != null ? parseFloat(String(latitude)) : null,
           longitude: longitude != null ? parseFloat(String(longitude)) : null,
-          phone: phone || null,
+          phone: sanitizedPhone || null,
         }
       })
 

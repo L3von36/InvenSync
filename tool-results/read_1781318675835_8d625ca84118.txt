@@ -1,0 +1,1399 @@
+     1→'use client'
+     2→
+     3→import React, { useState, useEffect, useCallback } from 'react'
+     4→import { useForm } from 'react-hook-form'
+     5→import { zodResolver } from '@hookform/resolvers/zod'
+     6→import {
+     7→  Building2, CreditCard, Plug, Save, Check, X,
+     8→  Send, MessageSquare, UserPlus, Shield, Crown, Loader2,
+     9→  Store, Package, ShoppingCart, HandCoins, Users, Truck,
+    10→  BarChart3, AlertTriangle, TrendingUp, Brain, ScanSearch,
+    11→  Pencil, MapPin, Phone, ChevronDown, ChevronUp, Trash2,
+    12→  Search, LayoutGrid, Sparkles, Zap, Wrench
+    13→} from 'lucide-react'
+    14→import { api, type Organization } from '@/lib/api-client'
+    15→import { LocationPicker } from '@/components/app/shared/location-picker'
+    16→import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
+    17→import { useAuthStore } from '@/lib/stores/auth-store'
+    18→import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
+    19→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    20→import { Button } from '@/components/ui/button'
+    21→import { Input } from '@/components/ui/input'
+    22→import { Label } from '@/components/ui/label'
+    23→import { Badge } from '@/components/ui/badge'
+    24→import { Separator } from '@/components/ui/separator'
+    25→import { Skeleton } from '@/components/ui/skeleton'
+    26→import { Switch } from '@/components/ui/switch'
+    27→import {
+    28→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+    29→} from '@/components/ui/select'
+    30→import {
+    31→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+    32→} from '@/components/ui/table'
+    33→import {
+    34→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
+    35→} from '@/components/ui/dialog'
+    36→import {
+    37→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    38→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    39→} from '@/components/ui/alert-dialog'
+    40→import { toast } from 'sonner'
+    41→import { getNetworkErrorMessage } from '@/lib/validation'
+    42→import { orgSettingsSchema, type OrgSettingsFormData, inviteMemberSchema, type InviteMemberFormData, shopSchema, type ShopFormData } from '@/lib/validations'
+    43→import { ErrorState } from '@/components/shared/error-states'
+    44→import { Form } from '@/components/ui/form'
+    45→import { FormInputField, FormSelectField, FormSubmitButton } from '@/components/shared/form-fields'
+    46→import { IntegrationsTab } from '@/components/app/settings/integrations-tab'
+    47→import { SecurityTab } from '@/components/app/settings/security-tab'
+    48→
+    49→// ============================================
+    50→// Helpers
+    51→// ============================================
+    52→function formatETB(amount: number): string {
+    53→  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    54→}
+    55→
+    56→// ============================================
+    57→// Main Component
+    58→// ============================================
+    59→export function SettingsPage() {
+    60→  const { currentOrg } = useAuthStore()
+    61→  const orgId = currentOrg?.id || ''
+    62→
+    63→  const [activeTab, setActiveTab] = useState('organization')
+    64→
+    65→  return (
+    66→    <div className="space-y-6">
+    67→      {/* Header */}
+    68→      <div>
+    69→        <h1 className="text-base font-semibold tracking-tight">Settings</h1>
+    70→        <p className="text-muted-foreground">Manage your organization, subscription, and integrations</p>
+    71→      </div>
+    72→
+    73→      {/* Tabs */}
+    74→      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+    75→        <TabsList className="flex-wrap">
+    76→          <TabsTrigger value="organization" className="gap-1.5 text-xs sm:text-sm">
+    77→            <Building2 className="size-4" />
+    78→            <span className="hidden sm:inline">Organization</span>
+    79→          </TabsTrigger>
+    80→          <TabsTrigger value="shops" className="gap-1.5 text-xs sm:text-sm">
+    81→            <Store className="size-4" />
+    82→            <span className="hidden sm:inline">Shops</span>
+    83→          </TabsTrigger>
+    84→          <TabsTrigger value="modules" className="gap-1.5 text-xs sm:text-sm">
+    85→            <LayoutGrid className="size-4" />
+    86→            <span className="hidden sm:inline">Modules</span>
+    87→          </TabsTrigger>
+    88→          <TabsTrigger value="subscription" className="gap-1.5 text-xs sm:text-sm">
+    89→            <CreditCard className="size-4" />
+    90→            <span className="hidden sm:inline">Subscription</span>
+    91→          </TabsTrigger>
+    92→          <TabsTrigger value="integrations" className="gap-1.5 text-xs sm:text-sm">
+    93→            <Plug className="size-4" />
+    94→            <span className="hidden sm:inline">Integrations</span>
+    95→          </TabsTrigger>
+    96→          <TabsTrigger value="security" className="gap-1.5 text-xs sm:text-sm">
+    97→            <Shield className="size-4" />
+    98→            <span className="hidden sm:inline">Security</span>
+    99→          </TabsTrigger>
+   100→        </TabsList>
+   101→
+   102→        <TabsContent value="organization">
+   103→          <OrganizationTab orgId={orgId} />
+   104→        </TabsContent>
+   105→        <TabsContent value="shops">
+   106→          <ShopsTab orgId={orgId} />
+   107→        </TabsContent>
+   108→        <TabsContent value="modules">
+   109→          <ModulesTab orgId={orgId} />
+   110→        </TabsContent>
+   111→        <TabsContent value="subscription">
+   112→          <SubscriptionTab orgId={orgId} />
+   113→        </TabsContent>
+   114→        <TabsContent value="integrations">
+   115→          <IntegrationsTab orgId={orgId} />
+   116→        </TabsContent>
+   117→        <TabsContent value="security">
+   118→          <SecurityTab />
+   119→        </TabsContent>
+   120→      </Tabs>
+   121→    </div>
+   122→  )
+   123→}
+   124→
+   125→// ============================================
+   126→// Organization Tab
+   127→// ============================================
+   128→function OrganizationTab({ orgId }: { orgId: string }) {
+   129→  const [orgData, setOrgData] = useState<{
+   130→    organization: Organization & {
+   131→      members: Array<{
+   132→        id: string
+   133→        userId: string
+   134→        role: string
+   135→        user: { id: string; name: string; email: string; avatarUrl?: string | null }
+   136→      }>
+   137→    }
+   138→  } | null>(null)
+   139→  const [loading, setLoading] = useState(true)
+   140→  const [saving, setSaving] = useState(false)
+   141→  const [fetchError, setFetchError] = useState<string | null>(null)
+   142→
+   143→  // Org settings form
+   144→  const orgForm = useForm<OrgSettingsFormData>({
+   145→    resolver: zodResolver(orgSettingsSchema),
+   146→    defaultValues: { orgName: '', orgLogoUrl: '', orgCurrency: 'ETB', orgCountry: 'Ethiopia' },
+   147→  })
+   148→
+   149→  // Invite form
+   150→  const inviteForm = useForm<InviteMemberFormData>({
+   151→    resolver: zodResolver(inviteMemberSchema),
+   152→    defaultValues: { email: '', role: 'member' },
+   153→  })
+   154→
+   155→  // Invite dialog
+   156→  const [showInvite, setShowInvite] = useState(false)
+   157→  const [inviteSubmitting, setInviteSubmitting] = useState(false)
+   158→
+   159→  const fetchOrg = useCallback(async () => {
+   160→    if (!orgId) return
+   161→    setLoading(true)
+   162→    try {
+   163→      setFetchError(null)
+   164→      const data = await api.getOrganization(orgId)
+   165→      setOrgData(data)
+   166→      orgForm.reset({
+   167→        orgName: data.organization.name,
+   168→        orgLogoUrl: data.organization.slug || '',
+   169→        orgCurrency: data.organization.currency || 'ETB',
+   170→        orgCountry: data.organization.country || 'Ethiopia',
+   171→      })
+   172→    } catch (err) {
+   173→      setFetchError(getNetworkErrorMessage(err))
+   174→    } finally {
+   175→      setLoading(false)
+   176→    }
+   177→  }, [orgId])
+   178→
+   179→  useEffect(() => {
+   180→    fetchOrg()
+   181→  }, [fetchOrg])
+   182→
+   183→  const handleSave = async (data: OrgSettingsFormData) => {
+   184→    if (!orgId) return
+   185→    setSaving(true)
+   186→    try {
+   187→      const res = await fetch(`/api/organizations/${orgId}`, {
+   188→        method: 'PATCH',
+   189→        headers: {
+   190→          'Content-Type': 'application/json',
+   191→          Authorization: `Bearer ${localStorage.getItem('sb_token')}`,
+   192→        },
+   193→        body: JSON.stringify({
+   194→          name: data.orgName,
+   195→          currency: data.orgCurrency,
+   196→          country: data.orgCountry,
+   197→          logoUrl: data.orgLogoUrl || undefined,
+   198→        }),
+   199→      })
+   200→      if (!res.ok) {
+   201→        throw new Error(`Failed to update organization (${res.status})`)
+   202→      }
+   203→      toast.success('Organization updated successfully')
+   204→      fetchOrg()
+   205→    } catch (err) {
+   206→      toast.error(getNetworkErrorMessage(err))
+   207→    } finally {
+   208→      setSaving(false)
+   209→    }
+   210→  }
+   211→
+   212→  const handleInvite = async (data: InviteMemberFormData) => {
+   213→    setInviteSubmitting(true)
+   214→    try {
+   215→      // Simulated invite - no actual API endpoint
+   216→      await new Promise((r) => setTimeout(r, 1000))
+   217→      toast.success(`Invitation sent to ${data.email}`)
+   218→      setShowInvite(false)
+   219→      inviteForm.reset()
+   220→    } catch (err) {
+   221→      toast.error(getNetworkErrorMessage(err))
+   222→    } finally {
+   223→      setInviteSubmitting(false)
+   224→    }
+   225→  }
+   226→
+   227→  if (loading) {
+   228→    return (
+   229→      <div className="space-y-6">
+   230→        <Card>
+   231→          <CardContent className="p-6 space-y-4">
+   232→            {Array.from({ length: 4 }).map((_, i) => (
+   233→              <Skeleton key={i} className="h-10 w-full" />
+   234→            ))}
+   235→          </CardContent>
+   236→        </Card>
+   237→      </div>
+   238→    )
+   239→  }
+   240→
+   241→  if (fetchError) {
+   242→    return <ErrorState title="Failed to load organization settings" error={fetchError} onRetry={fetchOrg} />
+   243→  }
+   244→
+   245→  const members = orgData?.organization.members || []
+   246→
+   247→  return (
+   248→    <div className="space-y-6">
+   249→      {/* Org Info */}
+   250→      <Card>
+   251→        <CardHeader>
+   252→          <CardTitle>Organization Details</CardTitle>
+   253→          <CardDescription>Update your organization information</CardDescription>
+   254→        </CardHeader>
+   255→        <Form {...orgForm}>
+   256→          <form onSubmit={orgForm.handleSubmit(handleSave)}>
+   257→            <CardContent className="space-y-4">
+   258→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   259→                <FormInputField<OrgSettingsFormData>
+   260→                  name="orgName"
+   261→                  label="Organization Name"
+   262→                  required
+   263→                />
+   264→                <FormInputField<OrgSettingsFormData>
+   265→                  name="orgLogoUrl"
+   266→                  label="Logo URL"
+   267→                  placeholder="https://..."
+   268→                />
+   269→                <FormSelectField<OrgSettingsFormData>
+   270→                  name="orgCurrency"
+   271→                  label="Currency"
+   272→                  options={[
+   273→                    { value: 'ETB', label: 'ETB - Ethiopian Birr' },
+   274→                    { value: 'USD', label: 'USD - US Dollar' },
+   275→                    { value: 'EUR', label: 'EUR - Euro' },
+   276→                    { value: 'GBP', label: 'GBP - British Pound' },
+   277→                    { value: 'KES', label: 'KES - Kenyan Shilling' },
+   278→                  ]}
+   279→                />
+   280→                <FormSelectField<OrgSettingsFormData>
+   281→                  name="orgCountry"
+   282→                  label="Country"
+   283→                  options={[
+   284→                    { value: 'Ethiopia', label: 'Ethiopia' },
+   285→                    { value: 'Kenya', label: 'Kenya' },
+   286→                    { value: 'Nigeria', label: 'Nigeria' },
+   287→                    { value: 'Ghana', label: 'Ghana' },
+   288→                    { value: 'South Africa', label: 'South Africa' },
+   289→                    { value: 'United States', label: 'United States' },
+   290→                    { value: 'United Kingdom', label: 'United Kingdom' },
+   291→                  ]}
+   292→                />
+   293→              </div>
+   294→            </CardContent>
+   295→            <CardFooter>
+   296→              <FormSubmitButton isLoading={saving} loadingText="Saving..." className="gap-2">
+   297→                <><Save className="size-4" /> Save Changes</>
+   298→              </FormSubmitButton>
+   299→            </CardFooter>
+   300→          </form>
+   301→        </Form>
+   302→      </Card>
+   303→
+   304→      {/* Members */}
+   305→      <Card>
+   306→        <CardHeader>
+   307→          <div className="flex items-center justify-between">
+   308→            <div>
+   309→              <CardTitle>Team Members</CardTitle>
+   310→              <CardDescription>Manage who has access to your organization</CardDescription>
+   311→            </div>
+   312→            <Button onClick={() => setShowInvite(true)} className="gap-2">
+   313→              <UserPlus className="size-4" />
+   314→              Invite
+   315→            </Button>
+   316→          </div>
+   317→        </CardHeader>
+   318→        <CardContent className="p-0">
+   319→          {/* Desktop table */}
+   320→          <div className="hidden md:block">
+   321→            <Table>
+   322→              <TableHeader>
+   323→                <TableRow>
+   324→                  <TableHead>Name</TableHead>
+   325→                  <TableHead>Email</TableHead>
+   326→                  <TableHead>Role</TableHead>
+   327→                </TableRow>
+   328→              </TableHeader>
+   329→              <TableBody>
+   330→                {members.map((member) => (
+   331→                  <TableRow key={member.id}>
+   332→                    <TableCell className="font-medium">
+   333→                      <div className="flex items-center gap-2">
+   334→                        <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+   335→                          {member.user.name.charAt(0).toUpperCase()}
+   336→                        </div>
+   337→                        {member.user.name}
+   338→                      </div>
+   339→                    </TableCell>
+   340→                    <TableCell className="text-muted-foreground">{member.user.email}</TableCell>
+   341→                    <TableCell>
+   342→                      <Badge
+   343→                        variant="outline"
+   344→                        className={
+   345→                          member.role === 'owner'
+   346→                            ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700'
+   347→                            : member.role === 'manager'
+   348→                              ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700'
+   349→                              : 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-900/30 dark:text-gray-400 dark:border-gray-700'
+   350→                        }
+   351→                      >
+   352→                        {member.role === 'owner' && <Crown className="size-3 mr-1" />}
+   353→                        {member.role === 'manager' && <Shield className="size-3 mr-1" />}
+   354→                        {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+   355→                      </Badge>
+   356→                    </TableCell>
+   357→                  </TableRow>
+   358→                ))}
+   359→                {members.length === 0 && (
+   360→                  <TableRow>
+   361→                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+   362→                      No members found
+   363→                    </TableCell>
+   364→                  </TableRow>
+   365→                )}
+   366→              </TableBody>
+   367→            </Table>
+   368→          </div>
+   369→          {/* Mobile card view */}
+   370→          <div className="md:hidden divide-y p-3 space-y-3">
+   371→            {members.length === 0 ? (
+   372→              <p className="text-center py-8 text-muted-foreground text-sm">No members found</p>
+   373→            ) : (
+   374→              members.map((member) => (
+   375→                <div key={member.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+   376→                  <div className="flex items-center gap-3 min-w-0">
+   377→                    <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+   378→                      {member.user.name.charAt(0).toUpperCase()}
+   379→                    </div>
+   380→                    <div className="min-w-0">
+   381→                      <p className="font-medium text-sm truncate">{member.user.name}</p>
+   382→                      <p className="text-xs text-muted-foreground truncate">{member.user.email}</p>
+   383→                    </div>
+   384→                  </div>
+   385→                  <Badge
+   386→                    variant="outline"
+   387→                    className={
+   388→                      member.role === 'owner'
+   389→                        ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700 shrink-0 ml-2'
+   390→                        : member.role === 'manager'
+   391→                          ? 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700 shrink-0 ml-2'
+   392→                          : 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-900/30 dark:text-gray-400 dark:border-gray-700 shrink-0 ml-2'
+   393→                    }
+   394→                  >
+   395→                    {member.role === 'owner' && <Crown className="size-3 mr-1" />}
+   396→                    {member.role === 'manager' && <Shield className="size-3 mr-1" />}
+   397→                    {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+   398→                  </Badge>
+   399→                </div>
+   400→              ))
+   401→            )}
+   402→          </div>
+   403→        </CardContent>
+   404→      </Card>
+   405→
+   406→      {/* Invite Dialog */}
+   407→      <Dialog open={showInvite} onOpenChange={(open) => {
+   408→        if (!open) inviteForm.reset()
+   409→        setShowInvite(open)
+   410→      }}>
+   411→        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+   412→          <DialogHeader>
+   413→            <DialogTitle>Invite Team Member</DialogTitle>
+   414→            <DialogDescription>Send an invitation to join your organization</DialogDescription>
+   415→          </DialogHeader>
+   416→          <Form {...inviteForm}>
+   417→            <form onSubmit={inviteForm.handleSubmit(handleInvite)} className="space-y-4">
+   418→              <FormInputField<InviteMemberFormData>
+   419→                name="email"
+   420→                label="Email Address"
+   421→                type="email"
+   422→                placeholder="colleague@example.com"
+   423→                required
+   424→              />
+   425→              <FormSelectField<InviteMemberFormData>
+   426→                name="role"
+   427→                label="Role"
+   428→                options={[
+   429→                  { value: 'member', label: 'Member' },
+   430→                  { value: 'manager', label: 'Manager' },
+   431→                ]}
+   432→              />
+   433→            </form>
+   434→          </Form>
+   435→          <DialogFooter>
+   436→            <Button variant="outline" onClick={() => { setShowInvite(false); inviteForm.reset() }}>
+   437→              Cancel
+   438→            </Button>
+   439→            <FormSubmitButton
+   440→              isLoading={inviteSubmitting}
+   441→              loadingText="Sending..."
+   442→              onClick={inviteForm.handleSubmit(handleInvite)}
+   443→            >
+   444→              Send Invitation
+   445→            </FormSubmitButton>
+   446→          </DialogFooter>
+   447→        </DialogContent>
+   448→      </Dialog>
+   449→    </div>
+   450→  )
+   451→}
+   452→
+   453→// ============================================
+   454→// Subscription Tab
+   455→// ============================================
+   456→function SubscriptionTab({ orgId }: { orgId: string }) {
+   457→  const [subscription, setSubscription] = useState<{
+   458→    subscription: {
+   459→      id: string
+   460→      name: string
+   461→      subscriptionPlan: string
+   462→      subscriptionStatus: string
+   463→      subscriptionExpiresAt?: string | null
+   464→    }
+   465→    planLimits: {
+   466→      maxProducts: number
+   467→      maxUsers: number
+   468→      features: string[]
+   469→    }
+   470→    plans: Array<{
+   471→      name: string
+   472→      maxProducts: number
+   473→      maxUsers: number
+   474→      features: string[]
+   475→    }>
+   476→  } | null>(null)
+   477→  const [loading, setLoading] = useState(true)
+   478→  const [changingPlan, setChangingPlan] = useState<string | null>(null)
+   479→
+   480→  const fetchSubscription = useCallback(async () => {
+   481→    if (!orgId) return
+   482→    setLoading(true)
+   483→    try {
+   484→      const data = await api.getSubscription(orgId)
+   485→      setSubscription(data as unknown as typeof subscription)
+   486→    } catch (err) {
+   487→      toast.error(getNetworkErrorMessage(err))
+   488→    } finally {
+   489→      setLoading(false)
+   490→    }
+   491→  }, [orgId])
+   492→
+   493→  useEffect(() => {
+   494→    fetchSubscription()
+   495→  }, [fetchSubscription])
+   496→
+   497→  const handleChangePlan = async (plan: string) => {
+   498→    if (!orgId) return
+   499→    setChangingPlan(plan)
+   500→    try {
+   501→      await api.updateSubscription(orgId, plan)
+   502→      toast.success(`Plan updated to ${plan.charAt(0).toUpperCase() + plan.slice(1)}`)
+   503→      fetchSubscription()
+   504→    } catch (err) {
+   505→      toast.error(getNetworkErrorMessage(err))
+   506→    } finally {
+   507→      setChangingPlan(null)
+   508→    }
+   509→  }
+   510→
+   511→  // Plan display data with updated Ethiopian pricing
+   512→  const planDisplay = [
+   513→    {
+   514→      key: 'starter',
+   515→      name: 'Starter',
+   516→      price: 'Free',
+   517→      priceDetail: '',
+   518→      features: [
+   519→        'Basic inventory management',
+   520→        'Basic sales tracking',
+   521→        '1 user included',
+   522→        'Debt management',
+   523→        '50 products max',
+   524→      ],
+   525→      color: 'bg-gray-50 dark:bg-gray-900/30',
+   526→      border: 'border-gray-200 dark:border-gray-700',
+   527→      popular: false,
+   528→    },
+   529→    {
+   530→      key: 'growth',
+   531→      name: 'Growth',
+   532→      price: 'ETB 150',
+   533→      priceDetail: '/month',
+   534→      features: [
+   535→        'Everything in Starter',
+   536→        '500 products',
+   537→        '2 users included',
+   538→        'Debts & credit tracking',
+   539→        'Customer management',
+   540→      ],
+   541→      color: 'bg-sky-50 dark:bg-sky-950/30',
+   542→      border: 'border-sky-300 dark:border-sky-700',
+   543→      popular: false,
+   544→    },
+   545→    {
+   546→      key: 'professional',
+   547→      name: 'Professional',
+   548→      price: 'ETB 300',
+   549→      priceDetail: '/month',
+   550→      features: [
+   551→        'Everything in Growth',
+   552→        '2,000 products',
+   553→        '10 users included',
+   554→        'AI Business Assistant',
+   555→        'Advanced reports & analytics',
+   556→        'Telegram bot integration',
+   557→        'Supplier management',
+   558→      ],
+   559→      color: 'bg-brand-50 dark:bg-brand-900/20',
+   560→      border: 'border-brand-100 dark:border-brand-900/30',
+   561→      popular: true,
+   562→    },
+   563→    {
+   564→      key: 'premium',
+   565→      name: 'Premium',
+   566→      price: 'ETB 500',
+   567→      priceDetail: '/month',
+   568→      features: [
+   569→        'Everything in Professional',
+   570→        'Unlimited products & users',
+   571→        'AI Inventory Assistant',
+   572→        'AI-powered insights',
+   573→        'WhatsApp Business integration',
+   574→        'API access',
+   575→        'Custom integrations',
+   576→        'Priority support',
+   577→      ],
+   578→      color: 'bg-amber-50 dark:bg-amber-950/30',
+   579→      border: 'border-amber-300 dark:border-amber-700',
+   580→      popular: false,
+   581→    },
+   582→  ]
+   583→
+   584→  const currentPlan = subscription?.subscription.subscriptionPlan || 'starter'
+   585→
+   586→  if (loading) {
+   587→    return (
+   588→      <div className="space-y-6">
+   589→        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+   590→          {Array.from({ length: 3 }).map((_, i) => (
+   591→            <Card key={i}>
+   592→              <CardContent className="p-6 space-y-4">
+   593→                <Skeleton className="h-8 w-24" />
+   594→                <Skeleton className="h-6 w-32" />
+   595→                {Array.from({ length: 5 }).map((_, j) => (
+   596→                  <Skeleton key={j} className="h-4 w-full" />
+   597→                ))}
+   598→              </CardContent>
+   599→            </Card>
+   600→          ))}
+   601→        </div>
+   602→      </div>
+   603→    )
+   604→  }
+   605→
+   606→  return (
+   607→    <div className="space-y-6">
+   608→      {/* Current Plan */}
+   609→      <Card>
+   610→        <CardContent className="p-4">
+   611→          <div className="flex items-center justify-between">
+   612→            <div className="flex items-center gap-3">
+   613→              <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+   614→                <CreditCard className="size-5 text-primary" />
+   615→              </div>
+   616→              <div>
+   617→                <p className="text-sm text-muted-foreground">Current Plan</p>
+   618→                <p className="text-base font-semibold capitalize">
+   619→                  {currentPlan === 'premium' ? 'Premium' : currentPlan}
+   620→                </p>
+   621→              </div>
+   622→            </div>
+   623→            <div className="text-right">
+   624→              <Badge
+   625→                variant="outline"
+   626→                className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700"
+   627→              >
+   628→                {subscription?.subscription.subscriptionStatus === 'active' ? 'Active' : subscription?.subscription.subscriptionStatus}
+   629→              </Badge>
+   630→              {subscription?.subscription.subscriptionExpiresAt && (
+   631→                <p className="text-xs text-muted-foreground mt-1">
+   632→                  Expires {new Date(subscription.subscription.subscriptionExpiresAt).toLocaleDateString('en-US', {
+   633→                    year: 'numeric', month: 'short', day: 'numeric'
+   634→                  })}
+   635→                </p>
+   636→              )}
+   637→            </div>
+   638→          </div>
+   639→        </CardContent>
+   640→      </Card>
+   641→
+   642→      {/* Plan Cards */}
+   643→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+   644→        {planDisplay.map((plan) => {
+   645→          const isCurrent = currentPlan === plan.key
+   646→          const isPopular = plan.popular
+   647→          return (
+   648→            <Card
+   649→              key={plan.key}
+   650→              className={`relative transition-all ${
+   651→                isCurrent
+   652→                  ? 'border-2 border-primary shadow-md'
+   653→                  : isPopular
+   654→                    ? 'border-2 border-primary shadow-sm'
+   655→                    : 'border hover:border-brand-100 dark:hover:border-brand-900/30'
+   656→              }`}
+   657→            >
+   658→              {isCurrent && (
+   659→                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+   660→                  <Badge className="bg-primary text-primary-foreground">Current Plan</Badge>
+   661→                </div>
+   662→              )}
+   663→              {isPopular && !isCurrent && (
+   664→                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+   665→                  <Badge className="bg-primary text-primary-foreground">Most Popular</Badge>
+   666→                </div>
+   667→              )}
+   668→              <CardHeader className={`${plan.color} rounded-t-lg`}>
+   669→                <CardTitle className="text-base">{plan.name}</CardTitle>
+   670→                <div className="flex items-baseline gap-1">
+   671→                  <span className="text-lg font-semibold">{plan.price}</span>
+   672→                  {plan.priceDetail && (
+   673→                    <span className="text-sm text-muted-foreground">{plan.priceDetail}</span>
+   674→                  )}
+   675→                </div>
+   676→              </CardHeader>
+   677→              <CardContent className="p-4 md:p-6">
+   678→                <ul className="space-y-2.5">
+   679→                  {plan.features.map((feature, i) => (
+   680→                    <li key={i} className="flex items-start gap-2 text-sm">
+   681→                      <Check className="size-4 text-primary shrink-0 mt-0.5" />
+   682→                      <span>{feature}</span>
+   683→                    </li>
+   684→                  ))}
+   685→                </ul>
+   686→              </CardContent>
+   687→              <CardFooter className="p-4 md:p-6 pt-0">
+   688→                {isCurrent ? (
+   689→                  <Button variant="outline" className="w-full" disabled>
+   690→                    Current Plan
+   691→                  </Button>
+   692→                ) : (
+   693→                  <Button
+   694→                    className="w-full"
+   695→                    variant={isPopular ? 'default' : 'outline'}
+   696→                    onClick={() => handleChangePlan(plan.key)}
+   697→                    disabled={changingPlan !== null}
+   698→                  >
+   699→                    {changingPlan === plan.key ? (
+   700→                      <>
+   701→                        <Loader2 className="size-4 animate-spin mr-2" />
+   702→                        Updating...
+   703→                      </>
+   704→                    ) : (
+   705→                      currentPlan === 'premium' && plan.key !== 'premium'
+   706→                        ? 'Downgrade'
+   707→                        : 'Upgrade'
+   708→                    )}
+   709→                  </Button>
+   710→                )}
+   711→              </CardFooter>
+   712→            </Card>
+   713→          )
+   714→        })}
+   715→      </div>
+   716→
+   717→      {/* Plan Limits Info */}
+   718→      <Card>
+   719→        <CardHeader>
+   720→          <CardTitle className="text-base">Plan Limits</CardTitle>
+   721→          <CardDescription>Current usage and limits for your plan</CardDescription>
+   722→        </CardHeader>
+   723→        <CardContent>
+   724→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   725→            <div className="flex items-center justify-between p-3 rounded-lg border">
+   726→              <span className="text-sm">Max Products</span>
+   727→              <Badge variant="secondary">
+   728→                {subscription?.planLimits.maxProducts === -1
+   729→                  ? 'Unlimited'
+   730→                  : subscription?.planLimits.maxProducts || 100}
+   731→              </Badge>
+   732→            </div>
+   733→            <div className="flex items-center justify-between p-3 rounded-lg border">
+   734→              <span className="text-sm">Max Users</span>
+   735→              <Badge variant="secondary">
+   736→                {subscription?.planLimits.maxUsers === -1
+   737→                  ? 'Unlimited'
+   738→                  : subscription?.planLimits.maxUsers || 2}
+   739→              </Badge>
+   740→            </div>
+   741→          </div>
+   742→        </CardContent>
+   743→      </Card>
+   744→    </div>
+   745→  )
+   746→}
+   747→
+   748→// ============================================
+   749→// Integrations Tab — imported from separate component
+   750→// ============================================
+   751→// The IntegrationsTab is now in integrations-tab.tsx for maintainability
+   752→
+   753→// ============================================
+   754→// Icon Map for Modules
+   755→// ============================================
+   756→const MODULE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+   757→  Package,
+   758→  ShoppingCart,
+   759→  HandCoins,
+   760→  Users,
+   761→  Truck,
+   762→  Store,
+   763→  BarChart3,
+   764→  AlertTriangle,
+   765→  TrendingUp,
+   766→  Brain,
+   767→  ScanSearch,
+   768→  Send,
+   769→  MessageSquare,
+   770→}
+   771→
+   772→// ============================================
+   773→// Shops Tab
+   774→// ============================================
+   775→function ShopsTab({ orgId }: { orgId: string }) {
+   776→  const [shops, setShops] = useState<Array<{
+   777→    id: string
+   778→    name: string
+   779→    address: string | null
+   780→    city: string | null
+   781→    phone: string | null
+   782→    isActive: boolean
+   783→    members: Array<{ id: string; userId: string; role: string; user: { id: string; name: string; email: string; avatarUrl?: string | null } }>
+   784→    _count: { products: number; sales: number }
+   785→  }>>([])
+   786→  const [loading, setLoading] = useState(true)
+   787→  const [fetchError, setFetchError] = useState<string | null>(null)
+   788→  const [showDialog, setShowDialog] = useState(false)
+   789→  const [editingShopId, setEditingShopId] = useState<string | null>(null)
+   790→  const [saving, setSaving] = useState(false)
+   791→  const [expandedShop, setExpandedShop] = useState<string | null>(null)
+   792→
+   793→  const [orgMembers, setOrgMembers] = useState<Array<{
+   794→    id: string; userId: string; role: string;
+   795→    user: { id: string; name: string; email: string }
+   796→  }>>([])
+   797→
+   798→  const [showAddMember, setShowAddMember] = useState<string | null>(null)
+   799→  const [addMemberUserId, setAddMemberUserId] = useState('')
+   800→  const [addMemberRole, setAddMemberRole] = useState('cashier')
+   801→  const [addMemberSaving, setAddMemberSaving] = useState(false)
+   802→
+   803→  // Shop form
+   804→  const shopForm = useForm<ShopFormData>({
+   805→    resolver: zodResolver(shopSchema),
+   806→    defaultValues: { name: '', address: '', city: '', phone: '', latitude: null, longitude: null },
+   807→  })
+   808→
+   809→  const fetchShops = useCallback(async () => {
+   810→    if (!orgId) return
+   811→    setLoading(true)
+   812→    try {
+   813→      setFetchError(null)
+   814→      const data = await api.getShops(orgId)
+   815→      setShops(data.shops)
+   816→    } catch (err) {
+   817→      setFetchError(getNetworkErrorMessage(err))
+   818→    } finally {
+   819→      setLoading(false)
+   820→    }
+   821→  }, [orgId])
+   822→
+   823→  const fetchOrgMembers = useCallback(async () => {
+   824→    if (!orgId) return
+   825→    try {
+   826→      const data = await api.getOrganization(orgId)
+   827→      setOrgMembers(data.organization.members || [])
+   828→    } catch { /* silently fail */ }
+   829→  }, [orgId])
+   830→
+   831→  useEffect(() => { fetchShops(); fetchOrgMembers() }, [fetchShops, fetchOrgMembers])
+   832→
+   833→  const openCreateDialog = () => {
+   834→    setEditingShopId(null)
+   835→    shopForm.reset({ name: '', address: '', city: '', phone: '', latitude: null, longitude: null })
+   836→    setShowDialog(true)
+   837→  }
+   838→
+   839→  const openEditDialog = (shop: typeof shops[0]) => {
+   840→    setEditingShopId(shop.id)
+   841→    shopForm.reset({
+   842→      name: shop.name,
+   843→      address: shop.address || '',
+   844→      city: shop.city || '',
+   845→      phone: shop.phone || '',
+   846→      latitude: null,
+   847→      longitude: null,
+   848→    })
+   849→    setShowDialog(true)
+   850→  }
+   851→
+   852→  const handleSaveShop = async (data: ShopFormData) => {
+   853→    setSaving(true)
+   854→    try {
+   855→      if (editingShopId) {
+   856→        await api.updateShop(editingShopId, orgId, {
+   857→          name: data.name, address: data.address || undefined, city: data.city || undefined,
+   858→          phone: data.phone || undefined, latitude: data.latitude || undefined, longitude: data.longitude || undefined,
+   859→        })
+   860→        toast.success('Shop updated successfully')
+   861→      } else {
+   862→        await api.createShop(orgId, {
+   863→          name: data.name, address: data.address || undefined, city: data.city || undefined,
+   864→          phone: data.phone || undefined, latitude: data.latitude || undefined, longitude: data.longitude || undefined,
+   865→        })
+   866→        toast.success('Shop created successfully')
+   867→      }
+   868→      setShowDialog(false); fetchShops()
+   869→    } catch (err) {
+   870→      toast.error(getNetworkErrorMessage(err))
+   871→    } finally { setSaving(false) }
+   872→  }
+   873→
+   874→  const handleToggleActive = async (shop: typeof shops[0]) => {
+   875→    try {
+   876→      await api.updateShop(shop.id, orgId, { isActive: !shop.isActive })
+   877→      toast.success(shop.isActive ? 'Shop deactivated' : 'Shop activated')
+   878→      fetchShops()
+   879→    } catch (err) { toast.error(getNetworkErrorMessage(err)) }
+   880→  }
+   881→
+   882→  const handleAddMember = async () => {
+   883→    if (!addMemberUserId) { toast.error('Please select a member'); return }
+   884→    setAddMemberSaving(true)
+   885→    try {
+   886→      await api.addShopMember(showAddMember!, orgId, { userId: addMemberUserId, role: addMemberRole })
+   887→      toast.success('Member added to shop')
+   888→      setShowAddMember(null); setAddMemberUserId(''); setAddMemberRole('cashier')
+   889→      fetchShops()
+   890→    } catch (err: unknown) {
+   891→      toast.error(getNetworkErrorMessage(err))
+   892→    } finally { setAddMemberSaving(false) }
+   893→  }
+   894→
+   895→  const handleUpdateMemberRole = async (shopId: string, memberId: string, role: string) => {
+   896→    try {
+   897→      await api.updateShopMember(shopId, memberId, orgId, { role })
+   898→      toast.success('Role updated'); fetchShops()
+   899→    } catch (err) { toast.error(getNetworkErrorMessage(err)) }
+   900→  }
+   901→
+   902→  const [removeMemberTarget, setRemoveMemberTarget] = useState<{ shopId: string; memberId: string; memberName: string; shopName: string } | null>(null)
+   903→  const [removingMember, setRemovingMember] = useState(false)
+   904→
+   905→  const handleRemoveMember = async () => {
+   906→    if (!removeMemberTarget) return
+   907→    const { shopId, memberId } = removeMemberTarget
+   908→    setRemovingMember(true)
+   909→    try {
+   910→      await api.removeShopMember(shopId, memberId, orgId)
+   911→      toast.success('Member removed from shop')
+   912→      setRemoveMemberTarget(null)
+   913→      fetchShops()
+   914→    } catch (err) { toast.error(getNetworkErrorMessage(err)) }
+   915→    finally { setRemovingMember(false) }
+   916→  }
+   917→
+   918→  if (loading) {
+   919→    return (
+   920→      <div className="space-y-6">
+   921→        {Array.from({ length: 2 }).map((_, i) => (
+   922→          <Card key={i}><CardContent className="p-6 space-y-4">
+   923→            <Skeleton className="h-6 w-48" /><Skeleton className="h-4 w-32" />
+   924→            <div className="flex gap-4"><Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-20" /></div>
+   925→          </CardContent></Card>
+   926→        ))}
+   927→      </div>
+   928→    )
+   929→  }
+   930→
+   931→  if (fetchError) {
+   932→    return <ErrorState title="Failed to load shops" error={fetchError} onRetry={fetchShops} />
+   933→  }
+   934→
+   935→  return (
+   936→    <div className="space-y-6">
+   937→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+   938→        <div>
+   939→          <h3 className="text-base font-semibold">Shop Locations</h3>
+   940→          <p className="text-sm text-muted-foreground">{shops.length} shop{shops.length !== 1 ? 's' : ''} in your organization</p>
+   941→        </div>
+   942→        <Button onClick={openCreateDialog} className="gap-2 w-full sm:w-auto"><Store className="size-4" />Add Shop</Button>
+   943→      </div>
+   944→
+   945→      {shops.length === 0 ? (
+   946→        <Card><CardContent className="py-12 text-center">
+   947→          <Store className="size-12 mx-auto text-muted-foreground/40 mb-4" />
+   948→          <p className="text-muted-foreground">No shops yet. Add your first shop location.</p>
+   949→        </CardContent></Card>
+   950→      ) : (
+   951→        <div className="space-y-4">
+   952→          {shops.map((shop) => (
+   953→            <Collapsible key={shop.id} open={expandedShop === shop.id} onOpenChange={(open) => setExpandedShop(open ? shop.id : null)}>
+   954→              <Card className={!shop.isActive ? 'opacity-60' : ''}>
+   955→                <CardContent className="p-4 md:p-6">
+   956→                  <div className="flex items-start justify-between gap-4">
+   957→                    <div className="flex items-start gap-3 min-w-0">
+   958→                      <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center shrink-0">
+   959→                        <Store className="size-5 text-primary" />
+   960→                      </div>
+   961→                      <div className="min-w-0">
+   962→                        <div className="flex items-center gap-2 flex-wrap">
+   963→                          <h4 className="font-semibold truncate">{shop.name}</h4>
+   964→                          <Badge variant="outline" className={shop.isActive ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700' : 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-900/30 dark:text-gray-400 dark:border-gray-700'}>
+   965→                            {shop.isActive ? 'Active' : 'Inactive'}
+   966→                          </Badge>
+   967→                        </div>
+   968→                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
+   969→                          {shop.address && <span className="flex items-center gap-1 truncate"><MapPin className="size-3.5 shrink-0" /><span className="truncate">{shop.address}</span></span>}
+   970→                          {shop.city && <span>{shop.city}</span>}
+   971→                          {shop.phone && <span className="flex items-center gap-1"><Phone className="size-3.5 shrink-0" />{shop.phone}</span>}
+   972→                        </div>
+   973→                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+   974→                          <span className="flex items-center gap-1"><Users className="size-3.5" />{shop.members.length} member{shop.members.length !== 1 ? 's' : ''}</span>
+   975→                          <span className="flex items-center gap-1"><Package className="size-3.5" />{shop._count.products} product{shop._count.products !== 1 ? 's' : ''}</span>
+   976→                        </div>
+   977→                      </div>
+   978→                    </div>
+   979→                    <div className="flex items-center gap-2 shrink-0">
+   980→                      <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(shop)}><Pencil className="size-4" /></Button>
+   981→                      <Switch checked={shop.isActive} onCheckedChange={() => handleToggleActive(shop)} />
+   982→                      <CollapsibleTrigger asChild>
+   983→                        <Button variant="ghost" size="sm" className="gap-1">
+   984→                          {expandedShop === shop.id ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+   985→                          <span className="hidden sm:inline">Team</span>
+   986→                        </Button>
+   987→                      </CollapsibleTrigger>
+   988→                    </div>
+   989→                  </div>
+   990→                </CardContent>
+   991→                <CollapsibleContent>
+   992→                  <div className="border-t px-4 md:px-6 py-4">
+   993→                    <div className="flex items-center justify-between mb-3">
+   994→                      <h5 className="text-sm font-medium">Shop Team</h5>
+   995→                      <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setShowAddMember(shop.id); setAddMemberUserId(''); setAddMemberRole('cashier') }}>
+   996→                        <UserPlus className="size-3.5" />Add Member
+   997→                      </Button>
+   998→                    </div>
+   999→                    {shop.members.length === 0 ? (
+  1000→                      <p className="text-sm text-muted-foreground py-4 text-center">No members assigned to this shop yet</p>
+  1001→                    ) : (
+  1002→                      <div className="space-y-2">
+  1003→                        {shop.members.map((member) => (
+  1004→                          <div key={member.id} className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-muted/50">
+  1005→                            <div className="flex items-center gap-3 min-w-0">
+  1006→                              <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+  1007→                                {member.user.name.charAt(0).toUpperCase()}
+  1008→                              </div>
+  1009→                              <div className="min-w-0">
+  1010→                                <p className="text-sm font-medium truncate">{member.user.name}</p>
+  1011→                                <p className="text-xs text-muted-foreground truncate">{member.user.email}</p>
+  1012→                              </div>
+  1013→                            </div>
+  1014→                            <div className="flex items-center gap-2 shrink-0">
+  1015→                              <Select value={member.role} onValueChange={(role) => handleUpdateMemberRole(shop.id, member.id, role)}>
+  1016→                                <SelectTrigger className="h-7 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+  1017→                                <SelectContent>
+  1018→                                  <SelectItem value="manager">Manager</SelectItem>
+  1019→                                  <SelectItem value="cashier">Cashier</SelectItem>
+  1020→                                  <SelectItem value="warehouse">Warehouse</SelectItem>
+  1021→                                  <SelectItem value="sales">Sales</SelectItem>
+  1022→                                </SelectContent>
+  1023→                              </Select>
+  1024→                              <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive" onClick={() => setRemoveMemberTarget({ shopId: shop.id, memberId: member.id, memberName: member.user.name, shopName: shop.name })}>
+  1025→                                <Trash2 className="size-3.5" />
+  1026→                              </Button>
+  1027→                            </div>
+  1028→                          </div>
+  1029→                        ))}
+  1030→                      </div>
+  1031→                    )}
+  1032→                  </div>
+  1033→                </CollapsibleContent>
+  1034→              </Card>
+  1035→            </Collapsible>
+  1036→          ))}
+  1037→        </div>
+  1038→      )}
+  1039→
+  1040→      {/* Add/Edit Shop Dialog */}
+  1041→      <Dialog open={showDialog} onOpenChange={(open) => {
+  1042→        if (!open) shopForm.reset()
+  1043→        setShowDialog(open)
+  1044→      }}>
+  1045→        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto">
+  1046→          <DialogHeader>
+  1047→            <DialogTitle>{editingShopId ? 'Edit Shop' : 'Add New Shop'}</DialogTitle>
+  1048→            <DialogDescription>{editingShopId ? 'Update shop details' : 'Add a new shop location to your organization'}</DialogDescription>
+  1049→          </DialogHeader>
+  1050→          <Form {...shopForm}>
+  1051→            <form onSubmit={shopForm.handleSubmit(handleSaveShop)} className="space-y-4">
+  1052→              <FormInputField<ShopFormData>
+  1053→                name="name"
+  1054→                label="Name"
+  1055→                placeholder="e.g. Bole Main Branch"
+  1056→                required
+  1057→              />
+  1058→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  1059→                <FormInputField<ShopFormData>
+  1060→                  name="address"
+  1061→                  label="Address"
+  1062→                  placeholder="e.g. Bole Road, Atlas Building"
+  1063→                />
+  1064→                <FormInputField<ShopFormData>
+  1065→                  name="city"
+  1066→                  label="City"
+  1067→                  placeholder="e.g. Addis Ababa"
+  1068→                />
+  1069→              </div>
+  1070→              <FormInputField<ShopFormData>
+  1071→                name="phone"
+  1072→                label="Phone"
+  1073→                placeholder="e.g. +251111234567"
+  1074→              />
+  1075→              <div className="space-y-2">
+  1076→                <Label>Location</Label>
+  1077→                <LocationPicker
+  1078→                  latitude={shopForm.watch('latitude')}
+  1079→                  longitude={shopForm.watch('longitude')}
+  1080→                  onChange={(lat, lng) => {
+  1081→                    shopForm.setValue('latitude', lat)
+  1082→                    shopForm.setValue('longitude', lng)
+  1083→                  }}
+  1084→                />
+  1085→              </div>
+  1086→              <DialogFooter>
+  1087→                <Button type="button" variant="outline" onClick={() => { setShowDialog(false); shopForm.reset() }}>Cancel</Button>
+  1088→                <FormSubmitButton
+  1089→                  isLoading={saving}
+  1090→                  loadingText="Saving..."
+  1091→                >
+  1092→                  {editingShopId ? 'Save Changes' : 'Create Shop'}
+  1093→                </FormSubmitButton>
+  1094→              </DialogFooter>
+  1095→            </form>
+  1096→          </Form>
+  1097→        </DialogContent>
+  1098→      </Dialog>
+  1099→
+  1100→      {/* Add Member Dialog */}
+  1101→      <Dialog open={!!showAddMember} onOpenChange={(open) => { if (!open) setShowAddMember(null) }}>
+  1102→        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+  1103→          <DialogHeader>
+  1104→            <DialogTitle>Add Shop Member</DialogTitle>
+  1105→            <DialogDescription>Select an organization member and assign a shop role</DialogDescription>
+  1106→          </DialogHeader>
+  1107→          <div className="space-y-4">
+  1108→            <div className="space-y-2">
+  1109→              <Label>Member</Label>
+  1110→              <Select value={addMemberUserId} onValueChange={setAddMemberUserId}>
+  1111→                <SelectTrigger><SelectValue placeholder="Select a member..." /></SelectTrigger>
+  1112→                <SelectContent>
+  1113→                  {orgMembers.map((m) => (
+  1114→                    <SelectItem key={m.userId} value={m.userId}>{m.user.name} ({m.user.email})</SelectItem>
+  1115→                  ))}
+  1116→                </SelectContent>
+  1117→              </Select>
+  1118→            </div>
+  1119→            <div className="space-y-2">
+  1120→              <Label>Shop Role</Label>
+  1121→              <Select value={addMemberRole} onValueChange={setAddMemberRole}>
+  1122→                <SelectTrigger><SelectValue /></SelectTrigger>
+  1123→                <SelectContent>
+  1124→                  <SelectItem value="manager">Manager</SelectItem>
+  1125→                  <SelectItem value="cashier">Cashier</SelectItem>
+  1126→                  <SelectItem value="warehouse">Warehouse</SelectItem>
+  1127→                  <SelectItem value="sales">Sales</SelectItem>
+  1128→                </SelectContent>
+  1129→              </Select>
+  1130→            </div>
+  1131→          </div>
+  1132→          <DialogFooter>
+  1133→            <Button variant="outline" onClick={() => setShowAddMember(null)}>Cancel</Button>
+  1134→            <Button onClick={handleAddMember} disabled={addMemberSaving || !addMemberUserId}>
+  1135→              {addMemberSaving && <Loader2 className="size-4 animate-spin" />}
+  1136→              {addMemberSaving ? 'Adding...' : 'Add Member'}
+  1137→            </Button>
+  1138→          </DialogFooter>
+  1139→        </DialogContent>
+  1140→      </Dialog>
+  1141→
+  1142→      {/* Remove Member Confirmation Dialog */}
+  1143→      <AlertDialog open={!!removeMemberTarget} onOpenChange={(open) => { if (!open) setRemoveMemberTarget(null) }}>
+  1144→        <AlertDialogContent>
+  1145→          <AlertDialogHeader>
+  1146→            <AlertDialogTitle>Remove Team Member</AlertDialogTitle>
+  1147→            <AlertDialogDescription>
+  1148→              Are you sure you want to remove <strong>{removeMemberTarget?.memberName}</strong> from <strong>{removeMemberTarget?.shopName}</strong>?
+  1149→              This action cannot be undone. They will lose access to this shop and its data.
+  1150→            </AlertDialogDescription>
+  1151→          </AlertDialogHeader>
+  1152→          <AlertDialogFooter>
+  1153→            <AlertDialogCancel disabled={removingMember}>Cancel</AlertDialogCancel>
+  1154→            <AlertDialogAction onClick={handleRemoveMember} disabled={removingMember} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+  1155→              {removingMember && <Loader2 className="size-4 animate-spin" />}
+  1156→              {removingMember ? 'Removing...' : 'Remove'}
+  1157→            </AlertDialogAction>
+  1158→          </AlertDialogFooter>
+  1159→        </AlertDialogContent>
+  1160→      </AlertDialog>
+  1161→    </div>
+  1162→  )
+  1163→}
+  1164→
+  1165→// ============================================
+  1166→// Modules Tab (Module Marketplace)
+  1167→// ============================================
+  1168→function ModulesTab({ orgId }: { orgId: string }) {
+  1169→  const [modules, setModules] = useState<Array<{
+  1170→    id: string; key: string; name: string; description: string; icon: string;
+  1171→    category: string; priceETB: number; isActive: boolean; order: number;
+  1172→  }>>([])
+  1173→  const [loading, setLoading] = useState(true)
+  1174→  const [fetchError, setFetchError] = useState<string | null>(null)
+  1175→  const [search, setSearch] = useState('')
+  1176→  const [categoryFilter, setCategoryFilter] = useState('all')
+  1177→  const [togglingKey, setTogglingKey] = useState<string | null>(null)
+  1178→  const [deactivateTarget, setDeactivateTarget] = useState<typeof modules[0] | null>(null)
+  1179→  const [deactivating, setDeactivating] = useState(false)
+  1180→
+  1181→  const fetchModules = useCallback(async () => {
+  1182→    if (!orgId) return
+  1183→    setLoading(true)
+  1184→    try {
+  1185→      setFetchError(null)
+  1186→      const data = await api.getModules(orgId)
+  1187→      setModules(data.modules)
+  1188→    } catch (err) {
+  1189→      setFetchError(getNetworkErrorMessage(err))
+  1190→    } finally { setLoading(false) }
+  1191→  }, [orgId])
+  1192→
+  1193→  useEffect(() => { fetchModules() }, [fetchModules])
+  1194→
+  1195→  const handleToggleModule = async (mod: typeof modules[0]) => {
+  1196→    const activating = !mod.isActive
+  1197→    // Require confirmation before deactivating
+  1198→    if (!activating) {
+  1199→      setDeactivateTarget(mod)
+  1200→      return
+  1201→    }
+  1202→    setTogglingKey(mod.key)
+  1203→    try {
+  1204→      await api.activateModule(orgId, mod.key)
+  1205→      toast.success(`${mod.name} activated`)
+  1206→      fetchModules()
+  1207→    } catch (err) {
+  1208→      toast.error(getNetworkErrorMessage(err))
+  1209→    }
+  1210→    finally { setTogglingKey(null) }
+  1211→  }
+  1212→
+  1213→  const handleConfirmDeactivate = async () => {
+  1214→    if (!deactivateTarget) return
+  1215→    setDeactivating(true)
+  1216→    setTogglingKey(deactivateTarget.key)
+  1217→    try {
+  1218→      await api.deactivateModule(orgId, deactivateTarget.key)
+  1219→      toast.success(`${deactivateTarget.name} deactivated`)
+  1220→      setDeactivateTarget(null)
+  1221→      fetchModules()
+  1222→    } catch (err) {
+  1223→      toast.error(getNetworkErrorMessage(err))
+  1224→    }
+  1225→    finally { setTogglingKey(null); setDeactivating(false) }
+  1226→  }
+  1227→
+  1228→  const filteredModules = modules.filter((m) => {
+  1229→    const matchesSearch = search === '' || m.name.toLowerCase().includes(search.toLowerCase()) || m.description.toLowerCase().includes(search.toLowerCase())
+  1230→    const matchesCategory = categoryFilter === 'all' || m.category === categoryFilter
+  1231→    return matchesSearch && matchesCategory
+  1232→  })
+  1233→
+  1234→  const activeModules = modules.filter(m => m.isActive)
+  1235→  const totalMonthlyCost = activeModules.reduce((sum, m) => sum + m.priceETB, 0)
+  1236→
+  1237→  const categories = [
+  1238→    { key: 'all', label: 'All' },
+  1239→    { key: 'core', label: 'Core' },
+  1240→    { key: 'analytics', label: 'Analytics' },
+  1241→    { key: 'ai', label: 'AI' },
+  1242→    { key: 'integration', label: 'Integrations' },
+  1243→  ]
+  1244→
+  1245→  const categoryIconClass = (category: string) => {
+  1246→    switch (category) {
+  1247→      case 'core': return 'bg-brand-50 dark:bg-brand-900/20 text-primary'
+  1248→      case 'analytics': return 'bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400'
+  1249→      case 'ai': return 'bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400'
+  1250→      case 'integration': return 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+  1251→      default: return 'bg-gray-50 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400'
+  1252→    }
+  1253→  }
+  1254→
+  1255→  if (loading) {
+  1256→    return (
+  1257→      <div className="space-y-6">
+  1258→        <Skeleton className="h-24 w-full rounded-lg" />
+  1259→        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+  1260→          {Array.from({ length: 6 }).map((_, i) => (
+  1261→            <Card key={i}><CardContent className="p-4 space-y-3">
+  1262→              <Skeleton className="h-10 w-10 rounded-lg" /><Skeleton className="h-5 w-32" />
+  1263→              <Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-20" />
+  1264→            </CardContent></Card>
+  1265→          ))}
+  1266→        </div>
+  1267→      </div>
+  1268→    )
+  1269→  }
+  1270→
+  1271→  if (fetchError) {
+  1272→    return <ErrorState title="Failed to load modules" error={fetchError} onRetry={fetchModules} />
+  1273→  }
+  1274→
+  1275→  return (
+  1276→    <div className="space-y-6">
+  1277→      {/* Active Module Summary */}
+  1278→      <Card>
+  1279→        <CardContent className="p-4 md:p-6">
+  1280→          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+  1281→            <div className="flex items-center gap-3">
+  1282→              <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+  1283→                <LayoutGrid className="size-5 text-primary" />
+  1284→              </div>
+  1285→              <div>
+  1286→                <p className="text-sm text-muted-foreground">Active Modules</p>
+  1287→                <p className="text-base font-semibold">{activeModules.length} of {modules.length}</p>
+  1288→              </div>
+  1289→            </div>
+  1290→            <Separator orientation="vertical" className="hidden sm:block h-10" />
+  1291→            <div className="flex items-center gap-3">
+  1292→              <div className="size-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+  1293→                <Zap className="size-5 text-emerald-600 dark:text-emerald-400" />
+  1294→              </div>
+  1295→              <div>
+  1296→                <p className="text-sm text-muted-foreground">Monthly Module Cost</p>
+  1297→                <p className="text-base font-semibold">{totalMonthlyCost === 0 ? 'Free' : formatETB(totalMonthlyCost) + '/mo'}</p>
+  1298→              </div>
+  1299→            </div>
+  1300→          </div>
+  1301→          {activeModules.length > 0 && (
+  1302→            <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t">
+  1303→              {activeModules.map((m) => (
+  1304→                <Badge key={m.key} variant="secondary" className="gap-1 text-xs">
+  1305→                  {React.createElement(MODULE_ICON_MAP[m.icon] || Package, { className: 'size-3' })}
+  1306→                  {m.name}
+  1307→                </Badge>
+  1308→              ))}
+  1309→            </div>
+  1310→          )}
+  1311→        </CardContent>
+  1312→      </Card>
+  1313→
+  1314→      {/* Search and Filters */}
+  1315→      <div className="flex flex-col sm:flex-row gap-3">
+  1316→        <div className="relative flex-1">
+  1317→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+  1318→          <Input placeholder="Search modules..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+  1319→        </div>
+  1320→        <div className="flex gap-1.5 flex-wrap">
+  1321→          {categories.map((cat) => (
+  1322→            <Button key={cat.key} variant={categoryFilter === cat.key ? 'default' : 'outline'} size="sm" onClick={() => setCategoryFilter(cat.key)} className="text-xs">
+  1323→              {cat.label}
+  1324→            </Button>
+  1325→          ))}
+  1326→        </div>
+  1327→      </div>
+  1328→
+  1329→      {/* Module Cards Grid */}
+  1330→      {filteredModules.length === 0 ? (
+  1331→        <Card><CardContent className="py-12 text-center">
+  1332→          <LayoutGrid className="size-12 mx-auto text-muted-foreground/40 mb-4" />
+  1333→          <p className="text-muted-foreground">No modules found matching your search</p>
+  1334→        </CardContent></Card>
+  1335→      ) : (
+  1336→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  1337→          {filteredModules.map((mod) => {
+  1338→            const IconComponent = MODULE_ICON_MAP[mod.icon] || Package
+  1339→            const isToggling = togglingKey === mod.key
+  1340→            return (
+  1341→              <Card key={mod.id} className={`transition-all ${mod.isActive ? 'border-primary/30 shadow-sm' : 'hover:border-brand-100 dark:hover:border-brand-900/30'}`}>
+  1342→                <CardContent className="p-4 md:p-5">
+  1343→                  <div className="flex items-start justify-between gap-3">
+  1344→                    <div className={`size-10 rounded-lg flex items-center justify-center shrink-0 ${categoryIconClass(mod.category)}`}>
+  1345→                      <IconComponent className="size-5" />
+  1346→                    </div>
+  1347→                    <Switch checked={mod.isActive} onCheckedChange={() => handleToggleModule(mod)} disabled={isToggling} />
+  1348→                  </div>
+  1349→                  <div className="mt-3">
+  1350→                    <div className="flex items-center gap-2">
+  1351→                      <h4 className="font-semibold text-sm">{mod.name}</h4>
+  1352→                      {mod.priceETB === 0 && (
+  1353→                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Included</Badge>
+  1354→                      )}
+  1355→                    </div>
+  1356→                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{mod.description}</p>
+  1357→                    {mod.priceETB > 0 && (
+  1358→                      <div className="mt-2 flex items-center gap-1.5">
+  1359→                        <span className="text-sm font-semibold">{formatETB(mod.priceETB)}</span>
+  1360→                        <span className="text-xs text-muted-foreground">/month</span>
+  1361→                      </div>
+  1362→                    )}
+  1363→                    {mod.priceETB > 0 && !mod.isActive && (
+  1364→                      <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+  1365→                        <Sparkles className="size-3" />Upgrade to activate
+  1366→                      </p>
+  1367→                    )}
+  1368→                  </div>
+  1369→                </CardContent>
+  1370→              </Card>
+  1371→            )
+  1372→          })}
+  1373→        </div>
+  1374→      )}
+  1375→
+  1376→      {/* Deactivate Module Confirmation Dialog */}
+  1377→      <AlertDialog open={!!deactivateTarget} onOpenChange={(open) => { if (!open) setDeactivateTarget(null) }}>
+  1378→        <AlertDialogContent>
+  1379→          <AlertDialogHeader>
+  1380→            <AlertDialogTitle>Deactivate Module</AlertDialogTitle>
+  1381→            <AlertDialogDescription>
+  1382→              Are you sure you want to deactivate <strong>{deactivateTarget?.name}</strong>?
+  1383→              This action cannot be undone. Your organization will immediately lose access to this module
+  1384→              and all its features. Any data associated with this module may be affected.
+  1385→            </AlertDialogDescription>
+  1386→          </AlertDialogHeader>
+  1387→          <AlertDialogFooter>
+  1388→            <AlertDialogCancel disabled={deactivating}>Cancel</AlertDialogCancel>
+  1389→            <AlertDialogAction onClick={handleConfirmDeactivate} disabled={deactivating} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+  1390→              {deactivating && <Loader2 className="size-4 animate-spin" />}
+  1391→              {deactivating ? 'Deactivating...' : 'Deactivate'}
+  1392→            </AlertDialogAction>
+  1393→          </AlertDialogFooter>
+  1394→        </AlertDialogContent>
+  1395→      </AlertDialog>
+  1396→    </div>
+  1397→  )
+  1398→}
+  1399→

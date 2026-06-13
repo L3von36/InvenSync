@@ -95,6 +95,10 @@ export async function GET(request: Request) {
     return NextResponse.json({
       shops,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=10, stale-while-revalidate=30',
+      }
     })
   } catch (error) {
     if (isDatabaseError(error)) {

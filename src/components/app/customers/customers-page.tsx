@@ -257,7 +257,7 @@ export function CustomersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-base font-semibold tracking-tight">Customers</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Customers</h1>
           <p className="text-muted-foreground text-sm">Manage your customer database and track purchase history</p>
         </div>
         <Button onClick={openAddDialog} className="gap-2">
@@ -276,7 +276,7 @@ export function CustomersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Customers</p>
-                <p className="text-base font-semibold">{total}</p>
+                <p className="text-xl sm:text-2xl font-bold">{total}</p>
               </div>
             </div>
           </CardContent>
@@ -289,7 +289,7 @@ export function CustomersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Active This Month</p>
-                <p className="text-base font-semibold">{activeThisMonth}</p>
+                <p className="text-xl sm:text-2xl font-bold">{activeThisMonth}</p>
               </div>
             </div>
           </CardContent>
@@ -302,7 +302,7 @@ export function CustomersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Debt</p>
-                <p className="text-base font-semibold">{formatETB(totalDebt)}</p>
+                <p className="text-xl sm:text-2xl font-bold">{formatETB(totalDebt)}</p>
               </div>
             </div>
           </CardContent>
@@ -315,7 +315,7 @@ export function CustomersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">New This Month</p>
-                <p className="text-base font-semibold">{newThisMonth}</p>
+                <p className="text-xl sm:text-2xl font-bold">{newThisMonth}</p>
               </div>
             </div>
           </CardContent>
@@ -611,7 +611,7 @@ export function CustomersPage() {
                     </div>
                     <div className="flex-1 space-y-3">
                       <div>
-                        <h3 className="text-base font-semibold">{selectedCustomer.name}</h3>
+                        <h3 className="text-sm font-semibold">{selectedCustomer.name}</h3>
                         <p className="text-xs text-muted-foreground">
                           Customer since {formatDate(selectedCustomer.createdAt)}
                         </p>
@@ -646,14 +646,14 @@ export function CustomersPage() {
                 <Card>
                   <CardContent className="p-4 text-center">
                     <ShoppingCart className="size-6 text-primary mx-auto mb-2" />
-                    <p className="text-base font-semibold">{selectedCustomer._count?.sales || 0}</p>
+                    <p className="text-sm font-semibold">{selectedCustomer._count?.sales || 0}</p>
                     <p className="text-xs text-muted-foreground">Total Purchases</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
                     <DollarSign className="size-6 text-red-500 mx-auto mb-2" />
-                    <p className="text-base font-semibold">
+                    <p className="text-sm font-semibold">
                       {formatETB(
                         customerDebts
                           .filter((d) => d.status !== 'paid')

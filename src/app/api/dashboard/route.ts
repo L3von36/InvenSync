@@ -160,23 +160,16 @@ async function fetchDashboardData(
       select: { quantity: true, lowStockThreshold: true }
     }).then(products => products.filter(p => p.quantity <= p.lowStockThreshold).length),
 
-    // Total stock value - OPTIMIZED: Use aggregate instead of fetching all products
-    db.product.aggregate({
+    // Total stock value - OPTIMIZED: Removed redundant aggregate() call that preceded
+    // the findMany(). The aggregate can't multiply columns (quantity * price) in SQLite,
+    // so findMany with select is required. The aggregate was wasteful.
+    db.product.findMany({
       where: productWhere,
-      _sum: { quantity: true, costPrice: true, sellingPrice: true },
-    }).then(agg => {
-      // Note: _sum gives totals, not the sum of (quantity * price) directly
-      // For accurate cost/retail value we need the products. But aggregate
-      // can't multiply columns in SQLite. Keep findMany but with select.
-      // Actually, let's keep the findMany approach since we need quantity*price
-      return db.product.findMany({
-        where: productWhere,
-        select: { quantity: true, costPrice: true, sellingPrice: true }
-      }).then(products => ({
-        costValue: products.reduce((sum, p) => sum + (p.quantity * p.costPrice), 0),
-        retailValue: products.reduce((sum, p) => sum + (p.quantity * p.sellingPrice), 0),
-      }))
-    }),
+      select: { quantity: true, costPrice: true, sellingPrice: true }
+    }).then(products => ({
+      costValue: products.reduce((sum, p) => sum + (p.quantity * p.costPrice), 0),
+      retailValue: products.reduce((sum, p) => sum + (p.quantity * p.sellingPrice), 0),
+    })),
 
     // Today's revenue and count
     db.sale.aggregate({

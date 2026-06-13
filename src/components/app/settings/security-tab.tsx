@@ -327,6 +327,7 @@ function TwoFactorSection() {
                 src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeUrl)}`}
                 alt="2FA QR Code"
                 className="size-48"
+                loading="lazy"
               />
             </div>
 

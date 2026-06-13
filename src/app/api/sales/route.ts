@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
+import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
 
 // GET /api/sales?orgId=xxx&startDate=xxx&endDate=xxx&status=xxx
 export async function GET(request: Request) {
@@ -57,10 +58,33 @@ export async function GET(request: Request) {
     const [sales, total] = await Promise.all([
       db.sale.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          invoiceNumber: true,
+          organizationId: true,
+          shopId: true,
+          customerId: true,
+          status: true,
+          paymentMethod: true,
+          subtotal: true,
+          discount: true,
+          tax: true,
+          total: true,
+          amountPaid: true,
+          notes: true,
+          saleDate: true,
+          createdAt: true,
+          updatedAt: true,
           customer: { select: { id: true, name: true, phone: true } },
           items: {
-            include: {
+            select: {
+              id: true,
+              productId: true,
+              quantity: true,
+              unitPrice: true,
+              costPrice: true,
+              total: true,
+              createdAt: true,
               product: { select: { id: true, name: true, sku: true } }
             }
           }
@@ -75,6 +99,10 @@ export async function GET(request: Request) {
     return NextResponse.json({
       sales,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=5, stale-while-revalidate=15',
+      }
     })
   } catch (error) {
     if (isDatabaseError(error)) {
@@ -103,8 +131,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
     const {
-      orgId, customerId, items, paymentMethod, notes, shopId
+      orgId, customerId, items, paymentMethod, shopId
     } = body
+    let { notes } = body
+
+    // Sanitize text inputs
+    notes = notes ? sanitizeAndTruncate(notes, 1000) : notes
+    const notesError = validateSanitizedField(body.notes, notes, 'Notes')
+    if (notesError) {
+      return NextResponse.json({ error: notesError }, { status: 400 })
+    }
 
     // Ensure numeric fields are properly parsed (form may send strings)
     const discount = typeof body.discount === 'string' ? parseFloat(body.discount) : (body.discount || 0)
@@ -137,12 +173,20 @@ export async function POST(request: Request) {
     // Wrap the entire sale creation in a transaction to prevent race conditions
     // (e.g., overselling stock, duplicate invoice numbers, partial writes)
     const result = await db.$transaction(async (tx) => {
-      // Validate all products belong to org and have enough stock (inside tx for consistency)
+      // OPTIMIZATION: Batch fetch all products at once instead of N+1 sequential queries
+      // Previously: for-loop with individual findFirst calls per item
+      // Now: Single findMany with { id: { in: [...] } }
+      const productIds = items.map((item: { productId: string }) => item.productId)
+      const productMap = new Map(
+        (await tx.product.findMany({
+          where: { id: { in: productIds }, organizationId: orgId, isActive: true }
+        })).map(p => [p.id, p])
+      )
+
+      // Validate all products belong to org and have enough stock
       for (const item of items) {
         const itemQuantity = typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity
-        const product = await tx.product.findFirst({
-          where: { id: item.productId, organizationId: orgId, isActive: true }
-        })
+        const product = productMap.get(item.productId)
         if (!product) {
           throw new Error(`PRODUCT_NOT_FOUND:${item.productId}`)
         }
@@ -155,16 +199,10 @@ export async function POST(request: Request) {
       const saleCount = await tx.sale.count({ where: { organizationId: orgId } })
       const invoiceNumber = `INV-${(saleCount + 1).toString().padStart(3, '0')}`
 
-      // Fetch product details for all items
-      const productDetails = await Promise.all(
-        items.map((item: { productId: string; quantity: number | string; unitPrice?: number | string }) =>
-          tx.product.findUnique({ where: { id: item.productId } })
-        )
-      )
-
-      const subtotal = items.reduce((sum: number, item: { productId: string; quantity: number | string; unitPrice?: number | string }, i: number) => {
+      const subtotal = items.reduce((sum: number, item: { productId: string; quantity: number | string; unitPrice?: number | string }) => {
         const qty = typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity
-        const unitPrice = Number(item.unitPrice) || productDetails[i]?.sellingPrice || 0
+        const product = productMap.get(item.productId)
+        const unitPrice = Number(item.unitPrice) || product?.sellingPrice || 0
         return sum + (unitPrice * qty)
       }, 0)
 
@@ -187,27 +225,30 @@ export async function POST(request: Request) {
         }
       })
 
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i]
-        const product = productDetails[i]!
+      // OPTIMIZATION: Batch create sale items and stock movements
+      // Previously: sequential loop with individual create calls per item
+      // Now: createMany for sale items + batch product updates + createMany for stock movements
+      const saleItemsData = items.map((item: { productId: string; quantity: number | string; unitPrice?: number | string }) => {
+        const product = productMap.get(item.productId)!
         const itemQty = typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity
         const unitPrice = Number(item.unitPrice) || product.sellingPrice
-        const costPrice = product.costPrice
-        const itemTotal = unitPrice * itemQty
+        return {
+          saleId: sale.id,
+          productId: item.productId,
+          quantity: itemQty,
+          unitPrice,
+          costPrice: product.costPrice,
+          total: unitPrice * itemQty,
+        }
+      })
 
-        // Create sale item
-        await tx.saleItem.create({
-          data: {
-            saleId: sale.id,
-            productId: item.productId,
-            quantity: itemQty,
-            unitPrice,
-            costPrice,
-            total: itemTotal,
-          }
-        })
+      await tx.saleItem.createMany({ data: saleItemsData })
 
-        // Update product quantity
+      // Batch update product quantities and create stock movements
+      const stockMovementsData = []
+      for (const item of items) {
+        const product = productMap.get(item.productId)!
+        const itemQty = typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity
         const previousStock = product.quantity
         const newStock = previousStock - itemQty
 
@@ -216,21 +257,20 @@ export async function POST(request: Request) {
           data: { quantity: newStock }
         })
 
-        // Create stock movement
-        await tx.stockMovement.create({
-          data: {
-            organizationId: orgId,
-            shopId: shopId || null,
-            productId: item.productId,
-            type: 'out',
-            quantity: itemQty,
-            previousStock,
-            newStock,
-            reason: 'Sale',
-            reference: invoiceNumber,
-          }
+        stockMovementsData.push({
+          organizationId: orgId,
+          shopId: shopId || null,
+          productId: item.productId,
+          type: 'out',
+          quantity: itemQty,
+          previousStock,
+          newStock,
+          reason: 'Sale',
+          reference: invoiceNumber,
         })
       }
+
+      await tx.stockMovement.createMany({ data: stockMovementsData })
 
       // If credit sale (amountPaid < total), create a debt
       if (customerId && amountPaidVal < total) {

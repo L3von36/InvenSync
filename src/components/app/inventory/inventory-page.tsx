@@ -73,7 +73,7 @@ function InventoryStatsCards({ stats }: { stats: InventoryStats['overview'] | nu
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground truncate">{card.title}</p>
-                <p className="text-base font-semibold truncate">{card.value}</p>
+                <p className="text-xl sm:text-2xl font-bold truncate">{card.value}</p>
               </div>
             </div>
           </CardContent>
@@ -184,7 +184,7 @@ function StockAdjustmentDialog({
             {qty > 0 && (
               <div className="rounded-lg border bg-muted/50 p-3">
                 <p className="text-sm text-muted-foreground">Preview</p>
-                <p className="text-lg font-bold">
+                <p className="text-sm font-bold">
                   {product.quantity} → {previewStock}
                 </p>
               </div>
@@ -690,7 +690,7 @@ function StockHistoryTab({ orgId, shopId }: { orgId: string; shopId?: string }) 
         <Card>
           <CardContent className="py-12 text-center">
             <History className="size-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-1">
+            <h3 className="text-base font-semibold mb-1">
               {filterProduct !== 'all' || filterType !== 'all' ? 'No matching stock movements' : 'No stock movements yet'}
             </h3>
             <p className="text-muted-foreground text-sm mb-4">
@@ -823,7 +823,7 @@ export function InventoryPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-base font-semibold tracking-tight">Inventory Management</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
           <p className="text-muted-foreground">Track stock levels, manage movements, and monitor alerts.</p>
         </div>
         <ErrorState title="Failed to load inventory" message={fetchError} onRetry={fetchInventory} />
@@ -835,7 +835,7 @@ export function InventoryPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-base font-semibold tracking-tight">Inventory Management</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
         <p className="text-muted-foreground">Track stock levels, manage movements, and monitor alerts.</p>
       </div>
 

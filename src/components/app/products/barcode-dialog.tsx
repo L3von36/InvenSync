@@ -193,6 +193,7 @@ export function BarcodeDialog({ open, onOpenChange, product }: BarcodeDialogProp
                   alt={`Barcode for ${product.name}`}
                   className="max-w-full h-auto"
                   style={{ maxWidth: '300px' }}
+                  loading="lazy"
                 />
               </div>
               <div className="flex justify-center">
@@ -226,6 +227,7 @@ export function BarcodeDialog({ open, onOpenChange, product }: BarcodeDialogProp
                   alt={`QR code for ${product.name}`}
                   className="max-w-full h-auto"
                   style={{ maxWidth: '200px' }}
+                  loading="lazy"
                 />
               </div>
               <div className="flex justify-center">

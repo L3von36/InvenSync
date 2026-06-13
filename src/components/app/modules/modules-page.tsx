@@ -5,8 +5,8 @@ import {
   Puzzle, Clock, CheckCircle2, XCircle, Zap,
   Palette, Link2, ShieldCheck, Eye, Tag, ShoppingCart,
   BarChart3, Loader2, Info, Mail, AlertTriangle,
-  PlusCircle, RefreshCw, CreditCard, CalendarDays,
-  ArrowRight, Sparkles,
+  PlusCircle, RefreshCw, CalendarDays,
+  ArrowRight, Send, Hourglass,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, type ModuleData } from '@/lib/api-client'
@@ -14,7 +14,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState } from '@/components/shared/error-states'
 import { FormSubmitButton } from '@/components/shared/form-fields'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -25,12 +25,11 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 // ============================================
 // Types
 // ============================================
-type ModuleStatus = 'active' | 'trial' | 'available' | 'expired'
+type ModuleStatus = 'active' | 'trial' | 'available' | 'expired' | 'requested'
 
 interface EnrichedModule {
   id: string
@@ -73,6 +72,11 @@ const STATUS_CONFIG: Record<ModuleStatus, { label: string; color: string; icon: 
     color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
     icon: <Clock className="size-3.5" />,
   },
+  requested: {
+    label: 'Requested',
+    color: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300',
+    icon: <Hourglass className="size-3.5" />,
+  },
   available: {
     label: 'Available',
     color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300',
@@ -95,12 +99,12 @@ const CATEGORY_COLORS: Record<string, string> = {
 }
 
 const CARD_ACCENT: Record<string, Record<ModuleStatus, string>> = {
-  core: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
-  ai: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
-  integration: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
-  analytics: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
-  communication: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
-  reporting: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+  core: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+  ai: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+  integration: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+  analytics: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+  communication: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+  reporting: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
 }
 
 const ICON_BG: Record<string, string> = {
@@ -132,6 +136,7 @@ function getModuleStatus(m: ModuleData): ModuleStatus {
   if (!m.orgStatus) return 'available'
   if (m.orgStatus.status === 'active') return 'active'
   if (m.orgStatus.status === 'trial') return 'trial'
+  if (m.orgStatus.status === 'requested') return 'requested'
   if (m.orgStatus.status === 'expired' || m.orgStatus.status === 'cancelled') return 'expired'
   // If orgStatus exists but status is unexpected, check isActive
   if (m.orgStatus.isActive) return 'active'
@@ -145,16 +150,12 @@ function ModuleCard({
   mod,
   onRequestAccess,
   requestingKey,
-  onSubscribe,
-  onRenew,
   onActivate,
   activatingKey,
 }: {
   mod: EnrichedModule
   onRequestAccess: (moduleKey: string) => void
   requestingKey: string | null
-  onSubscribe: (mod: EnrichedModule) => void
-  onRenew: (mod: EnrichedModule) => void
   onActivate: (moduleKey: string) => void
   activatingKey: string | null
 }) {
@@ -163,7 +164,7 @@ function ModuleCard({
   const isExpired = mod.status === 'expired'
   const isTrial = mod.status === 'trial'
   const isAvailable = mod.status === 'available'
-  const isRequested = mod.requested
+  const isRequested = mod.status === 'requested' || mod.requested
 
   const cardAccent = CARD_ACCENT[mod.category]?.[mod.status] || 'border-l-gray-400'
   const opacityClass = isExpired ? 'opacity-75' : isAvailable ? 'opacity-90' : ''
@@ -220,6 +221,20 @@ function ModuleCard({
           )}
         </div>
 
+        {/* Requested status banner */}
+        {isRequested && (
+          <>
+            <Separator />
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20">
+              <Hourglass className="size-4 text-violet-600 shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-violet-800 dark:text-violet-300">Request Pending</p>
+                <p className="text-[11px] text-violet-700 dark:text-violet-400">Our team is reviewing your request. You&apos;ll be notified once approved.</p>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Trial countdown with progress bar */}
         {isTrial && (
           <>
@@ -271,8 +286,8 @@ function ModuleCard({
                     isCritical ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'
                   }`}>
                     {isCritical
-                      ? '⚠ Trial ending very soon — contact us to continue!'
-                      : '⏳ Trial ending soon — consider upgrading'}
+                      ? 'Trial ending very soon — contact us to continue!'
+                      : 'Trial ending soon — consider upgrading'}
                   </p>
                 )}
               </div>
@@ -288,6 +303,23 @@ function ModuleCard({
           </>
         )}
 
+        {/* Active module info */}
+        {mod.status === 'active' && (
+          <>
+            <Separator />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="size-3 text-emerald-600" /> Active
+              </span>
+              {mod.orgStatus?.autoRenew && (
+                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" variant="outline">
+                  Auto-renew
+                </Badge>
+              )}
+            </div>
+          </>
+        )}
+
         {/* Expired module info */}
         {isExpired && (
           <>
@@ -299,11 +331,25 @@ function ModuleCard({
                 <p className="text-[11px] text-red-700 dark:text-red-400">Contact support@invensync.com to renew</p>
               </div>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full gap-1.5"
+              onClick={() => onRequestAccess(mod.key)}
+              disabled={requestingKey === mod.key}
+            >
+              {requestingKey === mod.key ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="size-3.5" />
+              )}
+              {requestingKey === mod.key ? 'Requesting...' : 'Request Renewal'}
+            </Button>
           </>
         )}
 
-        {/* Action buttons */}
-        {isAvailable && (
+        {/* Action buttons for available modules */}
+        {isAvailable && !isRequested && (
           <>
             <Separator />
             {mod.isFree ? (
@@ -324,88 +370,17 @@ function ModuleCard({
               <Button
                 size="sm"
                 className="w-full gap-1.5"
-                onClick={() => onSubscribe(mod)}
+                disabled={requestingKey === mod.key}
+                onClick={() => onRequestAccess(mod.key)}
               >
-                <CreditCard className="size-3.5" />
-                Subscribe
+                {requestingKey === mod.key ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Send className="size-3.5" />
+                )}
+                {requestingKey === mod.key ? 'Requesting...' : 'Request Access'}
               </Button>
             )}
-          </>
-        )}
-
-        {isTrial && (
-          <>
-            <Separator />
-            <Button
-              size="sm"
-              className="w-full gap-1.5"
-              onClick={() => onSubscribe(mod)}
-            >
-              <Sparkles className="size-3.5" />
-              Subscribe Now
-            </Button>
-          </>
-        )}
-
-        {mod.status === 'active' && !mod.isFree && (
-          <>
-            <Separator />
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <CheckCircle2 className="size-3 text-emerald-600" /> Active
-                </span>
-                {mod.orgStatus?.autoRenew && (
-                  <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" variant="outline">
-                    Auto-renew
-                  </Badge>
-                )}
-              </div>
-              {!mod.orgStatus?.autoRenew && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full gap-1.5"
-                  onClick={() => onSubscribe(mod)}
-                >
-                  <RefreshCw className="size-3.5" />
-                  Enable Auto-Renew
-                </Button>
-              )}
-              {days !== null && days <= 7 && days > 0 && !mod.orgStatus?.autoRenew && (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20">
-                  <AlertTriangle className="size-3.5 text-amber-600 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-medium text-amber-800 dark:text-amber-300">
-                      Expires in {days} day{days !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-6 text-[11px] gap-1 shrink-0"
-                    onClick={() => onRenew(mod)}
-                  >
-                    Renew
-                  </Button>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {isExpired && (
-          <>
-            <Separator />
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full gap-1.5"
-              onClick={() => onRenew(mod)}
-            >
-              <RefreshCw className="size-3.5" />
-              Renew
-            </Button>
           </>
         )}
       </CardContent>
@@ -414,130 +389,9 @@ function ModuleCard({
 }
 
 // ============================================
-// Subscribe Dialog
+// Request Confirmation Dialog
 // ============================================
-function SubscribeDialog({
-  open,
-  onOpenChange,
-  module: mod,
-  onSuccess,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  module: EnrichedModule | null
-  onSuccess: () => void
-}) {
-  const { currentOrg } = useAuthStore()
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly')
-  const [loading, setLoading] = useState(false)
-
-  if (!mod || !currentOrg) return null
-
-  const monthlyPrice = mod.priceETB
-  const yearlyPrice = mod.priceETB * 10
-  const currentPrice = billingCycle === 'monthly' ? monthlyPrice : yearlyPrice
-  const savingsPercent = Math.round((2 / 12) * 100)
-
-  const handleSubmit = async () => {
-    setLoading(true)
-    try {
-      await api.subscribeModule(currentOrg.id, mod.key, billingCycle)
-      toast.success(`Subscribed to ${mod.name} successfully!`)
-      onOpenChange(false)
-      onSuccess()
-    } catch (err) {
-      toast.error(getNetworkErrorMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CreditCard className="size-5 text-primary" />
-            Subscribe to {mod.name}
-          </DialogTitle>
-          <DialogDescription>
-            {mod.description || `Choose a billing cycle and subscribe to the ${mod.name} module.`}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Billing Cycle Toggle */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Billing Cycle</p>
-            <ToggleGroup
-              type="single"
-              value={billingCycle}
-              onValueChange={(val) => {
-                if (val) setBillingCycle(val as 'monthly' | 'yearly')
-              }}
-              variant="outline"
-              className="w-full"
-            >
-              <ToggleGroupItem value="monthly" className="flex-1 text-xs">
-                Monthly
-              </ToggleGroupItem>
-              <ToggleGroupItem value="yearly" className="flex-1 text-xs">
-                Yearly
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-
-          {/* Pricing Card */}
-          <div className="rounded-lg border p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                {billingCycle === 'monthly' ? 'Monthly' : 'Yearly'} price
-              </span>
-              {billingCycle === 'yearly' && (
-                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" variant="outline">
-                  Save {savingsPercent}%
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold">{formatETB(currentPrice)}</span>
-              <span className="text-sm text-muted-foreground">
-                /{billingCycle === 'monthly' ? 'mo' : 'yr'}
-              </span>
-            </div>
-            {billingCycle === 'yearly' && (
-              <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                2 months free with yearly billing
-              </p>
-            )}
-            {billingCycle === 'monthly' && (
-              <p className="text-xs text-muted-foreground">
-                Billed monthly at {formatETB(monthlyPrice)}/month
-              </p>
-            )}
-          </div>
-        </div>
-
-        <DialogFooter>
-          <FormSubmitButton
-            isLoading={loading}
-            loadingText="Subscribing..."
-            onClick={handleSubmit}
-            className="w-full gap-1.5"
-          >
-            <CreditCard className="size-4" />
-            Subscribe — {formatETB(currentPrice)}/{billingCycle === 'monthly' ? 'mo' : 'yr'}
-          </FormSubmitButton>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-// ============================================
-// Renew Dialog
-// ============================================
-function RenewDialog({
+function RequestDialog({
   open,
   onOpenChange,
   module: mod,
@@ -553,16 +407,11 @@ function RenewDialog({
 
   if (!mod || !currentOrg) return null
 
-  const currentExpiry = mod.orgStatus?.expiresAt
-  const newExpiry = currentExpiry
-    ? new Date(new Date(currentExpiry).getTime() + 30 * 24 * 60 * 60 * 1000)
-    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-
   const handleSubmit = async () => {
     setLoading(true)
     try {
-      await api.renewModule(currentOrg.id, mod.key)
-      toast.success(`Renewed ${mod.name} successfully!`)
+      await api.requestModule(currentOrg.id, mod.key)
+      toast.success(`Request for ${mod.name} submitted! Our team will review it shortly.`)
       onOpenChange(false)
       onSuccess()
     } catch (err) {
@@ -577,61 +426,60 @@ function RenewDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <RefreshCw className="size-5 text-primary" />
-            Renew {mod.name}
+            <Send className="size-5 text-primary" />
+            Request {mod.name}
           </DialogTitle>
           <DialogDescription>
-            Renew your subscription to continue using the {mod.name} module.
+            {mod.description || `Request access to the ${mod.name} module for your organization.`}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
-          {/* Current expiry */}
-          {currentExpiry && (
-            <div className="rounded-lg border p-3 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Current expiry</span>
-                <CalendarDays className="size-3.5 text-muted-foreground" />
-              </div>
-              <p className="text-sm font-medium">
-                {new Date(currentExpiry).toLocaleDateString('en-US', {
-                  year: 'numeric', month: 'long', day: 'numeric',
-                })}
-              </p>
-            </div>
-          )}
-
-          {/* New expiry after renewal */}
-          <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-3 space-y-1">
+          {/* Module info */}
+          <div className="rounded-lg border p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-emerald-700 dark:text-emerald-400">New expiry after renewal</span>
-              <ArrowRight className="size-3.5 text-emerald-600" />
+              <span className="text-xs text-muted-foreground">Module</span>
+              <Badge className={CATEGORY_COLORS[mod.category] || CATEGORY_COLORS.core} variant="outline">
+                {mod.category}
+              </Badge>
             </div>
-            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-              {newExpiry.toLocaleDateString('en-US', {
-                year: 'numeric', month: 'long', day: 'numeric',
-              })}
-            </p>
+            <p className="text-sm font-medium">{mod.name}</p>
+            {!mod.isFree && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Price</span>
+                <span className="font-semibold">{formatETB(mod.priceETB)}/mo</span>
+              </div>
+            )}
+            {mod.isFree && (
+              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" variant="outline">
+                Free — No payment required
+              </Badge>
+            )}
           </div>
 
-          {/* Price info */}
-          {!mod.isFree && (
-            <div className="flex items-center justify-between text-sm px-1">
-              <span className="text-muted-foreground">Renewal cost</span>
-              <span className="font-semibold">{formatETB(mod.priceETB)}/mo</span>
+          {/* Beta notice */}
+          <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-3">
+            <div className="flex items-start gap-2">
+              <Info className="size-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">Free during Beta</p>
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                  All modules are currently free while InvenSync is in beta. Request access and we&apos;ll activate it for you right away.
+                </p>
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         <DialogFooter>
           <FormSubmitButton
             isLoading={loading}
-            loadingText="Renewing..."
+            loadingText="Submitting..."
             onClick={handleSubmit}
             className="w-full gap-1.5"
           >
-            <RefreshCw className="size-4" />
-            Renew Subscription
+            <Send className="size-4" />
+            Submit Request
           </FormSubmitButton>
         </DialogFooter>
       </DialogContent>
@@ -681,10 +529,8 @@ export function ModulesPage() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | ModuleStatus>('all')
-  const [requestedKeys, setRequestedKeys] = useState<Set<string>>(new Set())
   const [requestingKey, setRequestingKey] = useState<string | null>(null)
-  const [subscribeDialogOpen, setSubscribeDialogOpen] = useState(false)
-  const [renewDialogOpen, setRenewDialogOpen] = useState(false)
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false)
   const [selectedModule, setSelectedModule] = useState<EnrichedModule | null>(null)
   const [activatingKey, setActivatingKey] = useState<string | null>(null)
 
@@ -707,7 +553,7 @@ export function ModulesPage() {
         order: m.order,
         status: getModuleStatus(m),
         orgStatus: m.orgStatus,
-        requested: false,
+        requested: m.orgStatus?.status === 'requested',
       }))
       setModules(enriched)
     } catch (err) {
@@ -724,11 +570,11 @@ export function ModulesPage() {
     setRequestingKey(moduleKey)
     try {
       await api.requestModule(currentOrg.id, moduleKey)
-      toast.success('Request sent! Our team will contact you shortly.')
-      setRequestedKeys(prev => new Set(prev).add(moduleKey))
+      toast.success('Request submitted! Our team will review it shortly.')
+      // Update local state to show "requested" status immediately
       setModules(prev =>
         prev.map(m =>
-          m.key === moduleKey ? { ...m, requested: true } : m
+          m.key === moduleKey ? { ...m, requested: true, status: 'requested' as ModuleStatus } : m
         )
       )
     } catch (err) {
@@ -752,14 +598,9 @@ export function ModulesPage() {
     }
   }
 
-  const handleOpenSubscribe = (mod: EnrichedModule) => {
+  const handleOpenRequestDialog = (mod: EnrichedModule) => {
     setSelectedModule(mod)
-    setSubscribeDialogOpen(true)
-  }
-
-  const handleOpenRenew = (mod: EnrichedModule) => {
-    setSelectedModule(mod)
-    setRenewDialogOpen(true)
+    setRequestDialogOpen(true)
   }
 
   const filteredModules = modules.filter(m => {
@@ -769,9 +610,9 @@ export function ModulesPage() {
 
   const activeCount = modules.filter(m => m.status === 'active').length
   const trialCount = modules.filter(m => m.status === 'trial').length
+  const requestedCount = modules.filter(m => m.status === 'requested').length
   const availableCount = modules.filter(m => m.status === 'available').length
   const expiredCount = modules.filter(m => m.status === 'expired').length
-  const trialModulesCount = modules.filter(m => m.status === 'trial' || m.status === 'available').length
 
   // Expiry warning data
   const expiringModules = modules.filter(m => {
@@ -788,8 +629,8 @@ export function ModulesPage() {
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-20" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-64" />)}
@@ -859,17 +700,17 @@ export function ModulesPage() {
         </Alert>
       )}
 
-      {/* Info Alert about trial system */}
+      {/* Beta Info Alert */}
       <Alert className="border-primary/20 bg-primary/5">
         <Info className="size-4 text-primary" />
-        <AlertTitle className="text-sm font-medium">Free Trial Available</AlertTitle>
+        <AlertTitle className="text-sm font-medium">Free During Beta</AlertTitle>
         <AlertDescription className="text-xs">
-          Your free trial includes {trialModulesCount} modules for 30 days. After the trial, contact our team to continue using InvenSync modules.
+          All modules are currently free while InvenSync is in beta. Request access to any module and our team will activate it for you.
         </AlertDescription>
       </Alert>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <StatCard
           count={activeCount}
           label="Active"
@@ -887,6 +728,15 @@ export function ModulesPage() {
           borderColor="border-amber-200 dark:border-amber-800"
           active={filter === 'trial'}
           onClick={() => setFilter(filter === 'trial' ? 'all' : 'trial')}
+        />
+        <StatCard
+          count={requestedCount}
+          label="Requested"
+          colorClass="text-violet-600"
+          bgColor="bg-violet-50 dark:bg-violet-900/20"
+          borderColor="border-violet-200 dark:border-violet-800"
+          active={filter === 'requested'}
+          onClick={() => setFilter(filter === 'requested' ? 'all' : 'requested')}
         />
         <StatCard
           count={availableCount}
@@ -934,10 +784,15 @@ export function ModulesPage() {
             <ModuleCard
               key={mod.id}
               mod={mod}
-              onRequestAccess={handleRequestAccess}
+              onRequestAccess={(key) => {
+                const mod = modules.find(m => m.key === key)
+                if (mod && !mod.isFree) {
+                  handleOpenRequestDialog(mod)
+                } else {
+                  handleRequestAccess(key)
+                }
+              }}
               requestingKey={requestingKey}
-              onSubscribe={handleOpenSubscribe}
-              onRenew={handleOpenRenew}
               onActivate={handleActivate}
               activatingKey={activatingKey}
             />
@@ -945,37 +800,31 @@ export function ModulesPage() {
         </div>
       )}
 
-      {/* Subscribe Dialog */}
-      <SubscribeDialog
-        open={subscribeDialogOpen}
-        onOpenChange={setSubscribeDialogOpen}
+      {/* Request Dialog */}
+      <RequestDialog
+        open={requestDialogOpen}
+        onOpenChange={setRequestDialogOpen}
         module={selectedModule}
-        onSuccess={fetchModules}
-      />
-
-      {/* Renew Dialog */}
-      <RenewDialog
-        open={renewDialogOpen}
-        onOpenChange={setRenewDialogOpen}
-        module={selectedModule}
-        onSuccess={fetchModules}
+        onSuccess={() => {
+          fetchModules()
+        }}
       />
 
       {/* Contact CTA */}
-      {(expiredCount > 0 || trialCount > 0) && (
+      {(expiredCount > 0 || trialCount > 0 || requestedCount > 0) && (
         <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
           <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Mail className="size-5 text-primary" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-sm">Need to extend or activate modules?</h3>
+              <h3 className="font-semibold text-sm">Need help with modules?</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Contact our support team at{' '}
                 <a href="mailto:support@invensync.com" className="text-primary underline font-medium">
                   support@invensync.com
                 </a>{' '}
-                for pricing and activation.
+                for activation, renewal, or any questions.
               </p>
             </div>
             <Button variant="outline" size="sm" className="gap-1.5 shrink-0" asChild>

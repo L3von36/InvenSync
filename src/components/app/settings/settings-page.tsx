@@ -66,7 +66,7 @@ export function SettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-base font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">Manage your organization, subscription, and integrations</p>
       </div>
 
@@ -615,7 +615,7 @@ function SubscriptionTab({ orgId }: { orgId: string }) {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Current Plan</p>
-                <p className="text-base font-semibold capitalize">
+                <p className="text-sm font-semibold capitalize">
                   {currentPlan === 'premium' ? 'Premium' : currentPlan}
                 </p>
               </div>
@@ -666,9 +666,9 @@ function SubscriptionTab({ orgId }: { orgId: string }) {
                 </div>
               )}
               <CardHeader className={`${plan.color} rounded-t-lg`}>
-                <CardTitle className="text-base">{plan.name}</CardTitle>
+                <CardTitle className="text-sm font-semibold">{plan.name}</CardTitle>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-lg font-semibold">{plan.price}</span>
+                  <span className="text-sm font-semibold">{plan.price}</span>
                   {plan.priceDetail && (
                     <span className="text-sm text-muted-foreground">{plan.priceDetail}</span>
                   )}
@@ -717,7 +717,7 @@ function SubscriptionTab({ orgId }: { orgId: string }) {
       {/* Plan Limits Info */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Plan Limits</CardTitle>
+          <CardTitle className="text-sm font-semibold">Plan Limits</CardTitle>
           <CardDescription>Current usage and limits for your plan</CardDescription>
         </CardHeader>
         <CardContent>
@@ -1284,7 +1284,7 @@ function ModulesTab({ orgId }: { orgId: string }) {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Active Modules</p>
-                <p className="text-base font-semibold">{activeModules.length} of {modules.length}</p>
+                <p className="text-sm font-semibold">{activeModules.length} of {modules.length}</p>
               </div>
             </div>
             <Separator orientation="vertical" className="hidden sm:block h-10" />
@@ -1294,7 +1294,7 @@ function ModulesTab({ orgId }: { orgId: string }) {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Monthly Module Cost</p>
-                <p className="text-base font-semibold">{totalMonthlyCost === 0 ? 'Free' : formatETB(totalMonthlyCost) + '/mo'}</p>
+                <p className="text-sm font-semibold">{totalMonthlyCost === 0 ? 'Free' : formatETB(totalMonthlyCost) + '/mo'}</p>
               </div>
             </div>
           </div>

@@ -1,0 +1,847 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import { useForm } from 'react-hook-form'
+     5→import { zodResolver } from '@hookform/resolvers/zod'
+     6→import {
+     7→  CreditCard, DollarSign, AlertTriangle, ArrowDownLeft,
+     8→  Plus, Search, Eye, Wallet, TrendingDown, Users, Truck
+     9→} from 'lucide-react'
+    10→import { api, type Debt, type DebtPayment, type Customer, type Supplier } from '@/lib/api-client'
+    11→import { useAuthStore } from '@/lib/stores/auth-store'
+    12→import { debtSchema, type DebtFormData, debtPaymentSchema, type DebtPaymentFormData } from '@/lib/validations'
+    13→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    14→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    15→import { Button } from '@/components/ui/button'
+    16→import { Input } from '@/components/ui/input'
+    17→import { Badge } from '@/components/ui/badge'
+    18→import {
+    19→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+    20→} from '@/components/ui/table'
+    21→import {
+    22→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
+    23→} from '@/components/ui/dialog'
+    24→import {
+    25→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+    26→} from '@/components/ui/select'
+    27→import { Separator } from '@/components/ui/separator'
+    28→import { Skeleton } from '@/components/ui/skeleton'
+    29→import { toast } from 'sonner'
+    30→import { getNetworkErrorMessage } from '@/lib/validation'
+    31→import { ErrorState } from '@/components/shared/error-states'
+    32→import { Form } from '@/components/ui/form'
+    33→import { FormInputField, FormSelectField, FormTextareaField, FormSubmitButton } from '@/components/shared/form-fields'
+    34→
+    35→// ============================================
+    36→// Helpers
+    37→// ============================================
+    38→function formatETB(amount: number): string {
+    39→  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    40→}
+    41→
+    42→function formatDate(dateStr: string | null | undefined): string {
+    43→  if (!dateStr) return '—'
+    44→  return new Date(dateStr).toLocaleDateString('en-US', {
+    45→    year: 'numeric', month: 'short', day: 'numeric'
+    46→  })
+    47→}
+    48→
+    49→function getStatusBadge(status: string) {
+    50→  switch (status) {
+    51→    case 'pending':
+    52→      return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700">Pending</Badge>
+    53→    case 'partial':
+    54→      return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-700">Partial</Badge>
+    55→    case 'paid':
+    56→      return <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700">Paid</Badge>
+    57→    case 'overdue':
+    58→      return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700">Overdue</Badge>
+    59→    default:
+    60→      return <Badge variant="outline">{status}</Badge>
+    61→  }
+    62→}
+    63→
+    64→function isOverdue(debt: Debt): boolean {
+    65→  if (debt.status === 'paid') return false
+    66→  if (!debt.dueDate) return false
+    67→  return new Date(debt.dueDate) < new Date()
+    68→}
+    69→
+    70→// ============================================
+    71→// Main Component
+    72→// ============================================
+    73→export function DebtsPage() {
+    74→  const { currentOrg, currentShop } = useAuthStore()
+    75→  const orgId = currentOrg?.id || ''
+    76→  const shopId = currentShop?.id
+    77→
+    78→  const [debts, setDebts] = useState<Debt[]>([])
+    79→  const [summary, setSummary] = useState({
+    80→    totalCustomerDebt: 0,
+    81→    totalSupplierDebt: 0,
+    82→    totalOutstanding: 0,
+    83→  })
+    84→  const [loading, setLoading] = useState(true)
+    85→  const [pageError, setPageError] = useState<string | null>(null)
+    86→  const [activeTab, setActiveTab] = useState('customer')
+    87→  const [statusFilter, setStatusFilter] = useState('all')
+    88→  const [searchQuery, setSearchQuery] = useState('')
+    89→
+    90→  // Dialogs
+    91→  const [showAddDebt, setShowAddDebt] = useState(false)
+    92→  const [showRecordPayment, setShowRecordPayment] = useState(false)
+    93→  const [showDetail, setShowDetail] = useState(false)
+    94→  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null)
+    95→
+    96→  // Add Debt form
+    97→  const addDebtForm = useForm<DebtFormData>({
+    98→    resolver: zodResolver(debtSchema),
+    99→    defaultValues: { type: 'customer_debt', entityId: '', amount: '' as unknown as number, dueDate: '', description: '' },
+   100→  })
+   101→  const [addDebtSubmitting, setAddDebtSubmitting] = useState(false)
+   102→
+   103→  // Payment form
+   104→  const paymentForm = useForm<DebtPaymentFormData>({
+   105→    resolver: zodResolver(debtPaymentSchema),
+   106→    defaultValues: { amount: '' as unknown as number, paymentMethod: 'cash', notes: '' },
+   107→  })
+   108→  const [paymentSubmitting, setPaymentSubmitting] = useState(false)
+   109→
+   110→  // Entities
+   111→  const [customers, setCustomers] = useState<Customer[]>([])
+   112→  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+   113→
+   114→  const fetchDebts = useCallback(async () => {
+   115→    if (!orgId) return
+   116→    setLoading(true)
+   117→    setPageError(null)
+   118→    try {
+   119→      const type = activeTab === 'customer' ? 'customer_debt' : 'supplier_debt'
+   120→      const params: Record<string, string> = { orgId, type, limit: '100' }
+   121→      if (statusFilter !== 'all') params.status = statusFilter
+   122→      const data = await api.getDebts(orgId, { ...params, shopId })
+   123→      setDebts(data.debts)
+   124→      setSummary(data.summary)
+   125→    } catch (err) {
+   126→      const msg = getNetworkErrorMessage(err)
+   127→      setPageError(msg)
+   128→      toast.error(msg)
+   129→    } finally {
+   130→      setLoading(false)
+   131→    }
+   132→  }, [orgId, activeTab, statusFilter, shopId])
+   133→
+   134→  useEffect(() => {
+   135→    fetchDebts()
+   136→  }, [fetchDebts])
+   137→
+   138→  const fetchEntities = useCallback(async () => {
+   139→    if (!orgId) return
+   140→    try {
+   141→      const [cData, sData] = await Promise.all([
+   142→        api.getCustomers(orgId, { limit: 100, shopId }),
+   143→        api.getSuppliers(orgId, { limit: 100, shopId }),
+   144→      ])
+   145→      setCustomers(cData.customers)
+   146→      setSuppliers(sData.suppliers)
+   147→    } catch (err) {
+   148→      toast.error(getNetworkErrorMessage(err))
+   149→    }
+   150→  }, [orgId])
+   151→
+   152→  // Filtered debts by search
+   153→  const filteredDebts = debts.filter((debt) => {
+   154→    if (!searchQuery) return true
+   155→    const name =
+   156→      debt.customer?.name?.toLowerCase() ||
+   157→      debt.supplier?.name?.toLowerCase() ||
+   158→      ''
+   159→    return name.includes(searchQuery.toLowerCase())
+   160→  })
+   161→
+   162→  // Calculate collected this month
+   163→  const collectedThisMonth = debts.reduce((sum, d) => {
+   164→    if (!d.payments) return sum
+   165→    const now = new Date()
+   166→    return (
+   167→      sum +
+   168→      d.payments
+   169→        .filter((p) => {
+   170→          const paidDate = new Date(p.paidAt)
+   171→          return (
+   172→            paidDate.getMonth() === now.getMonth() &&
+   173→            paidDate.getFullYear() === now.getFullYear()
+   174→          )
+   175→        })
+   176→        .reduce((s, p) => s + p.amount, 0)
+   177→    )
+   178→  }, 0)
+   179→
+   180→  // Overdue count
+   181→  const overdueCount = debts.filter((d) => isOverdue(d)).length
+   182→
+   183→  // Watch debt type for dynamic entity list
+   184→  const debtType = addDebtForm.watch('type')
+   185→
+   186→  // ============================================
+   187→  // Handlers
+   188→  // ============================================
+   189→  const handleAddDebt = async (data: DebtFormData) => {
+   190→    if (!orgId) return
+   191→
+   192→    setAddDebtSubmitting(true)
+   193→    try {
+   194→      await api.createDebt(orgId, {
+   195→        type: data.type,
+   196→        customerId: data.type === 'customer_debt' ? data.entityId : undefined,
+   197→        supplierId: data.type === 'supplier_debt' ? data.entityId : undefined,
+   198→        amount: data.amount,
+   199→        dueDate: data.dueDate || undefined,
+   200→        description: data.description || undefined,
+   201→        shopId,
+   202→      })
+   203→      toast.success('Debt created successfully')
+   204→      setShowAddDebt(false)
+   205→      addDebtForm.reset({ type: 'customer_debt', entityId: '', amount: '' as unknown as number, dueDate: '', description: '' })
+   206→      fetchDebts()
+   207→    } catch (err) {
+   208→      toast.error(getNetworkErrorMessage(err))
+   209→    } finally {
+   210→      setAddDebtSubmitting(false)
+   211→    }
+   212→  }
+   213→
+   214→  const handleRecordPayment = async (data: DebtPaymentFormData) => {
+   215→    if (!selectedDebt || !orgId) return
+   216→
+   217→    // Check payment doesn't exceed remaining
+   218→    const remaining = selectedDebt.amount - selectedDebt.paidAmount
+   219→    if (data.amount > remaining) {
+   220→      toast.error(`Payment cannot exceed remaining amount of ${formatETB(remaining)}`)
+   221→      return
+   222→    }
+   223→
+   224→    setPaymentSubmitting(true)
+   225→    try {
+   226→      await api.addDebtPayment(selectedDebt.id, orgId, {
+   227→        amount: data.amount,
+   228→        paymentMethod: data.paymentMethod,
+   229→        notes: data.notes || undefined,
+   230→      })
+   231→      toast.success('Payment recorded successfully')
+   232→      setShowRecordPayment(false)
+   233→      paymentForm.reset({ amount: '' as unknown as number, paymentMethod: 'cash', notes: '' })
+   234→      fetchDebts()
+   235→      // Refresh detail if open
+   236→      if (showDetail) {
+   237→        try {
+   238→          const data2 = await api.getDebts(orgId, {
+   239→            status: 'all',
+   240→            type: selectedDebt.type,
+   241→            limit: '100',
+   242→            shopId,
+   243→          })
+   244→          const updated = data2.debts.find((d) => d.id === selectedDebt.id)
+   245→          if (updated) setSelectedDebt(updated)
+   246→        } catch {
+   247→          // Silent — detail refresh failed, non-critical
+   248→        }
+   249→      }
+   250→    } catch (err) {
+   251→      toast.error(getNetworkErrorMessage(err))
+   252→    } finally {
+   253→      setPaymentSubmitting(false)
+   254→    }
+   255→  }
+   256→
+   257→  const openRecordPayment = (debt: Debt) => {
+   258→    setSelectedDebt(debt)
+   259→    paymentForm.reset({ amount: '' as unknown as number, paymentMethod: 'cash', notes: '' })
+   260→    setShowRecordPayment(true)
+   261→  }
+   262→
+   263→  const openDetail = (debt: Debt) => {
+   264→    setSelectedDebt(debt)
+   265→    setShowDetail(true)
+   266→  }
+   267→
+   268→  const openAddDebt = () => {
+   269→    fetchEntities()
+   270→    addDebtForm.reset({ type: 'customer_debt', entityId: '', amount: '' as unknown as number, dueDate: '', description: '' })
+   271→    setShowAddDebt(true)
+   272→  }
+   273→
+   274→  // ============================================
+   275→  // Render
+   276→  // ============================================
+   277→  return (
+   278→    <div className="space-y-6">
+   279→      {/* Header */}
+   280→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   281→        <div>
+   282→          <h1 className="text-base font-semibold tracking-tight">Debts & Credits</h1>
+   283→          <p className="text-muted-foreground text-sm">Track customer and supplier debts, record payments</p>
+   284→        </div>
+   285→        <Button onClick={openAddDebt} className="gap-2">
+   286→          <Plus className="size-4" />
+   287→          Add Debt
+   288→        </Button>
+   289→      </div>
+   290→
+   291→      {/* Stats Cards */}
+   292→      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+   293→        <Card>
+   294→          <CardContent className="p-4">
+   295→            <div className="flex items-center gap-3">
+   296→              <div className="size-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+   297→                <Users className="size-5 text-blue-600 dark:text-blue-400" />
+   298→              </div>
+   299→              <div>
+   300→                <p className="text-sm text-muted-foreground">Customer Debts</p>
+   301→                <p className="text-base font-semibold">{formatETB(summary.totalCustomerDebt)}</p>
+   302→              </div>
+   303→            </div>
+   304→          </CardContent>
+   305→        </Card>
+   306→        <Card>
+   307→          <CardContent className="p-4">
+   308→            <div className="flex items-center gap-3">
+   309→              <div className="size-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+   310→                <Truck className="size-5 text-orange-600 dark:text-orange-400" />
+   311→              </div>
+   312→              <div>
+   313→                <p className="text-sm text-muted-foreground">Supplier Debts</p>
+   314→                <p className="text-base font-semibold">{formatETB(summary.totalSupplierDebt)}</p>
+   315→              </div>
+   316→            </div>
+   317→          </CardContent>
+   318→        </Card>
+   319→        <Card>
+   320→          <CardContent className="p-4">
+   321→            <div className="flex items-center gap-3">
+   322→              <div className="size-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+   323→                <AlertTriangle className="size-5 text-red-600 dark:text-red-400" />
+   324→              </div>
+   325→              <div>
+   326→                <p className="text-sm text-muted-foreground">Overdue Debts</p>
+   327→                <p className="text-base font-semibold">{overdueCount}</p>
+   328→              </div>
+   329→            </div>
+   330→          </CardContent>
+   331→        </Card>
+   332→        <Card>
+   333→          <CardContent className="p-4">
+   334→            <div className="flex items-center gap-3">
+   335→              <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+   336→                <ArrowDownLeft className="size-5 text-primary" />
+   337→              </div>
+   338→              <div>
+   339→                <p className="text-sm text-muted-foreground">Collected This Month</p>
+   340→                <p className="text-base font-semibold">{formatETB(collectedThisMonth)}</p>
+   341→              </div>
+   342→            </div>
+   343→          </CardContent>
+   344→        </Card>
+   345→      </div>
+   346→
+   347→      {/* Tabs */}
+   348→      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+   349→        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+   350→          <TabsList className="flex-wrap">
+   351→            <TabsTrigger value="customer" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+   352→              <Users className="size-4" />
+   353→              <span className="hidden sm:inline">Customer</span> Debts
+   354→            </TabsTrigger>
+   355→            <TabsTrigger value="supplier" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+   356→              <Truck className="size-4" />
+   357→              <span className="hidden sm:inline">Supplier</span> Debts
+   358→            </TabsTrigger>
+   359→          </TabsList>
+   360→          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+   361→            <div className="relative">
+   362→              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   363→              <Input
+   364→                placeholder="Search by name..."
+   365→                value={searchQuery}
+   366→                onChange={(e) => setSearchQuery(e.target.value)}
+   367→                className="pl-9 w-full sm:w-48"
+   368→              />
+   369→            </div>
+   370→            <Select value={statusFilter} onValueChange={setStatusFilter}>
+   371→              <SelectTrigger className="w-full sm:w-36">
+   372→                <SelectValue placeholder="Status" />
+   373→              </SelectTrigger>
+   374→              <SelectContent>
+   375→                <SelectItem value="all">All Status</SelectItem>
+   376→                <SelectItem value="pending">Pending</SelectItem>
+   377→                <SelectItem value="partial">Partial</SelectItem>
+   378→                <SelectItem value="paid">Paid</SelectItem>
+   379→                <SelectItem value="overdue">Overdue</SelectItem>
+   380→              </SelectContent>
+   381→            </Select>
+   382→          </div>
+   383→        </div>
+   384→
+   385→        <TabsContent value="customer">
+   386→          {loading ? (
+   387→            <DebtsTableSkeleton />
+   388→          ) : pageError && debts.length === 0 ? (
+   389→            <ErrorState title="Failed to load debts" message={pageError} onRetry={fetchDebts} />
+   390→          ) : (
+   391→            <DebtsTable
+   392→              debts={filteredDebts}
+   393→              loading={false}
+   394→              onRecordPayment={openRecordPayment}
+   395→              onViewDetail={openDetail}
+   396→            />
+   397→          )}
+   398→        </TabsContent>
+   399→        <TabsContent value="supplier">
+   400→          {loading ? (
+   401→            <DebtsTableSkeleton />
+   402→          ) : pageError && debts.length === 0 ? (
+   403→            <ErrorState title="Failed to load debts" message={pageError} onRetry={fetchDebts} />
+   404→          ) : (
+   405→            <DebtsTable
+   406→              debts={filteredDebts}
+   407→              loading={false}
+   408→              onRecordPayment={openRecordPayment}
+   409→              onViewDetail={openDetail}
+   410→            />
+   411→          )}
+   412→        </TabsContent>
+   413→      </Tabs>
+   414→
+   415→      {/* Add Debt Dialog */}
+   416→      <Dialog open={showAddDebt} onOpenChange={setShowAddDebt}>
+   417→        <DialogContent className="sm:max-w-md w-[calc(100%-2rem)] sm:w-full">
+   418→          <DialogHeader>
+   419→            <DialogTitle>Add New Debt</DialogTitle>
+   420→            <DialogDescription>Record a new customer or supplier debt</DialogDescription>
+   421→          </DialogHeader>
+   422→          <Form {...addDebtForm}>
+   423→            <form onSubmit={addDebtForm.handleSubmit(handleAddDebt)} className="space-y-4">
+   424→              <FormSelectField
+   425→                name="type"
+   426→                label="Debt Type"
+   427→                options={[
+   428→                  { value: 'customer_debt', label: 'Customer Debt' },
+   429→                  { value: 'supplier_debt', label: 'Supplier Debt' },
+   430→                ]}
+   431→                onValueChange={() => {
+   432→                  addDebtForm.setValue('entityId', '')
+   433→                }}
+   434→              />
+   435→              <FormSelectField
+   436→                name="entityId"
+   437→                label={debtType === 'customer_debt' ? 'Customer' : 'Supplier'}
+   438→                placeholder={`Select ${debtType === 'customer_debt' ? 'customer' : 'supplier'}...`}
+   439→                required
+   440→                options={
+   441→                  debtType === 'customer_debt'
+   442→                    ? customers.map((c) => ({ value: c.id, label: `${c.name}${c.phone ? ` (${c.phone})` : ''}` }))
+   443→                    : suppliers.map((s) => ({ value: s.id, label: `${s.name}${s.phone ? ` (${s.phone})` : ''}` }))
+   444→                }
+   445→              />
+   446→              <FormInputField
+   447→                name="amount"
+   448→                label="Amount (ETB)"
+   449→                placeholder="0.00"
+   450→                type="number"
+   451→                required
+   452→                min={0}
+   453→                step={0.01}
+   454→              />
+   455→              <FormInputField
+   456→                name="dueDate"
+   457→                label="Due Date (optional)"
+   458→                type="date"
+   459→              />
+   460→              <FormTextareaField
+   461→                name="description"
+   462→                label="Description"
+   463→                placeholder="Description of the debt..."
+   464→                rows={3}
+   465→              />
+   466→              <DialogFooter>
+   467→                <Button type="button" variant="outline" onClick={() => setShowAddDebt(false)}>
+   468→                  Cancel
+   469→                </Button>
+   470→                <FormSubmitButton isLoading={addDebtSubmitting} loadingText="Saving...">
+   471→                  Save Debt
+   472→                </FormSubmitButton>
+   473→              </DialogFooter>
+   474→            </form>
+   475→          </Form>
+   476→        </DialogContent>
+   477→      </Dialog>
+   478→
+   479→      {/* Record Payment Dialog */}
+   480→      <Dialog open={showRecordPayment} onOpenChange={setShowRecordPayment}>
+   481→        <DialogContent className="sm:max-w-md w-[calc(100%-2rem)] sm:w-full">
+   482→          <DialogHeader>
+   483→            <DialogTitle>Record Payment</DialogTitle>
+   484→            <DialogDescription>Record a payment for this debt</DialogDescription>
+   485→          </DialogHeader>
+   486→          {selectedDebt && (
+   487→            <Form {...paymentForm}>
+   488→              <form onSubmit={paymentForm.handleSubmit(handleRecordPayment)} className="space-y-4">
+   489→                <Card className="bg-muted/50">
+   490→                  <CardContent className="p-4 space-y-2">
+   491→                    <div className="flex justify-between text-sm">
+   492→                      <span className="text-muted-foreground">Entity</span>
+   493→                      <span className="font-medium">
+   494→                        {selectedDebt.customer?.name || selectedDebt.supplier?.name || '—'}
+   495→                      </span>
+   496→                    </div>
+   497→                    <div className="flex justify-between text-sm">
+   498→                      <span className="text-muted-foreground">Total Amount</span>
+   499→                      <span className="font-medium">{formatETB(selectedDebt.amount)}</span>
+   500→                    </div>
+   501→                    <div className="flex justify-between text-sm">
+   502→                      <span className="text-muted-foreground">Already Paid</span>
+   503→                      <span className="font-medium text-emerald-600">{formatETB(selectedDebt.paidAmount)}</span>
+   504→                    </div>
+   505→                    <Separator />
+   506→                    <div className="flex justify-between text-sm">
+   507→                      <span className="text-muted-foreground">Remaining</span>
+   508→                      <span className="font-bold text-destructive">
+   509→                        {formatETB(selectedDebt.amount - selectedDebt.paidAmount)}
+   510→                      </span>
+   511→                    </div>
+   512→                  </CardContent>
+   513→                </Card>
+   514→                <FormInputField
+   515→                  name="amount"
+   516→                  label="Payment Amount (ETB)"
+   517→                  placeholder="0.00"
+   518→                  type="number"
+   519→                  required
+   520→                  min={0}
+   521→                  max={selectedDebt.amount - selectedDebt.paidAmount}
+   522→                  step={0.01}
+   523→                />
+   524→                <FormSelectField
+   525→                  name="paymentMethod"
+   526→                  label="Payment Method"
+   527→                  options={[
+   528→                    { value: 'cash', label: 'Cash' },
+   529→                    { value: 'card', label: 'Card' },
+   530→                    { value: 'mobile_money', label: 'Mobile Money' },
+   531→                  ]}
+   532→                />
+   533→                <FormTextareaField
+   534→                  name="notes"
+   535→                  label="Notes"
+   536→                  placeholder="Optional notes..."
+   537→                  rows={2}
+   538→                />
+   539→                <DialogFooter>
+   540→                  <Button type="button" variant="outline" onClick={() => setShowRecordPayment(false)}>
+   541→                    Cancel
+   542→                  </Button>
+   543→                  <FormSubmitButton isLoading={paymentSubmitting} loadingText="Recording...">
+   544→                    Record Payment
+   545→                  </FormSubmitButton>
+   546→                </DialogFooter>
+   547→              </form>
+   548→            </Form>
+   549→          )}
+   550→        </DialogContent>
+   551→      </Dialog>
+   552→
+   553→      {/* Debt Detail Dialog */}
+   554→      <Dialog open={showDetail} onOpenChange={setShowDetail}>
+   555→        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+   556→          <DialogHeader>
+   557→            <DialogTitle>Debt Details</DialogTitle>
+   558→          </DialogHeader>
+   559→          {selectedDebt && (
+   560→            <div className="space-y-6">
+   561→              {/* Info */}
+   562→              <Card className="bg-muted/50">
+   563→                <CardContent className="p-4 space-y-3">
+   564→                  <div className="flex justify-between">
+   565→                    <span className="text-muted-foreground text-sm">Entity</span>
+   566→                    <span className="font-medium">
+   567→                      {selectedDebt.customer?.name || selectedDebt.supplier?.name || '—'}
+   568→                    </span>
+   569→                  </div>
+   570→                  <div className="flex justify-between">
+   571→                    <span className="text-muted-foreground text-sm">Type</span>
+   572→                    <span className="font-medium capitalize">
+   573→                      {selectedDebt.type === 'customer_debt' ? 'Customer Debt' : 'Supplier Debt'}
+   574→                    </span>
+   575→                  </div>
+   576→                  <div className="flex justify-between">
+   577→                    <span className="text-muted-foreground text-sm">Total Amount</span>
+   578→                    <span className="font-medium">{formatETB(selectedDebt.amount)}</span>
+   579→                  </div>
+   580→                  <div className="flex justify-between">
+   581→                    <span className="text-muted-foreground text-sm">Paid</span>
+   582→                    <span className="font-medium text-emerald-600">{formatETB(selectedDebt.paidAmount)}</span>
+   583→                  </div>
+   584→                  <div className="flex justify-between">
+   585→                    <span className="text-muted-foreground text-sm">Remaining</span>
+   586→                    <span className="font-bold">
+   587→                      {formatETB(selectedDebt.amount - selectedDebt.paidAmount)}
+   588→                    </span>
+   589→                  </div>
+   590→                  <Separator />
+   591→                  <div className="flex justify-between items-center">
+   592→                    <span className="text-muted-foreground text-sm">Status</span>
+   593→                    {getStatusBadge(selectedDebt.status)}
+   594→                  </div>
+   595→                  <div className="flex justify-between">
+   596→                    <span className="text-muted-foreground text-sm">Due Date</span>
+   597→                    <span className="font-medium">{formatDate(selectedDebt.dueDate)}</span>
+   598→                  </div>
+   599→                  {selectedDebt.description && (
+   600→                    <div className="flex justify-between">
+   601→                      <span className="text-muted-foreground text-sm">Description</span>
+   602→                      <span className="font-medium text-right max-w-[60%]">{selectedDebt.description}</span>
+   603→                    </div>
+   604→                  )}
+   605→                  <div className="flex justify-between">
+   606→                    <span className="text-muted-foreground text-sm">Created</span>
+   607→                    <span className="font-medium">{formatDate(selectedDebt.createdAt)}</span>
+   608→                  </div>
+   609→                </CardContent>
+   610→              </Card>
+   611→
+   612→              {/* Payment History */}
+   613→              <div>
+   614→                <h4 className="font-semibold mb-3 flex items-center gap-2">
+   615→                  <Wallet className="size-4" />
+   616→                  Payment History
+   617→                </h4>
+   618→                {selectedDebt.payments && selectedDebt.payments.length > 0 ? (
+   619→                  <div className="space-y-3">
+   620→                    {selectedDebt.payments.map((payment: DebtPayment) => (
+   621→                      <div
+   622→                        key={payment.id}
+   623→                        className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+   624→                      >
+   625→                        <div className="size-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+   626→                          <DollarSign className="size-4 text-emerald-600 dark:text-emerald-400" />
+   627→                        </div>
+   628→                        <div className="flex-1 min-w-0">
+   629→                          <div className="flex justify-between items-center">
+   630→                            <span className="font-medium text-emerald-600">
+   631→                              +{formatETB(payment.amount)}
+   632→                            </span>
+   633→                            <span className="text-xs text-muted-foreground">
+   634→                              {formatDate(payment.paidAt)}
+   635→                            </span>
+   636→                          </div>
+   637→                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   638→                            <Badge variant="secondary" className="text-xs px-1.5 py-0">
+   639→                              {payment.paymentMethod}
+   640→                            </Badge>
+   641→                            {payment.notes && <span>{payment.notes}</span>}
+   642→                          </div>
+   643→                        </div>
+   644→                      </div>
+   645→                    ))}
+   646→                  </div>
+   647→                ) : (
+   648→                  <p className="text-sm text-muted-foreground text-center py-4">
+   649→                    No payments recorded yet
+   650→                  </p>
+   651→                )}
+   652→              </div>
+   653→
+   654→              {/* Add payment button */}
+   655→              {selectedDebt.status !== 'paid' && (
+   656→                <Button
+   657→                  className="w-full gap-2"
+   658→                  onClick={() => {
+   659→                    setShowDetail(false)
+   660→                    openRecordPayment(selectedDebt)
+   661→                  }}
+   662→                >
+   663→                  <CreditCard className="size-4" />
+   664→                  Record Payment
+   665→                </Button>
+   666→              )}
+   667→            </div>
+   668→          )}
+   669→        </DialogContent>
+   670→      </Dialog>
+   671→    </div>
+   672→  )
+   673→}
+   674→
+   675→// ============================================
+   676→// Debts Table Skeleton
+   677→// ============================================
+   678→function DebtsTableSkeleton() {
+   679→  return (
+   680→    <Card>
+   681→      <CardContent className="p-6 space-y-4">
+   682→        {Array.from({ length: 5 }).map((_, i) => (
+   683→          <Skeleton key={i} className="h-12 w-full" />
+   684→        ))}
+   685→      </CardContent>
+   686→    </Card>
+   687→  )
+   688→}
+   689→
+   690→// ============================================
+   691→// Debts Table Component
+   692→// ============================================
+   693→function DebtsTable({
+   694→  debts,
+   695→  loading,
+   696→  onRecordPayment,
+   697→  onViewDetail,
+   698→}: {
+   699→  debts: Debt[]
+   700→  loading: boolean
+   701→  onRecordPayment: (debt: Debt) => void
+   702→  onViewDetail: (debt: Debt) => void
+   703→}) {
+   704→  if (loading) {
+   705→    return (
+   706→      <Card>
+   707→        <CardContent className="p-6 space-y-4">
+   708→          {Array.from({ length: 5 }).map((_, i) => (
+   709→            <Skeleton key={i} className="h-12 w-full" />
+   710→          ))}
+   711→        </CardContent>
+   712→      </Card>
+   713→    )
+   714→  }
+   715→
+   716→  if (debts.length === 0) {
+   717→    return (
+   718→      <Card>
+   719→        <CardContent className="py-12 text-center">
+   720→          <TrendingDown className="size-12 text-muted-foreground mx-auto mb-4" />
+   721→          <p className="text-muted-foreground">No debts found</p>
+   722→          <p className="text-xs text-muted-foreground mt-1">
+   723→            Create a new debt to start tracking
+   724→          </p>
+   725→        </CardContent>
+   726→      </Card>
+   727→    )
+   728→  }
+   729→
+   730→  return (
+   731→    <Card>
+   732→      <CardContent className="p-0">
+   733→        {/* Desktop table */}
+   734→        <div className="hidden md:block overflow-x-auto">
+   735→        <Table>
+   736→          <TableHeader>
+   737→            <TableRow>
+   738→              <TableHead>Name</TableHead>
+   739→              <TableHead>Description</TableHead>
+   740→              <TableHead className="text-right">Amount</TableHead>
+   741→              <TableHead className="text-right">Paid</TableHead>
+   742→              <TableHead className="text-right">Remaining</TableHead>
+   743→              <TableHead>Due Date</TableHead>
+   744→              <TableHead>Status</TableHead>
+   745→              <TableHead className="text-right">Actions</TableHead>
+   746→            </TableRow>
+   747→          </TableHeader>
+   748→          <TableBody>
+   749→            {debts.map((debt) => {
+   750→              const remaining = debt.amount - debt.paidAmount
+   751→              const overdue = isOverdue(debt)
+   752→              return (
+   753→                <TableRow key={debt.id}>
+   754→                  <TableCell className="font-medium">
+   755→                    {debt.customer?.name || debt.supplier?.name || '—'}
+   756→                  </TableCell>
+   757→                  <TableCell className="max-w-[150px] truncate text-muted-foreground">
+   758→                    {debt.description || '—'}
+   759→                  </TableCell>
+   760→                  <TableCell className="text-right">{formatETB(debt.amount)}</TableCell>
+   761→                  <TableCell className="text-right text-emerald-600">
+   762→                    {formatETB(debt.paidAmount)}
+   763→                  </TableCell>
+   764→                  <TableCell className="text-right font-medium">
+   765→                    <span className={overdue ? 'text-red-600' : ''}>
+   766→                      {formatETB(remaining)}
+   767→                    </span>
+   768→                  </TableCell>
+   769→                  <TableCell>
+   770→                    <span className={overdue ? 'text-red-600 font-medium' : ''}>
+   771→                      {formatDate(debt.dueDate)}
+   772→                    </span>
+   773→                  </TableCell>
+   774→                  <TableCell>
+   775→                    {overdue && debt.status !== 'paid'
+   776→                      ? getStatusBadge('overdue')
+   777→                      : getStatusBadge(debt.status)}
+   778→                  </TableCell>
+   779→                  <TableCell className="text-right">
+   780→                    <div className="flex items-center justify-end gap-1">
+   781→                      <Button
+   782→                        variant="ghost"
+   783→                        size="sm"
+   784→                        onClick={() => onViewDetail(debt)}
+   785→                        title="View Details"
+   786→                      >
+   787→                        <Eye className="size-4" />
+   788→                      </Button>
+   789→                      {debt.status !== 'paid' && (
+   790→                        <Button
+   791→                          variant="ghost"
+   792→                          size="sm"
+   793→                          onClick={() => onRecordPayment(debt)}
+   794→                          title="Record Payment"
+   795→                        >
+   796→                          <CreditCard className="size-4" />
+   797→                        </Button>
+   798→                      )}
+   799→                    </div>
+   800→                  </TableCell>
+   801→                </TableRow>
+   802→              )
+   803→            })}
+   804→          </TableBody>
+   805→        </Table>
+   806→        </div>
+   807→        {/* Mobile card view */}
+   808→        <div className="md:hidden space-y-3 p-3">
+   809→          {debts.map((debt) => {
+   810→            const remaining = debt.amount - debt.paidAmount
+   811→            const overdue = isOverdue(debt)
+   812→            return (
+   813→              <Card key={debt.id} className="p-4">
+   814→                <div className="flex items-start justify-between mb-2">
+   815→                  <div className="min-w-0 flex-1">
+   816→                    <p className="font-semibold text-sm truncate">{debt.customer?.name || debt.supplier?.name || '—'}</p>
+   817→                    <p className="text-xs text-muted-foreground truncate">{debt.description || 'No description'}</p>
+   818→                  </div>
+   819→                  {overdue && debt.status !== 'paid'
+   820→                    ? getStatusBadge('overdue')
+   821→                    : getStatusBadge(debt.status)}
+   822→                </div>
+   823→                <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+   824→                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-medium">{formatETB(debt.amount)}</span></div>
+   825→                  <div><span className="text-muted-foreground">Remaining:</span> <span className={`font-bold ${overdue ? 'text-red-600' : ''}`}>{formatETB(remaining)}</span></div>
+   826→                  <div><span className="text-muted-foreground">Paid:</span> <span className="text-emerald-600">{formatETB(debt.paidAmount)}</span></div>
+   827→                  <div><span className="text-muted-foreground">Due:</span> <span className={overdue ? 'text-red-600 font-medium' : ''}>{formatDate(debt.dueDate)}</span></div>
+   828→                </div>
+   829→                {debt.status !== 'paid' && (
+   830→                  <div className="flex gap-2 mt-3">
+   831→                    <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1" onClick={() => onViewDetail(debt)}>
+   832→                      <Eye className="size-3" /> Details
+   833→                    </Button>
+   834→                    <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1" onClick={() => onRecordPayment(debt)}>
+   835→                      <CreditCard className="size-3" /> Pay
+   836→                    </Button>
+   837→                  </div>
+   838→                )}
+   839→              </Card>
+   840→            )
+   841→          })}
+   842→        </div>
+   843→      </CardContent>
+   844→    </Card>
+   845→  )
+   846→}
+   847→

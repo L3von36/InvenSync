@@ -239,7 +239,7 @@ export function CreditLimitsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-base font-semibold tracking-tight">Credit Limits</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Credit Limits</h1>
           <p className="text-muted-foreground text-sm">Manage customer credit limits, usage tracking, and alerts</p>
         </div>
       </div>
@@ -254,7 +254,7 @@ export function CreditLimitsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Extended</p>
-                <p className="text-base font-semibold">{formatETB(summary.totalCreditExtended)}</p>
+                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalCreditExtended)}</p>
               </div>
             </div>
           </CardContent>
@@ -267,7 +267,7 @@ export function CreditLimitsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Used</p>
-                <p className="text-base font-semibold">{formatETB(summary.totalUsed)}</p>
+                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalUsed)}</p>
               </div>
             </div>
           </CardContent>
@@ -280,7 +280,7 @@ export function CreditLimitsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Available</p>
-                <p className="text-base font-semibold">{formatETB(summary.totalAvailable)}</p>
+                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalAvailable)}</p>
               </div>
             </div>
           </CardContent>
@@ -293,7 +293,7 @@ export function CreditLimitsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Blocked Accounts</p>
-                <p className="text-base font-semibold">{summary.blockedAccounts}</p>
+                <p className="text-xl sm:text-2xl font-bold">{summary.blockedAccounts}</p>
               </div>
             </div>
           </CardContent>

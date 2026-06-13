@@ -31,6 +31,7 @@ import {
   Legend,
 } from '@/components/ui/recharts-exports'
 import { api } from '@/lib/api-client'
+import { formatETB } from '@/lib/currency'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState } from '@/components/shared/error-states'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -93,8 +94,7 @@ type DateRange = 'this_month' | 'last_month' | 'last_3_months' | 'custom'
 // Helpers
 // ============================================
 
-const etbFormatter = new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' })
-const formatETB = (val: number) => etbFormatter.format(val)
+// formatETB is now imported from @/lib/currency (safe fallback for unsupported locales)
 
 const MONTH_LABELS: Record<string, string> = {
   '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
@@ -170,10 +170,10 @@ function KPICard({
             <Skeleton className="h-7 w-32" />
           </div>
         ) : (
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <p className="text-xs sm:text-sm text-muted-foreground font-medium">{title}</p>
-              <p className="text-sm sm:text-lg md:text-xl font-bold tracking-tight">{value}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium truncate">{title}</p>
+              <p className="text-xl sm:text-2xl font-bold tracking-tight truncate">{value}</p>
               {description && (
                 <p className="text-xs text-muted-foreground">{description}</p>
               )}
@@ -242,7 +242,7 @@ export function ProfitLossPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Profit & Loss</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Profit & Loss</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Financial overview for {currentOrg?.name || 'your organization'}
           </p>
@@ -327,7 +327,7 @@ export function ProfitLossPage() {
         <TabsContent value="revenue-cost">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Revenue vs Cost Breakdown</CardTitle>
+              <CardTitle className="text-sm font-semibold">Revenue vs Cost Breakdown</CardTitle>
               <CardDescription>Monthly revenue, cost of goods, and expenses comparison</CardDescription>
             </CardHeader>
             <CardContent>
@@ -365,7 +365,7 @@ export function ProfitLossPage() {
         <TabsContent value="expenses">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Expense Breakdown</CardTitle>
+              <CardTitle className="text-sm font-semibold">Expense Breakdown</CardTitle>
               <CardDescription>Distribution of expenses by category</CardDescription>
             </CardHeader>
             <CardContent>
@@ -391,7 +391,7 @@ export function ProfitLossPage() {
                           outerRadius={100}
                           dataKey="amount"
                           nameKey="category"
-                          label={({ category, percent }) => `${category} (${(percent * 100).toFixed(0)}%)`}
+                          label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
                           labelLine={true}
                         >
                           {(data?.expenseBreakdown ?? []).map((_, index) => (
@@ -404,17 +404,17 @@ export function ProfitLossPage() {
                   </div>
                   <div className="w-full lg:w-1/2 space-y-3">
                     {(data?.expenseBreakdown ?? []).map((item, idx) => (
-                      <div key={item.category} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                      <div key={item.category} className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <div
-                            className="size-3 rounded-full"
+                            className="size-3 rounded-full shrink-0"
                             style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}
                           />
-                          <span className="text-sm font-medium">
+                          <span className="text-sm font-medium truncate">
                             {CATEGORY_LABELS[item.category] || item.category}
                           </span>
                         </div>
-                        <span className="text-sm font-semibold">{formatETB(item.amount)}</span>
+                        <span className="text-sm font-semibold shrink-0">{formatETB(item.amount)}</span>
                       </div>
                     ))}
                   </div>
@@ -428,7 +428,7 @@ export function ProfitLossPage() {
         <TabsContent value="profit-trend">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Profit Trend</CardTitle>
+              <CardTitle className="text-sm font-semibold">Profit Trend</CardTitle>
               <CardDescription>Daily gross profit and net profit trend</CardDescription>
             </CardHeader>
             <CardContent>
@@ -477,9 +477,9 @@ export function ProfitLossPage() {
       </Tabs>
 
       {/* Top Profitable Products */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle className="text-base">Top Profitable Products</CardTitle>
+          <CardTitle className="text-sm font-semibold">Top Profitable Products</CardTitle>
           <CardDescription>Products with the highest profit in the selected period</CardDescription>
         </CardHeader>
         <CardContent>
@@ -531,11 +531,11 @@ export function ProfitLossPage() {
                 {(data?.topProducts ?? []).map((product, idx) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium text-muted-foreground">{idx + 1}</TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{product.sku || '—'}</TableCell>
-                    <TableCell className="text-right">{formatETB(product.revenue)}</TableCell>
-                    <TableCell className="text-right">{formatETB(product.cost)}</TableCell>
-                    <TableCell className="text-right font-semibold">{formatETB(product.profit)}</TableCell>
+                    <TableCell className="font-medium max-w-[160px] truncate">{product.name}</TableCell>
+                    <TableCell className="text-muted-foreground max-w-[100px] truncate">{product.sku || '—'}</TableCell>
+                    <TableCell className="text-right truncate max-w-[130px]">{formatETB(product.revenue)}</TableCell>
+                    <TableCell className="text-right truncate max-w-[130px]">{formatETB(product.cost)}</TableCell>
+                    <TableCell className="text-right font-semibold truncate max-w-[130px]">{formatETB(product.profit)}</TableCell>
                     <TableCell className="text-right">{product.quantity}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant={product.margin > 30 ? 'default' : 'secondary'}>

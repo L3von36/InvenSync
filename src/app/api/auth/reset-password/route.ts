@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getUserFromRequest, hashPassword, comparePassword } from '@/lib/auth'
+import { getUserFromRequest, hashPassword, comparePassword, validatePasswordStrength } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 
@@ -37,9 +37,11 @@ export async function POST(request: Request) {
       )
     }
 
-    if (newPassword.length < 6) {
+    // Validate new password strength
+    const passwordValidation = validatePasswordStrength(newPassword)
+    if (!passwordValidation.valid) {
       return NextResponse.json(
-        { error: 'New password must be at least 6 characters' },
+        { error: passwordValidation.errors.join('. ') },
         { status: 400 }
       )
     }
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
       data: { passwordHash: newPasswordHash }
     })
 
-    console.log(`[ResetPassword] Password reset successfully for: ${email}`)
+    console.log('[ResetPassword] Password reset successfully')
 
     return NextResponse.json({
       message: 'Password reset successfully'

@@ -555,19 +555,19 @@ function BookingsTab({ orgId, shopId, serviceTypes }: { orgId: string; shopId?: 
       <div className="grid grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-3 text-center">
-            <p className="text-lg font-semibold text-blue-600">{todayScheduled}</p>
+            <p className="text-sm font-semibold text-blue-600">{todayScheduled}</p>
             <p className="text-xs text-muted-foreground">Scheduled</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3 text-center">
-            <p className="text-lg font-semibold text-emerald-600">{todayCompleted}</p>
+            <p className="text-sm font-semibold text-emerald-600">{todayCompleted}</p>
             <p className="text-xs text-muted-foreground">Completed</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3 text-center">
-            <p className="text-lg font-semibold text-red-600">{todayCancelled}</p>
+            <p className="text-sm font-semibold text-red-600">{todayCancelled}</p>
             <p className="text-xs text-muted-foreground">Cancelled</p>
           </CardContent>
         </Card>
@@ -716,7 +716,7 @@ export function ServicesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-base font-semibold tracking-tight">Services</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Services</h1>
         <p className="text-muted-foreground text-sm">Manage service types and bookings</p>
       </div>
 

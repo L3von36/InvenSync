@@ -31,6 +31,10 @@ model User {
   twoFactorEnabled Boolean  @default(false)
   backupCodes      String?  // JSON array of hashed backup codes
 
+  // Account Lockout — prevent brute-force attacks
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime? // When lockout expires (null = not locked)
+
   memberships      OrganizationMember[]
   sessions         Session[]
   shopMemberships  ShopMember[]
@@ -48,7 +52,6 @@ model Session {
 
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([token])
   @@index([userId])
 }
 
@@ -293,6 +296,7 @@ model Product {
   @@index([organizationId, isActive])
   @@index([organizationId, isActive, shopId])
   @@index([organizationId, isActive, productTypeId])
+  @@index([organizationId, createdAt])
   @@index([sku])
 }
 
@@ -392,8 +396,11 @@ model Sale {
   @@index([organizationId])
   @@index([shopId])
   @@index([saleDate])
+  @@index([customerId])
   @@index([organizationId, status])
   @@index([organizationId, status, saleDate])
+  @@index([organizationId, saleDate])
+  @@index([organizationId, shopId, saleDate])
 }
 
 model SaleItem {
@@ -411,6 +418,7 @@ model SaleItem {
 
   @@index([saleId])
   @@index([productId])
+  @@index([saleId, productId])
 }
 
 // ============================================
@@ -438,7 +446,10 @@ model StockMovement {
   @@index([shopId])
   @@index([productId])
   @@index([createdAt])
+  @@index([type])
   @@index([organizationId, createdAt])
+  @@index([organizationId, productId, createdAt])
+  @@index([organizationId, shopId, createdAt])
 }
 
 // ============================================
@@ -470,7 +481,9 @@ model Debt {
   @@index([shopId])
   @@index([customerId])
   @@index([supplierId])
+  @@index([dueDate])
   @@index([organizationId, type, status])
+  @@index([organizationId, shopId, type, status])
 }
 
 model DebtPayment {
@@ -551,6 +564,9 @@ model ServiceBooking {
   @@index([shopId])
   @@index([serviceTypeId])
   @@index([bookingDate])
+  @@index([customerId])
+  @@index([organizationId, status, bookingDate])
+  @@index([organizationId, shopId, bookingDate])
 }
 
 // ============================================
@@ -646,6 +662,8 @@ model SalesCommission {
   @@index([salesRepId])
   @@index([organizationId])
   @@index([status])
+  @@index([salesRepId, status])
+  @@index([organizationId, status])
 }
 
 // ============================================
@@ -672,6 +690,9 @@ model AuditLog {
   @@index([entity])
   @@index([action])
   @@index([createdAt])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, entity, createdAt])
+  @@index([entity, entityId])
 }
 
 // ============================================
@@ -720,7 +741,6 @@ model LoyaltyAccount {
   customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   transactions   LoyaltyTransaction[]
 
-  @@index([customerId])
   @@index([tier])
 }
 
@@ -739,6 +759,7 @@ model LoyaltyTransaction {
   @@index([loyaltyAccountId])
   @@index([type])
   @@index([createdAt])
+  @@index([loyaltyAccountId, createdAt])
 }
 
 // ============================================
@@ -758,7 +779,6 @@ model CreditLimit {
 
   customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  @@index([customerId])
   @@index([isBlocked])
 }
 
@@ -791,6 +811,8 @@ model StockTransfer {
   @@index([toShopId])
   @@index([productId])
   @@index([status])
+  @@index([organizationId, status])
+  @@index([organizationId, status, createdAt])
 }
 
 // ============================================
@@ -819,6 +841,9 @@ model PurchaseOrder {
   @@index([shopId])
   @@index([supplierId])
   @@index([status])
+  @@index([orderDate])
+  @@index([organizationId, status, orderDate])
+  @@index([organizationId, shopId, status])
 }
 
 model PurchaseOrderItem {

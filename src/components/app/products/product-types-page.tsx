@@ -408,7 +408,7 @@ function ProductTypeCard({
               {productType.icon || '📦'}
             </div>
             <div>
-              <CardTitle className="text-base">{productType.name}</CardTitle>
+              <CardTitle className="text-sm font-semibold">{productType.name}</CardTitle>
               <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                 <span>{attrCount} {attrCount === 1 ? 'attribute' : 'attributes'}</span>
                 <span className="text-border">•</span>
@@ -556,7 +556,7 @@ export function ProductTypesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">Product Types</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Product Types</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Define product categories with custom attributes
           </p>
@@ -594,7 +594,7 @@ export function ProductTypesPage() {
           <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Package className="size-8 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold">
+          <h3 className="text-base font-semibold">
             {search ? 'No matching product types' : 'No product types yet'}
           </h3>
           <p className="text-muted-foreground mt-1 max-w-md mx-auto text-sm">

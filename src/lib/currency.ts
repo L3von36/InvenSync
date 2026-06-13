@@ -113,6 +113,25 @@ function addThousandSeparator(numStr: string): string {
 }
 
 /**
+ * Safe ETB currency formatter that won't throw RangeError
+ * in environments where the 'en-ET' locale or 'ETB' currency code
+ * is not supported by Intl.NumberFormat.
+ */
+export function formatETB(value: number): string {
+  try {
+    const formatter = new Intl.NumberFormat('en-ET', { style: 'currency', currency: 'ETB' })
+    return formatter.format(value)
+  } catch {
+    // Fallback: manually format with the Br symbol and thousand separators
+    const decimals = 2
+    const formatted = Math.abs(value).toFixed(decimals)
+    const withSeparators = addThousandSeparator(formatted)
+    const sign = value < 0 ? '-' : ''
+    return `${sign}Br ${withSeparators}`
+  }
+}
+
+/**
  * Get exchange rate from one currency to another
  */
 export function getExchangeRate(from: string, to: string): number {

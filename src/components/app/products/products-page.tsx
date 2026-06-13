@@ -579,6 +579,7 @@ function ProductDialog({
                                   src={attributeValues[attr.id] || imagePreview || ''}
                                   alt="Preview"
                                   className="size-full object-cover"
+                                  loading="lazy"
                                 />
                               </div>
                             )}
@@ -686,12 +687,13 @@ function ProductDetailView({
 
       {/* Product Header */}
       <div className="flex flex-col sm:flex-row gap-6">
-        <div className="size-24 rounded-xl bg-primary/10 flex items-center justify-center text-3xl shrink-0">
+        <div className="size-24 rounded-xl bg-primary/10 flex items-center justify-center text-2xl shrink-0">
           {currentProduct.imageUrl ? (
             <img
               src={currentProduct.imageUrl}
               alt={currentProduct.name}
               className="size-full rounded-xl object-cover"
+              loading="lazy"
             />
           ) : (
             currentProduct.productType?.icon || '📦'
@@ -734,7 +736,7 @@ function ProductDetailView({
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Current Stock</div>
-            <div className="text-lg font-bold mt-1">{currentProduct.quantity}</div>
+            <div className="text-xl sm:text-2xl font-bold mt-1">{currentProduct.quantity}</div>
             <Badge variant={stockStatus.variant} className="mt-1 text-xs">
               {stockStatus.label}
             </Badge>
@@ -743,7 +745,7 @@ function ProductDetailView({
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Cost Price</div>
-            <div className="text-lg font-bold mt-1">
+            <div className="text-xl sm:text-2xl font-bold mt-1">
               {formatCurrency(currentProduct.costPrice)}
             </div>
           </CardContent>
@@ -751,7 +753,7 @@ function ProductDetailView({
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Selling Price</div>
-            <div className="text-lg font-bold mt-1">
+            <div className="text-xl sm:text-2xl font-bold mt-1">
               {formatCurrency(currentProduct.sellingPrice)}
             </div>
           </CardContent>
@@ -759,7 +761,7 @@ function ProductDetailView({
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Total Value</div>
-            <div className="text-lg font-bold mt-1">
+            <div className="text-xl sm:text-2xl font-bold mt-1">
               {formatCurrency(currentProduct.quantity * currentProduct.sellingPrice)}
             </div>
           </CardContent>
@@ -769,7 +771,7 @@ function ProductDetailView({
       {/* Quick Stock Adjustment */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Quick Stock Adjustment</CardTitle>
+          <CardTitle className="text-sm font-semibold">Quick Stock Adjustment</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-end gap-3 sm:gap-4 flex-wrap">
@@ -815,7 +817,7 @@ function ProductDetailView({
       {(currentProduct.attributeValues?.length || 0) > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Attributes</CardTitle>
+            <CardTitle className="text-sm font-semibold">Attributes</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -847,7 +849,7 @@ function ProductDetailView({
       {currentProduct.stockMovements && currentProduct.stockMovements.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Stock History</CardTitle>
+            <CardTitle className="text-sm font-semibold">Stock History</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -1058,7 +1060,7 @@ export function ProductsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-base font-semibold tracking-tight">Products</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Products</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Manage your product catalog • {total} product{total !== 1 ? 's' : ''}
           </p>
@@ -1178,6 +1180,7 @@ export function ProductsPage() {
                               src={product.imageUrl}
                               alt={product.name}
                               className="size-full object-cover"
+                              loading="lazy"
                             />
                           ) : (
                             product.productType?.icon || '📦'
@@ -1286,6 +1289,7 @@ export function ProductsPage() {
                             src={product.imageUrl}
                             alt={product.name}
                             className="size-full object-cover"
+                            loading="lazy"
                           />
                         ) : (
                           product.productType?.icon || '📦'
