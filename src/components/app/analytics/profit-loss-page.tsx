@@ -33,7 +33,7 @@ import {
 import { api } from '@/lib/api-client'
 import { formatETB } from '@/lib/currency'
 import { getNetworkErrorMessage } from '@/lib/validation'
-import { ErrorState } from '@/components/shared/error-states'
+import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -112,7 +112,7 @@ function formatDateLabel(dateKey: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-const PIE_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2', '#ca8a04']
+const PIE_COLORS = ['#ea580c', '#f97316', '#c2410c', '#fb923c', '#9a3412', '#fed7aa', '#7c2d12']
 
 const CATEGORY_LABELS: Record<string, string> = {
   rent: 'Rent',
@@ -259,7 +259,7 @@ export function ProfitLossPage() {
               <SelectItem value="last_3_months">Last 3 Months</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon" onClick={fetchData} disabled={isLoading}>
+          <Button variant="outline" size="icon" onClick={fetchData} disabled={isLoading} aria-label="Refresh data">
             <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
@@ -316,7 +316,7 @@ export function ProfitLossPage() {
       </div>
 
       {/* Charts */}
-      <Tabs defaultValue="revenue-cost" className="space-y-4">
+      <Tabs defaultValue="revenue-cost" className="space-y-4 min-w-0">
         <TabsList>
           <TabsTrigger value="revenue-cost">Revenue vs Cost</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
@@ -325,7 +325,7 @@ export function ProfitLossPage() {
 
         {/* Revenue vs Cost Bar Chart */}
         <TabsContent value="revenue-cost">
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader>
               <CardTitle className="text-sm font-semibold">Revenue vs Cost Breakdown</CardTitle>
               <CardDescription>Monthly revenue, cost of goods, and expenses comparison</CardDescription>
@@ -351,7 +351,7 @@ export function ProfitLossPage() {
                       contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                     />
                     <Legend />
-                    <Bar dataKey="revenue" name="Revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="revenue" name="Revenue" fill="#ea580c" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="cost" name="Cost of Goods" fill="#ef4444" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="expenses" name="Expenses" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -363,7 +363,7 @@ export function ProfitLossPage() {
 
         {/* Expense Breakdown Pie Chart */}
         <TabsContent value="expenses">
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader>
               <CardTitle className="text-sm font-semibold">Expense Breakdown</CardTitle>
               <CardDescription>Distribution of expenses by category</CardDescription>
@@ -426,7 +426,7 @@ export function ProfitLossPage() {
 
         {/* Profit Trend Line Chart */}
         <TabsContent value="profit-trend">
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader>
               <CardTitle className="text-sm font-semibold">Profit Trend</CardTitle>
               <CardDescription>Daily gross profit and net profit trend</CardDescription>
@@ -456,7 +456,7 @@ export function ProfitLossPage() {
                       type="monotone"
                       dataKey="grossProfit"
                       name="Gross Profit"
-                      stroke="#2563eb"
+                      stroke="#16a34a"
                       strokeWidth={2}
                       dot={false}
                     />
@@ -464,7 +464,7 @@ export function ProfitLossPage() {
                       type="monotone"
                       dataKey="profit"
                       name="Net Profit"
-                      stroke="#16a34a"
+                      stroke="#ea580c"
                       strokeWidth={2}
                       dot={false}
                     />
@@ -490,9 +490,10 @@ export function ProfitLossPage() {
               ))}
             </div>
           ) : (data?.topProducts ?? []).length === 0 ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
-              No product sales data available for this period
-            </div>
+            <EmptyState
+              title="No product sales data"
+              message="No product sales data available for this period."
+            />
           ) : isMobile ? (
             <div className="space-y-3">
               {(data?.topProducts ?? []).map((product, idx) => (
@@ -514,6 +515,7 @@ export function ProfitLossPage() {
               ))}
             </div>
           ) : (
+            <div className="overflow-x-auto -mx-4 md:mx-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -546,6 +548,7 @@ export function ProfitLossPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

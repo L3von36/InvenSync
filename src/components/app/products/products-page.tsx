@@ -28,7 +28,7 @@ import { BulkImportDialog } from '@/components/app/products/bulk-import-dialog'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { productSchema, type ProductFormData } from '@/lib/validations'
-import { ErrorState } from '@/components/shared/error-states'
+import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { FormInputField, FormTextareaField } from '@/components/shared/form-fields'
 import { Form } from '@/components/ui/form'
 
@@ -1093,6 +1093,7 @@ export function ProductsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search by name or SKU..."
+            aria-label="Search products"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -1119,31 +1120,20 @@ export function ProductsPage() {
       ) : fetchError ? (
         <ErrorState title="Failed to load products" message={fetchError} onRetry={fetchProducts} />
       ) : products.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <Package className="size-8 text-primary" />
-          </div>
-          <h3 className="text-base font-semibold">
-            {search || filterType !== 'all' ? 'No matching products' : 'No products yet'}
-          </h3>
-          <p className="text-muted-foreground mt-1 max-w-md mx-auto text-sm">
-            {search || filterType !== 'all'
-              ? 'Try adjusting your search or filter.'
-              : 'Add your first product to start managing your inventory.'}
-          </p>
-          {!search && filterType === 'all' && (
-            <Button
-              className="mt-4 gap-2"
-              onClick={() => {
-                setEditingProduct(null)
-                setDialogOpen(true)
-              }}
-            >
-              <Plus className="size-4" />
-              Add Product
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          title={search || filterType !== 'all' ? 'No matching products' : 'No products yet'}
+          message={search || filterType !== 'all'
+            ? 'Try adjusting your search or filter.'
+            : 'Add your first product to start managing your inventory.'}
+          icon={<Package className="size-7 text-muted-foreground" />}
+          action={!search && filterType === 'all' ? {
+            label: 'Add Product',
+            onClick: () => {
+              setEditingProduct(null)
+              setDialogOpen(true)
+            },
+          } : undefined}
+        />
       ) : (
         <>
           {/* Desktop Table */}
@@ -1216,8 +1206,9 @@ export function ProductsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8"
+                              className="size-8 h-9 w-9 sm:h-8 sm:w-8"
                               onClick={(e) => e.stopPropagation()}
+                              aria-label={`Actions for ${product.name}`}
                             >
                               <MoreHorizontal className="size-4" />
                             </Button>

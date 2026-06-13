@@ -164,7 +164,7 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
 // ============================================
 function StatsSection() {
   return (
-    <section className="bg-white dark:bg-gray-900 pb-16 sm:pb-20 px-4 z-10 relative">
+    <section className="bg-white dark:bg-gray-950 pb-16 sm:pb-20 px-4 z-10 relative">
       <div className="max-w-5xl mx-auto bg-gray-900 dark:bg-gray-800 rounded-xl py-8 sm:py-10 px-6 sm:px-8 grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-4 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)]">
         <div className="w-full text-center group">
           <div className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-1 group-hover:scale-105 transition-transform origin-center">&lt; 30s</div>
@@ -346,19 +346,19 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
     <section id="pricing" className="py-16 md:py-20 px-4 sm:px-5 bg-gray-900 relative isolate overflow-hidden">
       <div className="absolute inset-0 bg-primary blur-[200px] opacity-20 -z-10 rounded-full w-[120%] h-full max-w-4xl mx-auto" />
 
-      <div className="max-w-sm mx-auto bg-white rounded-xl p-6 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.4)] border border-gray-100">
+      <div className="max-w-sm mx-auto bg-white dark:bg-gray-800 rounded-xl p-6 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.4)] border border-gray-100 dark:border-gray-700">
         <div className="text-center mb-5">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Simple, flat pricing</h2>
-          <p className="text-gray-500 font-medium text-sm">No hidden fees, cancel anytime.</p>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">Simple, flat pricing</h2>
+          <p className="text-gray-500 dark:text-gray-400 font-medium text-sm">No hidden fees, cancel anytime.</p>
         </div>
         <div className="flex flex-col items-center justify-center mb-6">
           <div className="flex items-start gap-1">
-            <span className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tighter">150</span>
+            <span className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tighter">150</span>
             <div className="flex flex-col text-left mt-1 sm:mt-2">
               <span className="text-base sm:text-lg font-semibold text-primary">ETB</span>
             </div>
           </div>
-          <span className="font-semibold text-gray-400 mt-1 text-xs sm:text-sm">per month, per business</span>
+          <span className="font-semibold text-gray-400 dark:text-gray-500 mt-1 text-xs sm:text-sm">per month, per business</span>
         </div>
         <ul className="space-y-3 mb-6">
           {[
@@ -369,7 +369,7 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
             'Low stock alerts',
             'No transaction fees',
           ].map(feature => (
-            <li key={feature} className="flex items-center gap-2.5 text-gray-700 text-sm">
+            <li key={feature} className="flex items-center gap-2.5 text-gray-700 dark:text-gray-300 text-sm">
               <div className="w-5 h-5 bg-brand-50 rounded-full flex flex-shrink-0 items-center justify-center">
                 <Check className="w-3.5 h-3.5 text-primary" />
               </div>
@@ -379,11 +379,11 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
         </ul>
         <button
           onClick={onRegister}
-          className="block w-full bg-gray-900 text-white font-semibold text-sm py-3 rounded-full shadow-[0_10px_20px_rgba(0,0,0,0.1)] hover:shadow-[0_15px_30px_rgba(0,0,0,0.15)] hover:-translate-y-1 transition-all text-center"
+          className="block w-full bg-gray-900 dark:bg-primary text-white font-semibold text-sm py-3 rounded-full shadow-[0_10px_20px_rgba(0,0,0,0.1)] hover:shadow-[0_15px_30px_rgba(0,0,0,0.15)] hover:-translate-y-1 transition-all text-center"
         >
           Start Free Trial
         </button>
-        <div className="mt-4 text-center font-medium text-gray-400 text-[13px]">Pay safely via Telebirr · No card required</div>
+        <div className="mt-4 text-center font-medium text-gray-400 dark:text-gray-500 text-[13px]">Pay safely via Telebirr · No card required</div>
       </div>
     </section>
   )

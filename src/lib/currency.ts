@@ -132,6 +132,15 @@ export function formatETB(value: number): string {
 }
 
 /**
+ * Format large ETB amounts in a compact form (e.g. ETB 1.5M, ETB 250K)
+ */
+export function formatShortETB(amount: number): string {
+  if (amount >= 1_000_000) return `ETB ${(amount / 1_000_000).toFixed(1)}M`
+  if (amount >= 1_000) return `ETB ${(amount / 1_000).toFixed(1)}K`
+  return `ETB ${amount.toFixed(0)}`
+}
+
+/**
  * Get exchange rate from one currency to another
  */
 export function getExchangeRate(from: string, to: string): number {

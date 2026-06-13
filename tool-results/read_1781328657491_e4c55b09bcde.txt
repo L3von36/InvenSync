@@ -1,0 +1,841 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import {
+     5→  Puzzle, Clock, CheckCircle2, XCircle, Zap,
+     6→  Palette, Link2, ShieldCheck, Eye, Tag, ShoppingCart,
+     7→  BarChart3, Loader2, Info, Mail, AlertTriangle,
+     8→  PlusCircle, RefreshCw, CalendarDays,
+     9→  ArrowRight, Send, Hourglass,
+    10→} from 'lucide-react'
+    11→import { toast } from 'sonner'
+    12→import { api, type ModuleData } from '@/lib/api-client'
+    13→import { useAuthStore } from '@/lib/stores/auth-store'
+    14→import { getNetworkErrorMessage } from '@/lib/validation'
+    15→import { ErrorState } from '@/components/shared/error-states'
+    16→import { FormSubmitButton } from '@/components/shared/form-fields'
+    17→import { Card, CardContent } from '@/components/ui/card'
+    18→import { Button } from '@/components/ui/button'
+    19→import { Badge } from '@/components/ui/badge'
+    20→import { Skeleton } from '@/components/ui/skeleton'
+    21→import { Separator } from '@/components/ui/separator'
+    22→import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+    23→import { Progress } from '@/components/ui/progress'
+    24→import {
+    25→  Dialog, DialogContent, DialogDescription, DialogFooter,
+    26→  DialogHeader, DialogTitle,
+    27→} from '@/components/ui/dialog'
+    28→
+    29→// ============================================
+    30→// Types
+    31→// ============================================
+    32→type ModuleStatus = 'active' | 'trial' | 'available' | 'expired' | 'requested'
+    33→
+    34→interface EnrichedModule {
+    35→  id: string
+    36→  key: string
+    37→  name: string
+    38→  description: string
+    39→  icon: string
+    40→  category: string
+    41→  priceETB: number
+    42→  isFree: boolean
+    43→  freeTrialDays: number
+    44→  billingCycle: string
+    45→  order: number
+    46→  status: ModuleStatus
+    47→  orgStatus: ModuleData['orgStatus']
+    48→  requested: boolean
+    49→}
+    50→
+    51→// ============================================
+    52→// Helpers
+    53→// ============================================
+    54→function formatETB(amount: number): string {
+    55→  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    56→}
+    57→
+    58→function daysUntil(dateStr: string | null): number | null {
+    59→  if (!dateStr) return null
+    60→  const diff = new Date(dateStr).getTime() - Date.now()
+    61→  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+    62→}
+    63→
+    64→const STATUS_CONFIG: Record<ModuleStatus, { label: string; color: string; icon: React.ReactNode }> = {
+    65→  active: {
+    66→    label: 'Active',
+    67→    color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+    68→    icon: <CheckCircle2 className="size-3.5" />,
+    69→  },
+    70→  trial: {
+    71→    label: 'On Trial',
+    72→    color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    73→    icon: <Clock className="size-3.5" />,
+    74→  },
+    75→  requested: {
+    76→    label: 'Requested',
+    77→    color: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300',
+    78→    icon: <Hourglass className="size-3.5" />,
+    79→  },
+    80→  available: {
+    81→    label: 'Available',
+    82→    color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300',
+    83→    icon: <PlusCircle className="size-3.5" />,
+    84→  },
+    85→  expired: {
+    86→    label: 'Expired',
+    87→    color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+    88→    icon: <XCircle className="size-3.5" />,
+    89→  },
+    90→}
+    91→
+    92→const CATEGORY_COLORS: Record<string, string> = {
+    93→  core: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+    94→  ai: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+    95→  integration: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300',
+    96→  analytics: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    97→  communication: 'bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300',
+    98→  reporting: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+    99→}
+   100→
+   101→const CARD_ACCENT: Record<string, Record<ModuleStatus, string>> = {
+   102→  core: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+   103→  ai: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+   104→  integration: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+   105→  analytics: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+   106→  communication: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+   107→  reporting: { active: 'border-l-emerald-500', trial: 'border-l-amber-500', requested: 'border-l-violet-500', available: 'border-l-sky-500', expired: 'border-l-red-500' },
+   108→}
+   109→
+   110→const ICON_BG: Record<string, string> = {
+   111→  core: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600',
+   112→  ai: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600',
+   113→  integration: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600',
+   114→  analytics: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600',
+   115→  communication: 'bg-pink-100 dark:bg-pink-900/30 text-pink-600',
+   116→  reporting: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600',
+   117→}
+   118→
+   119→function getModuleIcon(iconName: string) {
+   120→  const iconMap: Record<string, React.ReactNode> = {
+   121→    'package': <ShoppingCart className="size-5" />,
+   122→    'bar-chart': <BarChart3 className="size-5" />,
+   123→    'brain': <Zap className="size-5" />,
+   124→    'puzzle': <Puzzle className="size-5" />,
+   125→    'palette': <Palette className="size-5" />,
+   126→    'link': <Link2 className="size-5" />,
+   127→    'shield': <ShieldCheck className="size-5" />,
+   128→    'eye': <Eye className="size-5" />,
+   129→    'tag': <Tag className="size-5" />,
+   130→    'clock': <Clock className="size-5" />,
+   131→  }
+   132→  return iconMap[iconName] || <Puzzle className="size-5" />
+   133→}
+   134→
+   135→function getModuleStatus(m: ModuleData): ModuleStatus {
+   136→  if (!m.orgStatus) return 'available'
+   137→  if (m.orgStatus.status === 'active') return 'active'
+   138→  if (m.orgStatus.status === 'trial') return 'trial'
+   139→  if (m.orgStatus.status === 'requested') return 'requested'
+   140→  if (m.orgStatus.status === 'expired' || m.orgStatus.status === 'cancelled') return 'expired'
+   141→  // If orgStatus exists but status is unexpected, check isActive
+   142→  if (m.orgStatus.isActive) return 'active'
+   143→  return 'available'
+   144→}
+   145→
+   146→// ============================================
+   147→// Module Card
+   148→// ============================================
+   149→function ModuleCard({
+   150→  mod,
+   151→  onRequestAccess,
+   152→  requestingKey,
+   153→  onActivate,
+   154→  activatingKey,
+   155→}: {
+   156→  mod: EnrichedModule
+   157→  onRequestAccess: (moduleKey: string) => void
+   158→  requestingKey: string | null
+   159→  onActivate: (moduleKey: string) => void
+   160→  activatingKey: string | null
+   161→}) {
+   162→  const statusConfig = STATUS_CONFIG[mod.status]
+   163→  const days = daysUntil(mod.orgStatus?.expiresAt ?? null)
+   164→  const isExpired = mod.status === 'expired'
+   165→  const isTrial = mod.status === 'trial'
+   166→  const isAvailable = mod.status === 'available'
+   167→  const isRequested = mod.status === 'requested' || mod.requested
+   168→
+   169→  const cardAccent = CARD_ACCENT[mod.category]?.[mod.status] || 'border-l-gray-400'
+   170→  const opacityClass = isExpired ? 'opacity-75' : isAvailable ? 'opacity-90' : ''
+   171→
+   172→  // Trial progress calculation
+   173→  const trialDays = mod.freeTrialDays || 30
+   174→  const trialProgress = isTrial && days !== null && days > 0
+   175→    ? Math.max(0, Math.min(100, ((trialDays - days) / trialDays) * 100))
+   176→    : isTrial ? 100 : 0
+   177→
+   178→  // Urgency levels for trial
+   179→  const isCritical = isTrial && days !== null && days <= 3 && days > 0
+   180→  const isWarning = isTrial && days !== null && days <= 7 && days > 3
+   181→
+   182→  return (
+   183→    <Card className={`border-l-4 ${cardAccent} transition-shadow hover:shadow-md ${opacityClass}`}>
+   184→      <CardContent className="p-4 space-y-3">
+   185→        {/* Header */}
+   186→        <div className="flex items-start gap-3">
+   187→          <div className={`size-11 rounded-lg flex items-center justify-center shrink-0 ${ICON_BG[mod.category] || 'bg-gray-100 text-gray-600'}`}>
+   188→            {getModuleIcon(mod.icon)}
+   189→          </div>
+   190→          <div className="flex-1 min-w-0">
+   191→            <div className="flex items-center gap-2 flex-wrap">
+   192→              <h3 className="font-semibold text-sm">{mod.name}</h3>
+   193→              <Badge className={statusConfig.color} variant="outline">
+   194→                <span className="flex items-center gap-1">
+   195→                  {statusConfig.icon}
+   196→                  {isTrial && days !== null && days > 0 ? `${days}d left` : statusConfig.label}
+   197→                </span>
+   198→              </Badge>
+   199→            </div>
+   200→            <p className="text-xs text-muted-foreground font-mono mt-0.5">{mod.key}</p>
+   201→          </div>
+   202→        </div>
+   203→
+   204→        {/* Description */}
+   205→        <p className="text-xs text-muted-foreground line-clamp-2">{mod.description || 'No description available'}</p>
+   206→
+   207→        {/* Category & Price */}
+   208→        <div className="flex items-center justify-between flex-wrap gap-1.5">
+   209→          <Badge className={CATEGORY_COLORS[mod.category] || CATEGORY_COLORS.core} variant="outline">
+   210→            {mod.category}
+   211→          </Badge>
+   212→          {mod.isFree ? (
+   213→            <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" variant="outline">
+   214→              Free
+   215→            </Badge>
+   216→          ) : (
+   217→            <span className="text-sm font-semibold">
+   218→              {formatETB(mod.priceETB)}
+   219→              <span className="text-xs font-normal text-muted-foreground">/mo</span>
+   220→            </span>
+   221→          )}
+   222→        </div>
+   223→
+   224→        {/* Requested status banner */}
+   225→        {isRequested && (
+   226→          <>
+   227→            <Separator />
+   228→            <div className="flex items-center gap-2 p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20">
+   229→              <Hourglass className="size-4 text-violet-600 shrink-0" />
+   230→              <div>
+   231→                <p className="text-xs font-medium text-violet-800 dark:text-violet-300">Request Pending</p>
+   232→                <p className="text-[11px] text-violet-700 dark:text-violet-400">Our team is reviewing your request. You&apos;ll be notified once approved.</p>
+   233→              </div>
+   234→            </div>
+   235→          </>
+   236→        )}
+   237→
+   238→        {/* Trial countdown with progress bar */}
+   239→        {isTrial && (
+   240→          <>
+   241→            <Separator />
+   242→            {days !== null && days > 0 ? (
+   243→              <div className={`rounded-lg p-3 space-y-2 ${
+   244→                isCritical
+   245→                  ? 'bg-red-50 dark:bg-red-900/20 animate-pulse'
+   246→                  : isWarning
+   247→                    ? 'bg-amber-50 dark:bg-amber-900/20 animate-pulse'
+   248→                    : 'bg-amber-50 dark:bg-amber-900/20'
+   249→              }`}>
+   250→                <div className="flex items-center justify-between">
+   251→                  <div className="flex items-center gap-2">
+   252→                    <Clock className={`size-4 shrink-0 ${
+   253→                      isCritical ? 'text-red-600' : 'text-amber-600'
+   254→                    }`} />
+   255→                    <p className={`text-xs font-medium ${
+   256→                      isCritical ? 'text-red-800 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'
+   257→                    }`}>
+   258→                      Trial Period
+   259→                    </p>
+   260→                  </div>
+   261→                  <span className={`text-xs font-bold ${
+   262→                    isCritical ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-400'
+   263→                  }`}>
+   264→                    {days} day{days !== 1 ? 's' : ''} left
+   265→                  </span>
+   266→                </div>
+   267→                <Progress
+   268→                  value={100 - trialProgress}
+   269→                  className={`h-2 ${
+   270→                    isCritical
+   271→                      ? '[&>[data-slot=progress-indicator]]:bg-red-500'
+   272→                      : isWarning
+   273→                        ? '[&>[data-slot=progress-indicator]]:bg-amber-500'
+   274→                        : '[&>[data-slot=progress-indicator]]:bg-amber-400'
+   275→                  }`}
+   276→                />
+   277→                {mod.orgStatus?.expiresAt && (
+   278→                  <p className={`text-[11px] ${
+   279→                    isCritical ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'
+   280→                  }`}>
+   281→                    Expires {new Date(mod.orgStatus.expiresAt).toLocaleDateString()}
+   282→                  </p>
+   283→                )}
+   284→                {(isCritical || isWarning) && (
+   285→                  <p className={`text-[11px] font-medium ${
+   286→                    isCritical ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'
+   287→                  }`}>
+   288→                    {isCritical
+   289→                      ? 'Trial ending very soon — contact us to continue!'
+   290→                      : 'Trial ending soon — consider upgrading'}
+   291→                  </p>
+   292→                )}
+   293→              </div>
+   294→            ) : (
+   295→              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
+   296→                <AlertTriangle className="size-4 text-red-600 shrink-0" />
+   297→                <div>
+   298→                  <p className="text-xs font-medium text-red-800 dark:text-red-300">Trial Expired</p>
+   299→                  <p className="text-[11px] text-red-700 dark:text-red-400">Contact support to renew your subscription</p>
+   300→                </div>
+   301→              </div>
+   302→            )}
+   303→          </>
+   304→        )}
+   305→
+   306→        {/* Active module info */}
+   307→        {mod.status === 'active' && (
+   308→          <>
+   309→            <Separator />
+   310→            <div className="flex items-center justify-between text-xs text-muted-foreground">
+   311→              <span className="flex items-center gap-1">
+   312→                <CheckCircle2 className="size-3 text-emerald-600" /> Active
+   313→              </span>
+   314→              {mod.orgStatus?.autoRenew && (
+   315→                <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" variant="outline">
+   316→                  Auto-renew
+   317→                </Badge>
+   318→              )}
+   319→            </div>
+   320→          </>
+   321→        )}
+   322→
+   323→        {/* Expired module info */}
+   324→        {isExpired && (
+   325→          <>
+   326→            <Separator />
+   327→            <div className="flex items-center gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-900/20">
+   328→              <XCircle className="size-4 text-red-600 shrink-0" />
+   329→              <div>
+   330→                <p className="text-xs font-medium text-red-800 dark:text-red-300">Module Expired</p>
+   331→                <p className="text-[11px] text-red-700 dark:text-red-400">Contact support@invensync.com to renew</p>
+   332→              </div>
+   333→            </div>
+   334→            <Button
+   335→              size="sm"
+   336→              variant="outline"
+   337→              className="w-full gap-1.5"
+   338→              onClick={() => onRequestAccess(mod.key)}
+   339→              disabled={requestingKey === mod.key}
+   340→            >
+   341→              {requestingKey === mod.key ? (
+   342→                <Loader2 className="size-3.5 animate-spin" />
+   343→              ) : (
+   344→                <RefreshCw className="size-3.5" />
+   345→              )}
+   346→              {requestingKey === mod.key ? 'Requesting...' : 'Request Renewal'}
+   347→            </Button>
+   348→          </>
+   349→        )}
+   350→
+   351→        {/* Action buttons for available modules */}
+   352→        {isAvailable && !isRequested && (
+   353→          <>
+   354→            <Separator />
+   355→            {mod.isFree ? (
+   356→              <Button
+   357→                size="sm"
+   358→                className="w-full gap-1.5"
+   359→                disabled={activatingKey === mod.key}
+   360→                onClick={() => onActivate(mod.key)}
+   361→              >
+   362→                {activatingKey === mod.key ? (
+   363→                  <Loader2 className="size-3.5 animate-spin" />
+   364→                ) : (
+   365→                  <CheckCircle2 className="size-3.5" />
+   366→                )}
+   367→                {activatingKey === mod.key ? 'Activating...' : 'Activate Free'}
+   368→              </Button>
+   369→            ) : (
+   370→              <Button
+   371→                size="sm"
+   372→                className="w-full gap-1.5"
+   373→                disabled={requestingKey === mod.key}
+   374→                onClick={() => onRequestAccess(mod.key)}
+   375→              >
+   376→                {requestingKey === mod.key ? (
+   377→                  <Loader2 className="size-3.5 animate-spin" />
+   378→                ) : (
+   379→                  <Send className="size-3.5" />
+   380→                )}
+   381→                {requestingKey === mod.key ? 'Requesting...' : 'Request Access'}
+   382→              </Button>
+   383→            )}
+   384→          </>
+   385→        )}
+   386→      </CardContent>
+   387→    </Card>
+   388→  )
+   389→}
+   390→
+   391→// ============================================
+   392→// Request Confirmation Dialog
+   393→// ============================================
+   394→function RequestDialog({
+   395→  open,
+   396→  onOpenChange,
+   397→  module: mod,
+   398→  onSuccess,
+   399→}: {
+   400→  open: boolean
+   401→  onOpenChange: (open: boolean) => void
+   402→  module: EnrichedModule | null
+   403→  onSuccess: () => void
+   404→}) {
+   405→  const { currentOrg } = useAuthStore()
+   406→  const [loading, setLoading] = useState(false)
+   407→
+   408→  if (!mod || !currentOrg) return null
+   409→
+   410→  const handleSubmit = async () => {
+   411→    setLoading(true)
+   412→    try {
+   413→      await api.requestModule(currentOrg.id, mod.key)
+   414→      toast.success(`Request for ${mod.name} submitted! Our team will review it shortly.`)
+   415→      onOpenChange(false)
+   416→      onSuccess()
+   417→    } catch (err) {
+   418→      toast.error(getNetworkErrorMessage(err))
+   419→    } finally {
+   420→      setLoading(false)
+   421→    }
+   422→  }
+   423→
+   424→  return (
+   425→    <Dialog open={open} onOpenChange={onOpenChange}>
+   426→      <DialogContent className="sm:max-w-md">
+   427→        <DialogHeader>
+   428→          <DialogTitle className="flex items-center gap-2">
+   429→            <Send className="size-5 text-primary" />
+   430→            Request {mod.name}
+   431→          </DialogTitle>
+   432→          <DialogDescription>
+   433→            {mod.description || `Request access to the ${mod.name} module for your organization.`}
+   434→          </DialogDescription>
+   435→        </DialogHeader>
+   436→
+   437→        <div className="space-y-3">
+   438→          {/* Module info */}
+   439→          <div className="rounded-lg border p-3 space-y-2">
+   440→            <div className="flex items-center justify-between">
+   441→              <span className="text-xs text-muted-foreground">Module</span>
+   442→              <Badge className={CATEGORY_COLORS[mod.category] || CATEGORY_COLORS.core} variant="outline">
+   443→                {mod.category}
+   444→              </Badge>
+   445→            </div>
+   446→            <p className="text-sm font-medium">{mod.name}</p>
+   447→            {!mod.isFree && (
+   448→              <div className="flex items-center justify-between text-sm">
+   449→                <span className="text-muted-foreground">Price</span>
+   450→                <span className="font-semibold">{formatETB(mod.priceETB)}/mo</span>
+   451→              </div>
+   452→            )}
+   453→            {mod.isFree && (
+   454→              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" variant="outline">
+   455→                Free — No payment required
+   456→              </Badge>
+   457→            )}
+   458→          </div>
+   459→
+   460→          {/* Beta notice */}
+   461→          <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 p-3">
+   462→            <div className="flex items-start gap-2">
+   463→              <Info className="size-4 text-emerald-600 shrink-0 mt-0.5" />
+   464→              <div>
+   465→                <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">Free during Beta</p>
+   466→                <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+   467→                  All modules are currently free while InvenSync is in beta. Request access and we&apos;ll activate it for you right away.
+   468→                </p>
+   469→              </div>
+   470→            </div>
+   471→          </div>
+   472→        </div>
+   473→
+   474→        <DialogFooter>
+   475→          <FormSubmitButton
+   476→            isLoading={loading}
+   477→            loadingText="Submitting..."
+   478→            onClick={handleSubmit}
+   479→            className="w-full gap-1.5"
+   480→          >
+   481→            <Send className="size-4" />
+   482→            Submit Request
+   483→          </FormSubmitButton>
+   484→        </DialogFooter>
+   485→      </DialogContent>
+   486→    </Dialog>
+   487→  )
+   488→}
+   489→
+   490→// ============================================
+   491→// Stat Card
+   492→// ============================================
+   493→function StatCard({
+   494→  count,
+   495→  label,
+   496→  colorClass,
+   497→  bgColor,
+   498→  borderColor,
+   499→  active,
+   500→  onClick,
+   501→}: {
+   502→  count: number
+   503→  label: string
+   504→  colorClass: string
+   505→  bgColor: string
+   506→  borderColor: string
+   507→  active: boolean
+   508→  onClick: () => void
+   509→}) {
+   510→  return (
+   511→    <button
+   512→      onClick={onClick}
+   513→      className={`p-3 rounded-lg border text-center transition-colors ${
+   514→        active ? `${bgColor} ${borderColor}` : 'bg-card hover:bg-muted/30'
+   515→      }`}
+   516→    >
+   517→      <p className={`text-lg font-semibold ${colorClass}`}>{count}</p>
+   518→      <p className="text-xs text-muted-foreground">{label}</p>
+   519→    </button>
+   520→  )
+   521→}
+   522→
+   523→// ============================================
+   524→// Modules Page
+   525→// ============================================
+   526→export function ModulesPage() {
+   527→  const { currentOrg } = useAuthStore()
+   528→  const [modules, setModules] = useState<EnrichedModule[]>([])
+   529→  const [loading, setLoading] = useState(true)
+   530→  const [fetchError, setFetchError] = useState<string | null>(null)
+   531→  const [filter, setFilter] = useState<'all' | ModuleStatus>('all')
+   532→  const [requestingKey, setRequestingKey] = useState<string | null>(null)
+   533→  const [requestDialogOpen, setRequestDialogOpen] = useState(false)
+   534→  const [selectedModule, setSelectedModule] = useState<EnrichedModule | null>(null)
+   535→  const [activatingKey, setActivatingKey] = useState<string | null>(null)
+   536→
+   537→  const fetchModules = useCallback(async () => {
+   538→    if (!currentOrg) return
+   539→    try {
+   540→      setFetchError(null)
+   541→      const data = await api.getModules(currentOrg.id)
+   542→      const enriched: EnrichedModule[] = data.modules.map((m: ModuleData) => ({
+   543→        id: m.id,
+   544→        key: m.key,
+   545→        name: m.name,
+   546→        description: m.description,
+   547→        icon: m.icon,
+   548→        category: m.category,
+   549→        priceETB: m.priceETB,
+   550→        isFree: m.isFree ?? m.priceETB === 0,
+   551→        freeTrialDays: m.freeTrialDays || 30,
+   552→        billingCycle: m.billingCycle || 'monthly',
+   553→        order: m.order,
+   554→        status: getModuleStatus(m),
+   555→        orgStatus: m.orgStatus,
+   556→        requested: m.orgStatus?.status === 'requested',
+   557→      }))
+   558→      setModules(enriched)
+   559→    } catch (err) {
+   560→      setFetchError(getNetworkErrorMessage(err))
+   561→    } finally {
+   562→      setLoading(false)
+   563→    }
+   564→  }, [currentOrg])
+   565→
+   566→  useEffect(() => { fetchModules() }, [fetchModules])
+   567→
+   568→  const handleRequestAccess = async (moduleKey: string) => {
+   569→    if (!currentOrg) return
+   570→    setRequestingKey(moduleKey)
+   571→    try {
+   572→      await api.requestModule(currentOrg.id, moduleKey)
+   573→      toast.success('Request submitted! Our team will review it shortly.')
+   574→      // Update local state to show "requested" status immediately
+   575→      setModules(prev =>
+   576→        prev.map(m =>
+   577→          m.key === moduleKey ? { ...m, requested: true, status: 'requested' as ModuleStatus } : m
+   578→        )
+   579→      )
+   580→    } catch (err) {
+   581→      toast.error(getNetworkErrorMessage(err))
+   582→    } finally {
+   583→      setRequestingKey(null)
+   584→    }
+   585→  }
+   586→
+   587→  const handleActivate = async (moduleKey: string) => {
+   588→    if (!currentOrg) return
+   589→    setActivatingKey(moduleKey)
+   590→    try {
+   591→      await api.activateModule(currentOrg.id, moduleKey)
+   592→      toast.success('Module activated successfully!')
+   593→      fetchModules()
+   594→    } catch (err) {
+   595→      toast.error(getNetworkErrorMessage(err))
+   596→    } finally {
+   597→      setActivatingKey(null)
+   598→    }
+   599→  }
+   600→
+   601→  const handleOpenRequestDialog = (mod: EnrichedModule) => {
+   602→    setSelectedModule(mod)
+   603→    setRequestDialogOpen(true)
+   604→  }
+   605→
+   606→  const filteredModules = modules.filter(m => {
+   607→    if (filter === 'all') return true
+   608→    return m.status === filter
+   609→  })
+   610→
+   611→  const activeCount = modules.filter(m => m.status === 'active').length
+   612→  const trialCount = modules.filter(m => m.status === 'trial').length
+   613→  const requestedCount = modules.filter(m => m.status === 'requested').length
+   614→  const availableCount = modules.filter(m => m.status === 'available').length
+   615→  const expiredCount = modules.filter(m => m.status === 'expired').length
+   616→
+   617→  // Expiry warning data
+   618→  const expiringModules = modules.filter(m => {
+   619→    const days = daysUntil(m.orgStatus?.expiresAt ?? null)
+   620→    return days !== null && days <= 7
+   621→  })
+   622→  const criticalModules = expiringModules.filter(m => {
+   623→    const days = daysUntil(m.orgStatus?.expiresAt ?? null)
+   624→    return days !== null && (days <= 1 || days <= 0)
+   625→  })
+   626→
+   627→  if (loading) {
+   628→    return (
+   629→      <div className="space-y-6">
+   630→        <Skeleton className="h-10 w-64" />
+   631→        <Skeleton className="h-20" />
+   632→        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+   633→          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+   634→        </div>
+   635→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   636→          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-64" />)}
+   637→        </div>
+   638→      </div>
+   639→    )
+   640→  }
+   641→
+   642→  if (fetchError) {
+   643→    return <ErrorState title="Failed to load modules" error={fetchError} onRetry={fetchModules} />
+   644→  }
+   645→
+   646→  return (
+   647→    <div className="space-y-6">
+   648→      {/* Header */}
+   649→      <div>
+   650→        <h1 className="text-base font-semibold tracking-tight">My Modules</h1>
+   651→        <p className="text-muted-foreground text-sm">Explore, request, and manage your InvenSync modules</p>
+   652→      </div>
+   653→
+   654→      {/* Expiry Warning Banner */}
+   655→      {expiringModules.length > 0 && (
+   656→        <Alert className={
+   657→          criticalModules.length > 0
+   658→            ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+   659→            : 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20'
+   660→        }>
+   661→          <AlertTriangle className={
+   662→            criticalModules.length > 0
+   663→              ? 'size-4 text-red-600'
+   664→              : 'size-4 text-amber-600'
+   665→          } />
+   666→          <AlertTitle className={
+   667→            criticalModules.length > 0
+   668→              ? 'text-sm font-medium text-red-800 dark:text-red-300'
+   669→              : 'text-sm font-medium text-amber-800 dark:text-amber-300'
+   670→          }>
+   671→            {criticalModules.length > 0
+   672→              ? 'Modules expiring or expired!'
+   673→              : 'Modules expiring soon'}
+   674→          </AlertTitle>
+   675→          <AlertDescription className={
+   676→            criticalModules.length > 0
+   677→              ? 'text-xs text-red-700 dark:text-red-400'
+   678→              : 'text-xs text-amber-700 dark:text-amber-400'
+   679→          }>
+   680→            {expiringModules.map(m => {
+   681→              const days = daysUntil(m.orgStatus?.expiresAt ?? null)
+   682→              const label = days !== null && days <= 0
+   683→                ? `${m.name} (expired)`
+   684→                : days !== null
+   685→                  ? `${m.name} (${days}d left)`
+   686→                  : m.name
+   687→              return label
+   688→            }).join(', ')}
+   689→            {' — '}
+   690→            <button
+   691→              onClick={() => {
+   692→                const section = document.getElementById('modules-grid')
+   693→                section?.scrollIntoView({ behavior: 'smooth' })
+   694→              }}
+   695→              className="underline font-medium"
+   696→            >
+   697→              View modules
+   698→            </button>
+   699→          </AlertDescription>
+   700→        </Alert>
+   701→      )}
+   702→
+   703→      {/* Beta Info Alert */}
+   704→      <Alert className="border-primary/20 bg-primary/5">
+   705→        <Info className="size-4 text-primary" />
+   706→        <AlertTitle className="text-sm font-medium">Free During Beta</AlertTitle>
+   707→        <AlertDescription className="text-xs">
+   708→          All modules are currently free while InvenSync is in beta. Request access to any module and our team will activate it for you.
+   709→        </AlertDescription>
+   710→      </Alert>
+   711→
+   712→      {/* Summary Stats */}
+   713→      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+   714→        <StatCard
+   715→          count={activeCount}
+   716→          label="Active"
+   717→          colorClass="text-emerald-600"
+   718→          bgColor="bg-emerald-50 dark:bg-emerald-900/20"
+   719→          borderColor="border-emerald-200 dark:border-emerald-800"
+   720→          active={filter === 'active'}
+   721→          onClick={() => setFilter(filter === 'active' ? 'all' : 'active')}
+   722→        />
+   723→        <StatCard
+   724→          count={trialCount}
+   725→          label="On Trial"
+   726→          colorClass="text-amber-600"
+   727→          bgColor="bg-amber-50 dark:bg-amber-900/20"
+   728→          borderColor="border-amber-200 dark:border-amber-800"
+   729→          active={filter === 'trial'}
+   730→          onClick={() => setFilter(filter === 'trial' ? 'all' : 'trial')}
+   731→        />
+   732→        <StatCard
+   733→          count={requestedCount}
+   734→          label="Requested"
+   735→          colorClass="text-violet-600"
+   736→          bgColor="bg-violet-50 dark:bg-violet-900/20"
+   737→          borderColor="border-violet-200 dark:border-violet-800"
+   738→          active={filter === 'requested'}
+   739→          onClick={() => setFilter(filter === 'requested' ? 'all' : 'requested')}
+   740→        />
+   741→        <StatCard
+   742→          count={availableCount}
+   743→          label="Available"
+   744→          colorClass="text-sky-600"
+   745→          bgColor="bg-sky-50 dark:bg-sky-900/20"
+   746→          borderColor="border-sky-200 dark:border-sky-800"
+   747→          active={filter === 'available'}
+   748→          onClick={() => setFilter(filter === 'available' ? 'all' : 'available')}
+   749→        />
+   750→        <StatCard
+   751→          count={expiredCount}
+   752→          label="Expired"
+   753→          colorClass="text-red-600"
+   754→          bgColor="bg-red-50 dark:bg-red-900/20"
+   755→          borderColor="border-red-200 dark:border-red-800"
+   756→          active={filter === 'expired'}
+   757→          onClick={() => setFilter(filter === 'expired' ? 'all' : 'expired')}
+   758→        />
+   759→      </div>
+   760→
+   761→      {/* Filter indicator */}
+   762→      {filter !== 'all' && (
+   763→        <div className="flex items-center gap-2">
+   764→          <span className="text-sm text-muted-foreground">Showing:</span>
+   765→          <Badge variant="outline" className="capitalize">{STATUS_CONFIG[filter].label}</Badge>
+   766→          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setFilter('all')}>
+   767→            Show all
+   768→          </Button>
+   769→        </div>
+   770→      )}
+   771→
+   772→      {/* Module Grid */}
+   773→      {filteredModules.length === 0 ? (
+   774→        <div className="text-center py-12">
+   775→          <Puzzle className="size-12 text-muted-foreground mx-auto mb-3" />
+   776→          <p className="text-muted-foreground font-medium">No modules found</p>
+   777→          <p className="text-xs text-muted-foreground mt-1">
+   778→            {filter !== 'all' ? `No ${STATUS_CONFIG[filter].label.toLowerCase()} modules. Try a different filter.` : 'No modules are available yet.'}
+   779→          </p>
+   780→        </div>
+   781→      ) : (
+   782→        <div id="modules-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   783→          {filteredModules.map(mod => (
+   784→            <ModuleCard
+   785→              key={mod.id}
+   786→              mod={mod}
+   787→              onRequestAccess={(key) => {
+   788→                const mod = modules.find(m => m.key === key)
+   789→                if (mod && !mod.isFree) {
+   790→                  handleOpenRequestDialog(mod)
+   791→                } else {
+   792→                  handleRequestAccess(key)
+   793→                }
+   794→              }}
+   795→              requestingKey={requestingKey}
+   796→              onActivate={handleActivate}
+   797→              activatingKey={activatingKey}
+   798→            />
+   799→          ))}
+   800→        </div>
+   801→      )}
+   802→
+   803→      {/* Request Dialog */}
+   804→      <RequestDialog
+   805→        open={requestDialogOpen}
+   806→        onOpenChange={setRequestDialogOpen}
+   807→        module={selectedModule}
+   808→        onSuccess={() => {
+   809→          fetchModules()
+   810→        }}
+   811→      />
+   812→
+   813→      {/* Contact CTA */}
+   814→      {(expiredCount > 0 || trialCount > 0 || requestedCount > 0) && (
+   815→        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+   816→          <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+   817→            <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+   818→              <Mail className="size-5 text-primary" />
+   819→            </div>
+   820→            <div className="flex-1">
+   821→              <h3 className="font-semibold text-sm">Need help with modules?</h3>
+   822→              <p className="text-xs text-muted-foreground mt-0.5">
+   823→                Contact our support team at{' '}
+   824→                <a href="mailto:support@invensync.com" className="text-primary underline font-medium">
+   825→                  support@invensync.com
+   826→                </a>{' '}
+   827→                for activation, renewal, or any questions.
+   828→              </p>
+   829→            </div>
+   830→            <Button variant="outline" size="sm" className="gap-1.5 shrink-0" asChild>
+   831→              <a href="mailto:support@invensync.com">
+   832→                <Mail className="size-3.5" /> Contact Support
+   833→              </a>
+   834→            </Button>
+   835→          </CardContent>
+   836→        </Card>
+   837→      )}
+   838→    </div>
+   839→  )
+   840→}
+   841→

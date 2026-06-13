@@ -31,7 +31,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
-import { ErrorState } from '@/components/shared/error-states'
+import { ErrorState, EmptyState } from '@/components/shared/error-states'
 
 // ============================================
 // Helpers
@@ -328,6 +328,7 @@ export function CustomersPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search customers..."
+            aria-label="Search customers"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -347,28 +348,17 @@ export function CustomersPage() {
       ) : pageError && customers.length === 0 ? (
         <ErrorState title="Failed to load customers" message={pageError} onRetry={fetchCustomers} />
       ) : customers.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Users className="size-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground font-medium">
-              {searchQuery ? 'No customers match your search' : 'No customers yet'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {searchQuery ? 'Try a different search term' : 'Add your first customer to get started'}
-            </p>
-            {!searchQuery && (
-              <Button onClick={openAddDialog} className="mt-4 gap-2" variant="outline">
-                <UserPlus className="size-4" />
-                Add Customer
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <EmptyState
+          title={searchQuery ? 'No customers match your search' : 'No customers yet'}
+          message={searchQuery ? 'Try a different search term' : 'Add your first customer to get started.'}
+          icon={<Users className="size-7 text-muted-foreground" />}
+          action={!searchQuery ? { label: 'Add Customer', onClick: openAddDialog } : undefined}
+        />
       ) : (
         <Card>
           <CardContent className="p-0">
             {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto -mx-4 md:mx-0">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -425,25 +415,30 @@ export function CustomersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 sm:h-8 sm:w-8"
                             onClick={() => openDetail(customer)}
                             title="View Details"
+                            aria-label={`View ${customer.name}`}
                           >
                             <Eye className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 sm:h-8 sm:w-8"
                             onClick={() => openEditDialog(customer)}
                             title="Edit"
+                            aria-label={`Edit ${customer.name}`}
                           >
                             <Pencil className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
                             onClick={() => openDeleteConfirm(customer)}
                             title="Delete"
-                            className="text-destructive hover:text-destructive"
+                            aria-label={`Delete ${customer.name}`}
                           >
                             <Trash2 className="size-4" />
                           </Button>

@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/recharts-exports'
 import { api, type DashboardData, type InventoryStats, type Sale, type Product, type Debt, type Customer } from '@/lib/api-client'
 import { getNetworkErrorMessage } from '@/lib/validation'
-import { ErrorState } from '@/components/shared/error-states'
+import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useAppStore } from '@/lib/stores/app-store'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -364,10 +364,12 @@ const RecentSalesList = memo(function RecentSalesList({ sales, onItemClick }: { 
 
   if (sales.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-        <ShoppingCart className="size-10 mb-2 opacity-50" />
-        <p className="text-sm">No sales recorded today</p>
-      </div>
+      <EmptyState
+        title="No sales recorded today"
+        message="Start recording sales to see your data here."
+        icon={<ShoppingCart className="size-7 text-muted-foreground" />}
+        action={{ label: 'Record Sale', onClick: () => setPage('sales') }}
+      />
     )
   }
 
@@ -783,7 +785,7 @@ function OwnerDashboard({
 
       {/* Multi-shop comparison if applicable */}
       {hasMultipleShops && !shopsLoading && shopComparisonData.length > 0 && (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-sm">Shop Comparison</CardTitle>
             <CardDescription>Product count per shop</CardDescription>
@@ -858,8 +860,8 @@ function OwnerDashboard({
       )}
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 min-w-0">
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-sm">Revenue Trend</CardTitle>
             <CardDescription>Daily revenue for the last 30 days</CardDescription>
@@ -914,10 +916,11 @@ function OwnerDashboard({
                 </BarChart>
               </ChartContainer>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[220px] sm:h-[300px] text-muted-foreground">
-                <Package className="size-10 mb-2 opacity-50" />
-                <p className="text-sm">No sales data yet</p>
-              </div>
+              <EmptyState
+                title="No sales data yet"
+                message="Start recording sales to see your top products."
+                icon={<Package className="size-7 text-muted-foreground" />}
+              />
             )}
           </CardContent>
         </Card>
@@ -983,10 +986,12 @@ function OwnerDashboard({
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <CreditCard className="size-10 mb-2 opacity-50" />
-              <p className="text-sm">No sales recorded yet</p>
-            </div>
+            <EmptyState
+              title="No sales recorded yet"
+              message="Start recording sales to see your data here."
+              icon={<CreditCard className="size-7 text-muted-foreground" />}
+              action={{ label: 'Record Sale', onClick: () => setPage('sales') }}
+            />
           )}
         </CardContent>
       </Card>
@@ -1151,8 +1156,8 @@ function ManagerDashboard({
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 min-w-0">
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-sm">Revenue Trend</CardTitle>
             <CardDescription>Daily revenue for the last 30 days</CardDescription>
@@ -1176,7 +1181,7 @@ function ManagerDashboard({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-sm">Top Products by Revenue</CardTitle>
             <CardDescription>Best performing products in the last 30 days</CardDescription>
@@ -1193,10 +1198,11 @@ function ManagerDashboard({
                 </BarChart>
               </ChartContainer>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[220px] sm:h-[300px] text-muted-foreground">
-                <Package className="size-10 mb-2 opacity-50" />
-                <p className="text-sm">No sales data yet</p>
-              </div>
+              <EmptyState
+                title="No sales data yet"
+                message="Start recording sales to see your top products."
+                icon={<Package className="size-7 text-muted-foreground" />}
+              />
             )}
           </CardContent>
         </Card>
@@ -1262,10 +1268,12 @@ function ManagerDashboard({
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <CreditCard className="size-10 mb-2 opacity-50" />
-              <p className="text-sm">No sales recorded yet</p>
-            </div>
+            <EmptyState
+              title="No sales recorded yet"
+              message="Start recording sales to see your data here."
+              icon={<CreditCard className="size-7 text-muted-foreground" />}
+              action={{ label: 'Record Sale', onClick: () => setPage('sales') }}
+            />
           )}
         </CardContent>
       </Card>
@@ -1934,10 +1942,12 @@ function SalesDashboard({
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                <Users className="size-8 mb-2 opacity-50" />
-                <p className="text-sm">No customers yet</p>
-              </div>
+              <EmptyState
+                title="No customers yet"
+                message="Add your first customer to start tracking."
+                icon={<Users className="size-7 text-muted-foreground" />}
+                action={{ label: 'Add Customer', onClick: () => setPage('customers') }}
+              />
             )}
           </CardContent>
         </Card>

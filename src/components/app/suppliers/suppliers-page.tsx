@@ -31,14 +31,12 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
-import { ErrorState } from '@/components/shared/error-states'
+import { formatETB } from '@/lib/currency'
+import { ErrorState, EmptyState } from '@/components/shared/error-states'
 
 // ============================================
 // Helpers
 // ============================================
-function formatETB(amount: number): string {
-  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
@@ -234,10 +232,10 @@ export function SuppliersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Suppliers</h1>
-          <p className="text-muted-foreground text-sm">Manage supplier information and track supplier debts</p>
+          <p className="text-muted-foreground text-sm mt-1">Manage supplier information and track supplier debts</p>
         </div>
         <Button onClick={openAddDialog} className="gap-2">
           <Plus className="size-4" />
@@ -294,6 +292,7 @@ export function SuppliersPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search suppliers..."
+            aria-label="Search suppliers"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -313,28 +312,17 @@ export function SuppliersPage() {
       ) : pageError && suppliers.length === 0 ? (
         <ErrorState title="Failed to load suppliers" message={pageError} onRetry={fetchSuppliers} />
       ) : suppliers.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Truck className="size-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground font-medium">
-              {searchQuery ? 'No suppliers match your search' : 'No suppliers yet'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {searchQuery ? 'Try a different search term' : 'Add your first supplier to get started'}
-            </p>
-            {!searchQuery && (
-              <Button onClick={openAddDialog} className="mt-4 gap-2" variant="outline">
-                <Plus className="size-4" />
-                Add Supplier
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <EmptyState
+          title={searchQuery ? 'No suppliers match your search' : 'No suppliers yet'}
+          message={searchQuery ? 'Try a different search term' : 'Add your first supplier to get started.'}
+          icon={<Truck className="size-7 text-muted-foreground" />}
+          action={!searchQuery ? { label: 'Add Supplier', onClick: openAddDialog } : undefined}
+        />
       ) : (
         <Card>
           <CardContent className="p-0">
             {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto -mx-4 md:mx-0">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -389,25 +377,30 @@ export function SuppliersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 sm:h-8 sm:w-8"
                             onClick={() => openDetail(supplier)}
                             title="View Details"
+                            aria-label={`View ${supplier.name}`}
                           >
                             <Eye className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 sm:h-8 sm:w-8"
                             onClick={() => openEditDialog(supplier)}
                             title="Edit"
+                            aria-label={`Edit ${supplier.name}`}
                           >
                             <Pencil className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-9 w-9 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
                             onClick={() => openDeleteConfirm(supplier)}
                             title="Delete"
-                            className="text-destructive hover:text-destructive"
+                            aria-label={`Delete ${supplier.name}`}
                           >
                             <Trash2 className="size-4" />
                           </Button>

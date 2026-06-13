@@ -28,16 +28,14 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
-import { ErrorState } from '@/components/shared/error-states'
+import { formatETB } from '@/lib/currency'
+import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { Form } from '@/components/ui/form'
 import { FormInputField, FormSelectField, FormTextareaField, FormSubmitButton } from '@/components/shared/form-fields'
 
 // ============================================
 // Helpers
 // ============================================
-function formatETB(amount: number): string {
-  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
@@ -277,10 +275,10 @@ export function DebtsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Debts & Credits</h1>
-          <p className="text-muted-foreground text-sm">Track customer and supplier debts, record payments</p>
+          <p className="text-muted-foreground text-sm mt-1">Track customer and supplier debts, record payments</p>
         </div>
         <Button onClick={openAddDebt} className="gap-2">
           <Plus className="size-4" />
@@ -362,6 +360,7 @@ export function DebtsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name..."
+                aria-label="Search debts"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 w-full sm:w-48"
@@ -715,15 +714,11 @@ function DebtsTable({
 
   if (debts.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <TrendingDown className="size-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">No debts found</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Create a new debt to start tracking
-          </p>
-        </CardContent>
-      </Card>
+      <EmptyState
+        title="No debts found"
+        message="Create a new debt to start tracking."
+        action={{ label: 'Add Debt', onClick: () => setShowAddDebt(true) }}
+      />
     )
   }
 
@@ -731,7 +726,7 @@ function DebtsTable({
     <Card>
       <CardContent className="p-0">
         {/* Desktop table */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto -mx-4 md:mx-0">
         <Table>
           <TableHeader>
             <TableRow>
@@ -781,8 +776,10 @@ function DebtsTable({
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-9 w-9 sm:h-8 sm:w-8"
                         onClick={() => onViewDetail(debt)}
                         title="View Details"
+                        aria-label={`View details for ${debt.customer?.name || debt.supplier?.name || 'debt'}`}
                       >
                         <Eye className="size-4" />
                       </Button>
@@ -790,8 +787,10 @@ function DebtsTable({
                         <Button
                           variant="ghost"
                           size="sm"
+                          className="h-9 w-9 sm:h-8 sm:w-8"
                           onClick={() => onRecordPayment(debt)}
                           title="Record Payment"
+                          aria-label={`Record payment for ${debt.customer?.name || debt.supplier?.name || 'debt'}`}
                         >
                           <CreditCard className="size-4" />
                         </Button>

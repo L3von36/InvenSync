@@ -11,8 +11,9 @@ import {
 import { api, type Product, type StockMovement, type InventoryStats, type ProductType } from '@/lib/api-client'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { getNetworkErrorMessage } from '@/lib/validation'
+import { formatETB } from '@/lib/currency'
 import { stockAdjustmentSchema, type StockAdjustmentFormData } from '@/lib/validations'
-import { ErrorState } from '@/components/shared/error-states'
+import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { Form } from '@/components/ui/form'
 import { FormSelectField, FormInputField, FormSubmitButton } from '@/components/shared/form-fields'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -30,13 +31,6 @@ import { toast } from 'sonner'
 // ============================================
 // Helpers
 // ============================================
-function formatETB(amount: number): string {
-  return new Intl.NumberFormat('en-ET', {
-    style: 'decimal',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount) + ' ETB'
-}
 
 function getStockStatus(quantity: number, threshold: number): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } {
   if (quantity === 0) return { label: 'Out of Stock', variant: 'destructive' }
@@ -303,6 +297,7 @@ function AllProductsTab({
           <Input
             placeholder="Search products..."
             className="pl-9"
+            aria-label="Search inventory"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
           />
@@ -324,7 +319,7 @@ function AllProductsTab({
       {/* Table */}
       <div className="rounded-lg border overflow-hidden">
         {/* Desktop table */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto -mx-4 md:mx-0">
         <Table>
           <TableHeader>
             <TableRow>
@@ -378,7 +373,10 @@ function AllProductsTab({
         {/* Mobile card view */}
         <div className="md:hidden space-y-3 p-3">
           {sortedProducts.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground text-sm">No products found</p>
+            <EmptyState
+              title="No products found"
+              message="No products match your current filters."
+            />
           ) : (
             sortedProducts.map((product) => {
               const status = getStockStatus(product.quantity, product.lowStockThreshold)
@@ -473,11 +471,11 @@ function LowStockTab({
 
   if (products.length === 0) {
     return (
-      <div className="text-center py-12">
-        <AlertTriangle className="size-12 text-emerald-500 mx-auto mb-3" />
-        <h3 className="text-base font-semibold">All Stocked Up!</h3>
-        <p className="text-muted-foreground">No products are currently low on stock.</p>
-      </div>
+      <EmptyState
+        title="All Stocked Up!"
+        message="No products are currently low on stock."
+        icon={<AlertTriangle className="size-7 text-emerald-500" />}
+      />
     )
   }
 
@@ -566,11 +564,11 @@ function OutOfStockTab({
 
   if (products.length === 0) {
     return (
-      <div className="text-center py-12">
-        <XCircle className="size-12 text-emerald-500 mx-auto mb-3" />
-        <h3 className="text-base font-semibold">Everything In Stock!</h3>
-        <p className="text-muted-foreground">No products are out of stock right now.</p>
-      </div>
+      <EmptyState
+        title="Everything In Stock!"
+        message="No products are out of stock right now."
+        icon={<XCircle className="size-7 text-emerald-500" />}
+      />
     )
   }
 
@@ -703,7 +701,7 @@ function StockHistoryTab({ orgId, shopId }: { orgId: string; shopId?: string }) 
       ) : (
       <div className="rounded-lg border overflow-hidden">
         {/* Desktop table */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto -mx-4 md:mx-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -822,9 +820,11 @@ export function InventoryPage() {
   if (fetchError) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
-          <p className="text-muted-foreground">Track stock levels, manage movements, and monitor alerts.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
+            <p className="text-muted-foreground text-sm mt-1">Track stock levels, manage movements, and monitor alerts.</p>
+          </div>
         </div>
         <ErrorState title="Failed to load inventory" message={fetchError} onRetry={fetchInventory} />
       </div>
@@ -834,9 +834,11 @@ export function InventoryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
-        <p className="text-muted-foreground">Track stock levels, manage movements, and monitor alerts.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
+          <p className="text-muted-foreground text-sm mt-1">Track stock levels, manage movements, and monitor alerts.</p>
+        </div>
       </div>
 
       {/* Stats */}

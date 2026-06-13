@@ -27,20 +27,12 @@ import {
 } from '@/components/ui/recharts-exports'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { exportToCSV } from '@/lib/export-utils'
-import { ErrorState } from '@/components/shared/error-states'
+import { ErrorState, EmptyState } from '@/components/shared/error-states'
+import { formatETB, formatShortETB } from '@/lib/currency'
 
 // ============================================
 // Helpers
 // ============================================
-function formatETB(amount: number): string {
-  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function formatShortETB(amount: number): string {
-  if (amount >= 1_000_000) return `ETB ${(amount / 1_000_000).toFixed(1)}M`
-  if (amount >= 1_000) return `ETB ${(amount / 1_000).toFixed(1)}K`
-  return `ETB ${amount.toFixed(0)}`
-}
 
 const CHART_COLORS = [
   'oklch(0.637 0.237 25.331)',  // orange (brand)
@@ -372,15 +364,11 @@ export function ReportsPage() {
           ) : pageError && !reportData ? (
             <ErrorState title="Failed to load report data" message={pageError} onRetry={fetchReport} />
           ) : !loading && reportData && salesByDate.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <BarChart3 className="size-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-base font-semibold mb-1">No sales data for this period</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Try selecting a different date range, or make your first sale to see reports here
-                </p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              title="No sales data for this period"
+              message="Try selecting a different date range, or make your first sale to see reports here."
+              icon={<BarChart3 className="size-7 text-muted-foreground" />}
+            />
           ) : (
             <>
               {/* Summary Cards */}
@@ -427,9 +415,9 @@ export function ReportsPage() {
               </div>
 
               {/* Charts Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-w-0">
                 {/* Daily Sales Bar Chart */}
-                <Card className="lg:col-span-2">
+                <Card className="lg:col-span-2 overflow-hidden">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-semibold">Daily Sales</CardTitle>
                   </CardHeader>
@@ -468,7 +456,7 @@ export function ReportsPage() {
                 </Card>
 
                 {/* Payment Method Pie */}
-                <Card>
+                <Card className="overflow-hidden">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-semibold">By Payment Method</CardTitle>
                   </CardHeader>
@@ -654,7 +642,7 @@ export function ReportsPage() {
               </div>
 
               {/* Profit Trend Line Chart */}
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">Profit Trend</CardTitle>
                 </CardHeader>
@@ -825,19 +813,15 @@ export function ReportsPage() {
           ) : pageError && !reportData ? (
             <ErrorState title="Failed to load report data" message={pageError} onRetry={fetchReport} />
           ) : !loading && reportData && bestSelling.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Package className="size-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-base font-semibold mb-1">No product sales data for this period</h3>
-                <p className="text-muted-foreground text-sm mb-4">
-                  Try selecting a different date range, or sell some products to see best sellers here
-                </p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              title="No product sales data for this period"
+              message="Try selecting a different date range, or sell some products to see best sellers here."
+              icon={<Package className="size-7 text-muted-foreground" />}
+            />
           ) : (
             <>
               {/* Top 10 by Revenue Chart */}
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">Top 10 Products by Revenue</CardTitle>
                 </CardHeader>
@@ -864,7 +848,7 @@ export function ReportsPage() {
               </Card>
 
               {/* Top 10 by Quantity Chart */}
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">Top 10 Products by Quantity Sold</CardTitle>
                 </CardHeader>
@@ -1041,7 +1025,7 @@ export function ReportsPage() {
               </div>
 
               {/* Inventory by Category Pie */}
-              <Card>
+              <Card className="overflow-hidden">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold">Inventory Value Distribution</CardTitle>
                 </CardHeader>

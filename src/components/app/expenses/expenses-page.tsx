@@ -355,6 +355,7 @@ export function ExpensesPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search expenses..."
+            aria-label="Search expenses"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -371,7 +372,7 @@ export function ExpensesPage() {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" size="icon" onClick={fetchExpenses} disabled={isLoading}>
+        <Button variant="outline" size="icon" onClick={fetchExpenses} disabled={isLoading} aria-label="Refresh expenses">
           <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
@@ -394,7 +395,7 @@ export function ExpensesPage() {
           ) : (
             <>
               {/* Desktop Table */}
-              <div className="hidden md:block">
+              <div className="hidden md:block overflow-x-auto -mx-4 md:mx-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -442,16 +443,18 @@ export function ExpensesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8"
+                              className="size-8 h-9 w-9 sm:h-8 sm:w-8"
                               onClick={() => openEditDialog(expense)}
+                              aria-label={`Edit expense`}
                             >
                               <Pencil className="size-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8 text-destructive hover:text-destructive"
+                              className="size-8 h-9 w-9 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
                               onClick={() => setDeleteTarget(expense)}
+                              aria-label={`Delete expense`}
                             >
                               <Trash2 className="size-3.5" />
                             </Button>

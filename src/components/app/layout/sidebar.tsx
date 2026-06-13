@@ -218,7 +218,7 @@ export function AppSidebar() {
               {organizations.length > 1 ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent transition-colors">
+                    <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent transition-colors" aria-label="Select organization">
                       <Building2 className="size-4 text-muted-foreground shrink-0" />
                       <span className="flex-1 truncate text-left text-sidebar-foreground">
                         {currentOrg?.name || 'Select Org'}
@@ -254,7 +254,7 @@ export function AppSidebar() {
               {showShopSelector && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent transition-colors">
+                    <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent transition-colors" aria-label="Select branch">
                       <MapPin className="size-4 text-muted-foreground shrink-0" />
                       <span className="flex-1 truncate text-left text-sidebar-foreground">
                         {currentShop?.name || 'Select Branch'}
