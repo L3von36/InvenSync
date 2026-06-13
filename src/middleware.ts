@@ -50,15 +50,15 @@ export async function middleware(request: NextRequest) {
   // NOTE: unsafe-inline and unsafe-eval are still included because Next.js dev mode
   // and some runtime dependencies require them. In a production hardening pass,
   // these should be removed and replaced with nonce-based or hash-based CSP.
-  const connectSrc = "'self' ws: wss: https://nominatim.openstreetmap.org"
+  const connectSrc = "'self' ws: wss: https://*.openstreetmap.org https://cdnjs.cloudflare.com"
 
   response.headers.set(
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src 'self' https://fonts.gstatic.com",
+      "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com",
       "img-src 'self' data: blob: https:",
       `connect-src ${connectSrc}`,
       "frame-ancestors 'none'",
