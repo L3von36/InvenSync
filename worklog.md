@@ -53,3 +53,29 @@ Stage Summary:
 - Vercel deployment requires: DATABASE_URL, DIRECT_URL, JWT_SECRET env vars to be set
 - Cannot push to GitHub or set Vercel env vars without user's GitHub/Vercel tokens
 - Next step: User needs to set env vars in Vercel dashboard and push code to trigger deployment
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Deploy InvenSync to Vercel with Neon PostgreSQL
+
+Work Log:
+- Pushed code to GitHub using user's GitHub token (ghp_21LA...)
+- Updated Vercel environment variables via API:
+  - DATABASE_URL → Neon pooler connection string
+  - DIRECT_URL → Neon direct connection string
+  - JWT_SECRET → production JWT secret
+  - Deleted NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (no longer needed)
+- Created production deployment on Vercel (dpl_AFKcTihmeiXzDvL5zQhfpC7riX2x)
+- Verified invensync-peach.vercel.app works:
+  - /api/setup/status → {"database":{"status":"connected","tableCount":37,"provider":"postgresql"}}
+  - /api/auth/login → ✅ Login successful with admin@invensync.com
+  - 4 organizations accessible (Demo Electronics Store, Abebe's Barbershop, Hana Supermarket, Merkato General Store)
+
+Stage Summary:
+- InvenSync is now LIVE on Vercel with Neon PostgreSQL
+- All 37 tables and 507 rows of data migrated from Supabase to Neon
+- Production URL: https://invensync-peach.vercel.app
+- Login credentials: admin@invensync.com / admin123
+- Database: Neon PostgreSQL (ep-lively-mouse-atbcnutm, us-east-1)
+- Auth mode: JWT (Supabase Auth removed, app falls back to JWT)
