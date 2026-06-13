@@ -4,9 +4,16 @@ import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
+import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 
 // GET /api/sales?orgId=xxx&startDate=xxx&endDate=xxx&status=xxx
 export async function GET(request: Request) {
+  // Rate limit list endpoints (60 req/min per user/IP)
+  const rateLimitResult = applyRateLimit(request, RateLimitTiers.LIST)
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
+
   try {
     const user = await getUserFromRequest(request)
     if (!user) {
@@ -118,6 +125,12 @@ export async function GET(request: Request) {
 
 // POST /api/sales - Create sale with items
 export async function POST(request: Request) {
+  // Rate limit mutation endpoints (20 req/min per user/IP)
+  const rateLimitResult = applyRateLimit(request, RateLimitTiers.MUTATION)
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
+
   try {
     const user = await getUserFromRequest(request)
     if (!user) {

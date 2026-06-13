@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { usePageSearch } from '@/hooks/use-page-search'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import {
@@ -27,6 +28,7 @@ import { BarcodeDialog } from '@/components/app/products/barcode-dialog'
 import { BulkImportDialog } from '@/components/app/products/bulk-import-dialog'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { getNetworkErrorMessage } from '@/lib/validation'
+import { formatETB, formatDate } from '@/lib/format'
 import { productSchema, type ProductFormData } from '@/lib/validations'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { FormInputField, FormTextareaField } from '@/components/shared/form-fields'
@@ -90,22 +92,6 @@ function getStockStatus(
   if (quantity <= 0) return { label: 'Out of Stock', variant: 'destructive' }
   if (quantity <= lowStockThreshold) return { label: 'Low Stock', variant: 'secondary' }
   return { label: 'In Stock', variant: 'default' }
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-ET', {
-    style: 'currency',
-    currency: 'ETB',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
 }
 
 /** Safely parse attribute options that may be double-encoded */
@@ -362,7 +348,7 @@ function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto w-[calc(100%-2rem)] sm:w-full">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto w-[calc(100%-2rem)] sm:w-full">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Product' : 'Add Product'}</DialogTitle>
           <DialogDescription>Fill in the product details below.</DialogDescription>
@@ -746,7 +732,7 @@ function ProductDetailView({
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Cost Price</div>
             <div className="text-xl sm:text-2xl font-bold mt-1">
-              {formatCurrency(currentProduct.costPrice)}
+              {formatETB(currentProduct.costPrice)}
             </div>
           </CardContent>
         </Card>
@@ -754,7 +740,7 @@ function ProductDetailView({
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Selling Price</div>
             <div className="text-xl sm:text-2xl font-bold mt-1">
-              {formatCurrency(currentProduct.sellingPrice)}
+              {formatETB(currentProduct.sellingPrice)}
             </div>
           </CardContent>
         </Card>
@@ -762,7 +748,7 @@ function ProductDetailView({
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Total Value</div>
             <div className="text-xl sm:text-2xl font-bold mt-1">
-              {formatCurrency(currentProduct.quantity * currentProduct.sellingPrice)}
+              {formatETB(currentProduct.quantity * currentProduct.sellingPrice)}
             </div>
           </CardContent>
         </Card>
@@ -926,7 +912,7 @@ export function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [productTypes, setProductTypes] = useState<ProductType[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const { search, setSearch, debouncedSearch } = usePageSearch()
   const [filterType, setFilterType] = useState<string>('all')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -959,7 +945,7 @@ export function ProductsPage() {
     try {
       const data = await api.getProducts(currentOrg.id, {
         productTypeId: filterType !== 'all' ? filterType : undefined,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         page,
         limit,
         shopId: currentShop?.id,
@@ -972,7 +958,7 @@ export function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }, [currentOrg, currentShop?.id, filterType, search, page, limit])
+  }, [currentOrg, currentShop?.id, filterType, debouncedSearch, page, limit])
 
   const fetchProductTypes = useCallback(async () => {
     if (!currentOrg) return
@@ -995,7 +981,7 @@ export function ProductsPage() {
   // Reset page when search/filter changes
   useEffect(() => {
     setPage(1)
-  }, [search, filterType])
+  }, [debouncedSearch, filterType])
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product)
@@ -1058,7 +1044,7 @@ export function ProductsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Products</h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -1190,7 +1176,7 @@ export function ProductsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {formatCurrency(product.sellingPrice)}
+                        {formatETB(product.sellingPrice)}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {product.quantity}
@@ -1294,7 +1280,7 @@ export function ProductsPage() {
                         </div>
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-sm font-semibold">
-                            {formatCurrency(product.sellingPrice)}
+                            {formatETB(product.sellingPrice)}
                           </span>
                           <Badge variant={stockStatus.variant} className="text-xs">
                             {product.quantity} in stock

@@ -31,19 +31,12 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
-import { formatETB } from '@/lib/currency'
+import { formatETB, formatDate } from '@/lib/format'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
 
 // ============================================
 // Helpers
 // ============================================
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric'
-  })
-}
 
 // ============================================
 // Main Component

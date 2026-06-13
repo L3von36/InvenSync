@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { isDatabaseError } from '@/lib/api-error'
 
@@ -19,7 +19,19 @@ async function getTableNames(): Promise<string[]> {
   return tables.map((t) => t.tablename)
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Block in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 404 })
+  }
+
+  // Secret check for non-production
+  const setupSecret = process.env.SETUP_SECRET || 'dev-only'
+  const requestSecret = request.headers.get('x-setup-secret') || new URL(request.url).searchParams.get('secret')
+  if (requestSecret !== setupSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     // Test database connection
     await db.$queryRaw`SELECT 1`
@@ -91,7 +103,19 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Block in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 404 })
+  }
+
+  // Secret check for non-production
+  const setupSecret = process.env.SETUP_SECRET || 'dev-only'
+  const requestSecret = request.headers.get('x-setup-secret') || new URL(request.url).searchParams.get('secret')
+  if (requestSecret !== setupSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     // Use dynamic import for child_process to work with Next.js bundling
     const { execSync } = await import('child_process')

@@ -26,13 +26,7 @@ interface BarcodeDialogProps {
   product: Product | null
 }
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-ET', {
-    style: 'currency',
-    currency: 'ETB',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+import { formatETB } from '@/lib/format'
 
 export function BarcodeDialog({ open, onOpenChange, product }: BarcodeDialogProps) {
   const { currentOrg } = useAuthStore()
@@ -126,7 +120,7 @@ export function BarcodeDialog({ open, onOpenChange, product }: BarcodeDialogProp
         <div class="label">
           <div class="product-name">${product.name}</div>
           ${product.sku ? `<div class="sku">SKU: ${product.sku}</div>` : ''}
-          <div class="price">${formatCurrency(product.sellingPrice)}</div>
+          <div class="price">${formatETB(product.sellingPrice)}</div>
           <img class="barcode-img" src="${barcodeData.barcode}" alt="Barcode" />
           <div class="code-label">Barcode${product.sku ? `: ${product.sku}` : `: ${product.id}`}</div>
           <hr style="margin: 12px 0; border-color: #eee;" />
@@ -176,7 +170,7 @@ export function BarcodeDialog({ open, onOpenChange, product }: BarcodeDialogProp
                     )}
                   </div>
                   <Badge variant="outline" className="text-xs">
-                    {formatCurrency(product.sellingPrice)}
+                    {formatETB(product.sellingPrice)}
                   </Badge>
                 </div>
               </CardContent>

@@ -58,9 +58,7 @@ interface CreditSummary {
 // Helpers
 // ============================================
 
-function formatETB(amount: number): string {
-  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
+import { formatETB } from '@/lib/format'
 
 function getUsagePercentage(used: number, limit: number): number {
   if (limit <= 0) return 0

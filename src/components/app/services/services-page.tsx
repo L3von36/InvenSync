@@ -37,9 +37,7 @@ import { FormInputField, FormTextareaField, FormSubmitButton } from '@/component
 // ============================================
 // Helpers
 // ============================================
-function formatETB(amount: number): string {
-  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
+import { formatETB } from '@/lib/format'
 
 function bookingStatusBadge(status: string) {
   switch (status) {

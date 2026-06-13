@@ -20,7 +20,10 @@ import crypto from 'crypto'
 import { db } from '@/lib/db'
 
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
-  console.warn('[AUTH] WARNING: JWT_SECRET not set. Using generated secret. Set JWT_SECRET in production!')
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production')
+  }
+  console.warn('[AUTH] WARNING: Using random JWT_SECRET. Set JWT_SECRET env var for production.')
   return crypto.randomBytes(32).toString('hex')
 })()
 const JWT_EXPIRES_IN = '24h'

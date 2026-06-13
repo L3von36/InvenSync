@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
+import { formatDate, formatDateTime } from '@/lib/format'
 
 // ============================================
 // Types
@@ -99,21 +100,6 @@ function TierBadge({ tier }: { tier: string }) {
       {config.label}
     </Badge>
   )
-}
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric'
-  })
-}
-
-function formatDateTime(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
 }
 
 const TRANSACTION_TYPE_LABELS: Record<string, { label: string; color: string }> = {

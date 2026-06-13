@@ -534,6 +534,21 @@ export interface SystemHealthData {
   error?: string
 }
 
+export interface Expense {
+  id: string
+  organizationId: string
+  shopId?: string | null
+  category: string
+  amount: number
+  description?: string | null
+  expenseDate: string
+  isRecurring: boolean
+  recurringPeriod?: string | null
+  createdAt: string
+  updatedAt: string
+  shop?: { id: string; name: string } | null
+}
+
 class ApiClient {
   // Supabase Auth uses httpOnly cookies for session management.
   // The token is no longer stored in localStorage for security.
@@ -1335,6 +1350,65 @@ class ApiClient {
     return this.request(`/api/debts/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ orgId, ...data }),
+    })
+  }
+
+  // ============================================
+  // Expenses
+  // ============================================
+
+  async getExpenses(orgId: string, params?: {
+    category?: string
+    page?: number
+    limit?: number
+    shopId?: string
+  }): Promise<{
+    expenses: Expense[]
+    summary: { totalExpenses: number }
+    monthlySummary: Array<{ month: string; total: number }>
+    pagination: Pagination
+  }> {
+    const searchParams = new URLSearchParams({ organizationId: orgId })
+    if (params?.category) searchParams.set('category', params.category)
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    if (params?.shopId) searchParams.set('shopId', params.shopId)
+    return this.request(`/api/expenses?${searchParams.toString()}`)
+  }
+
+  async createExpense(orgId: string, data: {
+    category: string
+    amount: number
+    description?: string | null
+    expenseDate: string
+    shopId?: string | null
+    isRecurring?: boolean
+    recurringPeriod?: string | null
+  }): Promise<{ expense: Expense }> {
+    return this.request('/api/expenses', {
+      method: 'POST',
+      body: JSON.stringify({ organizationId: orgId, ...data }),
+    })
+  }
+
+  async updateExpense(id: string, orgId: string, data: {
+    category: string
+    amount: number
+    description?: string | null
+    expenseDate: string
+    shopId?: string | null
+    isRecurring?: boolean
+    recurringPeriod?: string | null
+  }): Promise<{ expense: Expense }> {
+    return this.request(`/api/expenses/${id}?organizationId=${orgId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ organizationId: orgId, ...data }),
+    })
+  }
+
+  async deleteExpense(id: string, orgId: string): Promise<void> {
+    return this.request(`/api/expenses/${id}?organizationId=${orgId}`, {
+      method: 'DELETE',
     })
   }
 

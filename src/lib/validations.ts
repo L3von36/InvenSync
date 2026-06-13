@@ -193,6 +193,22 @@ export type ProductTypeFormData = z.infer<typeof productTypeSchema>
 export type AttributeFormData = z.infer<typeof attributeSchema>
 
 // ============================================
+// Expense Schemas
+// ============================================
+
+export const expenseFormSchema = z.object({
+  category: z.string().min(1, 'Category is required'),
+  amount: z.number({ message: 'Amount is required' }).positive('Amount must be greater than 0'),
+  description: z.string().optional(),
+  expenseDate: z.string().min(1, 'Date is required'),
+  shopId: z.string().optional(),
+  isRecurring: z.boolean().optional(),
+  recurringPeriod: z.string().optional(),
+})
+
+export type ExpenseFormData = z.infer<typeof expenseFormSchema>
+
+// ============================================
 // Debt Schemas
 // ============================================
 

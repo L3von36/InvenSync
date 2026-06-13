@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
+import { formatETB } from '@/lib/format'
 import { orgSettingsSchema, type OrgSettingsFormData, inviteMemberSchema, type InviteMemberFormData, shopSchema, type ShopFormData } from '@/lib/validations'
 import { ErrorState } from '@/components/shared/error-states'
 import { Form } from '@/components/ui/form'
@@ -49,9 +50,6 @@ import { SecurityTab } from '@/components/app/settings/security-tab'
 // ============================================
 // Helpers
 // ============================================
-function formatETB(amount: number): string {
-  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
 
 // ============================================
 // Main Component

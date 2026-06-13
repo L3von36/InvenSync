@@ -27,6 +27,7 @@ import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
+import { formatDate } from '@/lib/format'
 
 // ============================================
 // Types
@@ -212,17 +213,6 @@ export function StockTransfersPage() {
     } finally {
       setActionLoading(null)
     }
-  }
-
-  // ----------------------------------------
-  // Format date
-  // ----------------------------------------
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
   }
 
   // ----------------------------------------

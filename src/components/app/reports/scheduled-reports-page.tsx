@@ -34,6 +34,7 @@ import {
 import { Form } from '@/components/ui/form'
 import { toast } from 'sonner'
 import { z } from 'zod'
+import { formatDateTime } from '@/lib/format'
 
 // ============================================
 // Types & Schema
@@ -106,13 +107,6 @@ const DELIVERY_LABELS: Record<string, string> = {
   email: 'Email',
   telegram: 'Telegram',
   whatsapp: 'WhatsApp',
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
 }
 
 function getDeliveryConfig(report: ScheduledReport): string {
@@ -429,13 +423,13 @@ export function ScheduledReportsPage() {
                       {report.lastSentAt && (
                         <span className="flex items-center gap-1">
                           <Clock className="size-3" />
-                          Last sent: {formatDate(report.lastSentAt)}
+                          Last sent: {formatDateTime(report.lastSentAt)}
                         </span>
                       )}
                       {report.nextSendAt && report.isActive && (
                         <span className="flex items-center gap-1">
                           <Clock className="size-3" />
-                          Next send: {formatDate(report.nextSendAt)}
+                          Next send: {formatDateTime(report.nextSendAt)}
                         </span>
                       )}
                     </div>

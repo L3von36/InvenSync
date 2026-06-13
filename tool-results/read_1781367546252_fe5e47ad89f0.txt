@@ -1,0 +1,730 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useRef, useCallback } from 'react'
+     4→import {
+     5→  LayoutDashboard,
+     6→  Tags,
+     7→  Package,
+     8→  Warehouse,
+     9→  ShoppingCart,
+    10→  Users,
+    11→  Truck,
+    12→  CreditCard,
+    13→  BarChart3,
+    14→  ScanSearch,
+    15→  Bot,
+    16→  Settings,
+    17→  Building2,
+    18→  LogOut,
+    19→  ChevronDown,
+    20→  Wrench,
+    21→  Shield,
+    22→  X,
+    23→  Store,
+    24→  MapPin,
+    25→  Puzzle,
+    26→  Cog,
+    27→  UsersRound,
+    28→  Megaphone,
+    29→  Bell,
+    30→  UserCog,
+    31→  Office,
+    32→  Globe2,
+    33→  GitBranch,
+    34→  Sun,
+    35→  Moon,
+    36→  TrendingUp,
+    37→  ScrollText,
+    38→  Receipt,
+    39→  ArrowLeftRight,
+    40→  ClipboardList,
+    41→  Award,
+    42→  Search,
+    43→  CalendarClock,
+    44→  FileDown,
+    45→  DollarSign,
+    46→  ShieldAlert,
+    47→} from 'lucide-react'
+    48→import { useTheme } from 'next-themes'
+    49→import {
+    50→  Sidebar,
+    51→  SidebarContent,
+    52→  SidebarFooter,
+    53→  SidebarGroup,
+    54→  SidebarGroupContent,
+    55→  SidebarGroupLabel,
+    56→  SidebarHeader,
+    57→  SidebarMenu,
+    58→  SidebarMenuButton,
+    59→  SidebarMenuItem,
+    60→  SidebarRail,
+    61→  SidebarSeparator,
+    62→} from '@/components/ui/sidebar'
+    63→import {
+    64→  DropdownMenu,
+    65→  DropdownMenuContent,
+    66→  DropdownMenuItem,
+    67→  DropdownMenuTrigger,
+    68→} from '@/components/ui/dropdown-menu'
+    69→import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+    70→import { Badge } from '@/components/ui/badge'
+    71→import { useAuthStore } from '@/lib/stores/auth-store'
+    72→import { useAppStore, type Page } from '@/lib/stores/app-store'
+    73→import { LanguageSwitcher } from '@/components/shared/language-switcher'
+    74→import { CurrencySwitcher } from '@/components/shared/currency-switcher'
+    75→
+    76→// ============================================
+    77→// Module key mapping for nav items
+    78→// ============================================
+    79→const MODULE_KEY_MAP: Record<string, string> = {
+    80→  'products': 'inventory',
+    81→  'product-types': 'inventory',
+    82→  'inventory': 'inventory',
+    83→  'sales': 'sales',
+    84→  'customers': 'customers',
+    85→  'suppliers': 'suppliers',
+    86→  'debts': 'debts',
+    87→  'reports': 'reports',
+    88→  'services': 'services',
+    89→  'ai-inventory': 'ai-inventory',
+    90→  'ai-assistant': 'ai-assistant',
+    91→  'price-optimization': 'ai-inventory',
+    92→  'sales-forecast': 'ai-inventory',
+    93→  'profit-loss': 'reports',
+    94→  'expenses': 'expenses',
+    95→  'stock-transfers': 'inventory',
+    96→  'purchase-orders': 'inventory',
+    97→  'loyalty': 'customers',
+    98→  'credit-limits': 'debts',
+    99→  'smart-search': 'reports',
+   100→  'anomaly-detection': 'ai-inventory',
+   101→}
+   102→
+   103→const mainNavItems: Array<{
+   104→  title: string
+   105→  page: Page
+   106→  icon: React.ElementType
+   107→  businessTypes?: string[]
+   108→  roles?: ('owner' | 'manager' | 'employee')[]
+   109→  moduleKey?: string
+   110→}> = [
+   111→  { title: 'Dashboard', page: 'dashboard', icon: LayoutDashboard },
+   112→  { title: 'Product Types', page: 'product-types', icon: Tags, businessTypes: ['retail', 'mixed'], roles: ['owner', 'manager'], moduleKey: 'inventory' },
+   113→  { title: 'Products', page: 'products', icon: Package, businessTypes: ['retail', 'mixed'], moduleKey: 'inventory' },
+   114→  { title: 'Inventory', page: 'inventory', icon: Warehouse, businessTypes: ['retail', 'mixed'], roles: ['owner', 'manager'], moduleKey: 'inventory' },
+   115→  { title: 'Services', page: 'services', icon: Wrench, businessTypes: ['service', 'mixed'], moduleKey: 'services' },
+   116→  { title: 'Sales', page: 'sales', icon: ShoppingCart, moduleKey: 'sales' },
+   117→  { title: 'Customers', page: 'customers', icon: Users, moduleKey: 'customers' },
+   118→  { title: 'Suppliers', page: 'suppliers', icon: Truck, roles: ['owner', 'manager'], moduleKey: 'suppliers' },
+   119→  { title: 'Debts & Credits', page: 'debts', icon: CreditCard, roles: ['owner', 'manager'], moduleKey: 'debts' },
+   120→  { title: 'Profit & Loss', page: 'profit-loss', icon: TrendingUp, roles: ['owner', 'manager'], moduleKey: 'reports' },
+   121→  { title: 'Expenses', page: 'expenses', icon: Receipt, roles: ['owner', 'manager'], moduleKey: 'expenses' },
+   122→  { title: 'Reports', page: 'reports', icon: BarChart3, roles: ['owner', 'manager'], moduleKey: 'reports' },
+   123→  { title: 'Branches', page: 'branches', icon: GitBranch, roles: ['owner', 'manager'], moduleKey: 'multi-shop' },
+   124→  { title: 'Stock Transfers', page: 'stock-transfers', icon: ArrowLeftRight, roles: ['owner', 'manager'], moduleKey: 'inventory' },
+   125→  { title: 'Purchase Orders', page: 'purchase-orders', icon: ClipboardList, roles: ['owner', 'manager'], moduleKey: 'inventory' },
+   126→  { title: 'Customer Loyalty', page: 'loyalty', icon: Award, moduleKey: 'customers' },
+   127→  { title: 'Credit Limits', page: 'credit-limits', icon: CreditCard, roles: ['owner', 'manager'], moduleKey: 'debts' },
+   128→]
+   129→
+   130→const aiNavItems: Array<{
+   131→  title: string
+   132→  page: Page
+   133→  icon: React.ElementType
+   134→  roles?: ('owner' | 'manager' | 'employee')[]
+   135→  moduleKey?: string
+   136→}> = [
+   137→  { title: 'Smart Search', page: 'smart-search', icon: Search },
+   138→  { title: 'AI Inventory', page: 'ai-inventory', icon: ScanSearch, roles: ['owner', 'manager'], moduleKey: 'ai-inventory' },
+   139→  { title: 'AI Assistant', page: 'ai-assistant', icon: Bot, moduleKey: 'ai-assistant' },
+   140→  { title: 'Anomaly Detection', page: 'anomaly-detection', icon: ShieldAlert, roles: ['owner', 'manager'], moduleKey: 'ai-inventory' },
+   141→  { title: 'Price Optimization', page: 'price-optimization', icon: DollarSign, roles: ['owner', 'manager'], moduleKey: 'ai-inventory' },
+   142→  { title: 'Sales Forecast', page: 'sales-forecast', icon: TrendingUp, roles: ['owner', 'manager'], moduleKey: 'ai-inventory' },
+   143→]
+   144→
+   145→export function AppSidebar() {
+   146→  const { user, organizations, currentOrg, currentOrgRole, setCurrentOrg, logout, shops, currentShop, setCurrentShop, activeModules, modulesLoaded } = useAuthStore()
+   147→  const { currentPage, setPage } = useAppStore()
+   148→
+   149→  const isAdmin = user?.role === 'admin'
+   150→  const businessType = currentOrg?.businessType
+   151→
+   152→  // Whether to show shop selector: only for business users with multi-shop OR >1 shop
+   153→  // Admin users should NEVER see a shop selector — they manage the platform, not individual shops
+   154→  const showShopSelector = !isAdmin && (shops.length > 1 || (activeModules.length > 0 && activeModules.includes('multi-shop')))
+   155→
+   156→  // Check if a module is accessible
+   157→  // Graceful degradation: if modules haven't loaded yet, show all items
+   158→  // Once loaded, only show items whose moduleKey is in activeModules (or have no moduleKey like Dashboard)
+   159→  const isModuleActive = (moduleKey?: string): boolean => {
+   160→    if (!moduleKey) return true // Dashboard and items without moduleKey always shown
+   161→    if (!modulesLoaded) return true // Graceful degradation: modules not loaded yet, show all
+   162→    return activeModules.includes(moduleKey)
+   163→  }
+   164→
+   165→  // Admin users only see admin-specific nav items — hide all business-level nav
+   166→  // Business users see filtered items based on module, business type, and role
+   167→  const filteredNavItems = isAdmin
+   168→    ? []
+   169→    : mainNavItems.filter(item => {
+   170→        // Module gate
+   171→        if (!isModuleActive(item.moduleKey)) return false
+   172→        // Business type filter
+   173→        if (item.businessTypes && businessType && !item.businessTypes.includes(businessType)) return false
+   174→        // Role filter
+   175→        if (item.roles && currentOrgRole && !item.roles.includes(currentOrgRole)) return false
+   176→        return true
+   177→      })
+   178→
+   179→  const filteredAiItems = isAdmin
+   180→    ? []
+   181→    : aiNavItems.filter(item => {
+   182→        if (!isModuleActive(item.moduleKey)) return false
+   183→        if (item.roles && currentOrgRole && !item.roles.includes(currentOrgRole)) return false
+   184→        return true
+   185→      })
+   186→
+   187→  const initials = user?.name
+   188→    ?.split(' ')
+   189→    .map((n) => n[0])
+   190→    .join('')
+   191→    .toUpperCase()
+   192→    .slice(0, 2) || 'U'
+   193→
+   194→  return (
+   195→    <Sidebar collapsible="icon" aria-label="Main navigation">
+   196→      <SidebarHeader>
+   197→        {/* Logo */}
+   198→        <SidebarMenu>
+   199→          <SidebarMenuItem>
+   200→            <SidebarMenuButton size="lg" className="hover:bg-sidebar-accent">
+   201→              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+   202→                <Store className="size-4" />
+   203→              </div>
+   204→              <div className="grid flex-1 text-left text-sm leading-tight">
+   205→                <span className="truncate font-semibold">InvenSync</span>
+   206→                <span className="truncate text-xs text-muted-foreground">Inventory Management</span>
+   207→              </div>
+   208→            </SidebarMenuButton>
+   209→          </SidebarMenuItem>
+   210→        </SidebarMenu>
+   211→
+   212→        {/* Organization & Shop Selectors */}
+   213→        {!isAdmin && organizations.length > 0 && (
+   214→          <>
+   215→            <SidebarSeparator />
+   216→            <div className="px-2 py-1 space-y-1">
+   217→              {/* If multiple orgs, show org selector */}
+   218→              {organizations.length > 1 ? (
+   219→                <DropdownMenu>
+   220→                  <DropdownMenuTrigger asChild>
+   221→                    <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent transition-colors" aria-label="Select organization">
+   222→                      <Building2 className="size-4 text-muted-foreground shrink-0" />
+   223→                      <span className="flex-1 truncate text-left text-sidebar-foreground">
+   224→                        {currentOrg?.name || 'Select Org'}
+   225→                      </span>
+   226→                      <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
+   227→                    </button>
+   228→                  </DropdownMenuTrigger>
+   229→                  <DropdownMenuContent side="bottom" align="start" className="w-56">
+   230→                    {organizations.map((org) => (
+   231→                      <DropdownMenuItem
+   232→                        key={org.id}
+   233→                        onClick={() => setCurrentOrg(org)}
+   234→                        className={org.id === currentOrg?.id ? 'bg-accent' : ''}
+   235→                      >
+   236→                        <Building2 className="size-4 mr-2" />
+   237→                        <span className="truncate">{org.name}</span>
+   238→                        {org.id === currentOrg?.id && (
+   239→                          <span className="ml-auto text-xs text-primary">Active</span>
+   240→                        )}
+   241→                      </DropdownMenuItem>
+   242→                    ))}
+   243→                  </DropdownMenuContent>
+   244→                </DropdownMenu>
+   245→              ) : (
+   246→                /* Single org — just show org name as a label */
+   247→                <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+   248→                  <Building2 className="size-3.5 shrink-0" />
+   249→                  <span className="truncate">{currentOrg?.name}</span>
+   250→                </div>
+   251→              )}
+   252→
+   253→              {/* Shop/Branch Selector — only shown when multi-shop is active */}
+   254→              {showShopSelector && (
+   255→                <DropdownMenu>
+   256→                  <DropdownMenuTrigger asChild>
+   257→                    <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent transition-colors" aria-label="Select branch">
+   258→                      <MapPin className="size-4 text-muted-foreground shrink-0" />
+   259→                      <span className="flex-1 truncate text-left text-sidebar-foreground">
+   260→                        {currentShop?.name || 'Select Branch'}
+   261→                      </span>
+   262→                      <ChevronDown className="size-3.5 text-muted-foreground shrink-0" />
+   263→                    </button>
+   264→                  </DropdownMenuTrigger>
+   265→                  <DropdownMenuContent side="bottom" align="start" className="w-56">
+   266→                    {shops.filter(s => s.isActive).map((shop) => (
+   267→                      <DropdownMenuItem
+   268→                        key={shop.id}
+   269→                        onClick={() => setCurrentShop(shop)}
+   270→                        className={shop.id === currentShop?.id ? 'bg-accent' : ''}
+   271→                      >
+   272→                        <MapPin className="size-4 mr-2" />
+   273→                        <span className="truncate">{shop.name}</span>
+   274→                        {shop.city && (
+   275→                          <span className="ml-auto text-xs text-muted-foreground truncate max-w-16">{shop.city}</span>
+   276→                        )}
+   277→                        {shop.id === currentShop?.id && (
+   278→                          <span className="ml-1 text-xs text-primary">Active</span>
+   279→                        )}
+   280→                      </DropdownMenuItem>
+   281→                    ))}
+   282→                  </DropdownMenuContent>
+   283→                </DropdownMenu>
+   284→              )}
+   285→            </div>
+   286→          </>
+   287→        )}
+   288→      </SidebarHeader>
+   289→
+   290→      <SidebarContent>
+   291→        {/* Main Navigation — only for business users */}
+   292→        {!isAdmin && filteredNavItems.length > 0 && (
+   293→          <SidebarGroup>
+   294→            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+   295→            <SidebarGroupContent>
+   296→              <SidebarMenu>
+   297→                {filteredNavItems.map((item) => (
+   298→                  <SidebarMenuItem key={item.page}>
+   299→                    <SidebarMenuButton
+   300→                      isActive={currentPage === item.page}
+   301→                      onClick={() => setPage(item.page)}
+   302→                      tooltip={item.title}
+   303→                      aria-current={currentPage === item.page ? 'page' : undefined}
+   304→                    >
+   305→                      <item.icon className="size-4" aria-hidden="true" />
+   306→                      <span>{item.title}</span>
+   307→                      {item.moduleKey && activeModules.length > 0 && !activeModules.includes(item.moduleKey) && (
+   308→                        <Badge variant="outline" className="ml-auto text-[11px] px-1.5 py-0 text-amber-600 border-amber-300">Trial</Badge>
+   309→                      )}
+   310→                    </SidebarMenuButton>
+   311→                  </SidebarMenuItem>
+   312→                ))}
+   313→              </SidebarMenu>
+   314→            </SidebarGroupContent>
+   315→          </SidebarGroup>
+   316→        )}
+   317→
+   318→        {/* AI Features — only for business users */}
+   319→        {!isAdmin && filteredAiItems.length > 0 && (
+   320→          <SidebarGroup>
+   321→            <SidebarGroupLabel>AI Features</SidebarGroupLabel>
+   322→            <SidebarGroupContent>
+   323→              <SidebarMenu>
+   324→                {filteredAiItems.map((item) => (
+   325→                  <SidebarMenuItem key={item.page}>
+   326→                    <SidebarMenuButton
+   327→                      isActive={currentPage === item.page}
+   328→                      onClick={() => setPage(item.page)}
+   329→                      tooltip={item.title}
+   330→                      aria-current={currentPage === item.page ? 'page' : undefined}
+   331→                    >
+   332→                      <item.icon className="size-4" aria-hidden="true" />
+   333→                      <span>{item.title}</span>
+   334→                    </SidebarMenuButton>
+   335→                  </SidebarMenuItem>
+   336→                ))}
+   337→              </SidebarMenu>
+   338→            </SidebarGroupContent>
+   339→          </SidebarGroup>
+   340→        )}
+   341→
+   342→        {/* Modules - For org owners/managers */}
+   343→        {!isAdmin && currentOrgRole && (
+   344→          <SidebarGroup>
+   345→            <SidebarGroupLabel>Subscription</SidebarGroupLabel>
+   346→            <SidebarGroupContent>
+   347→              <SidebarMenu>
+   348→                <SidebarMenuItem>
+   349→                  <SidebarMenuButton
+   350→                    isActive={currentPage === 'modules'}
+   351→                    onClick={() => setPage('modules')}
+   352→                    tooltip="My Modules"
+   353→                  >
+   354→                    <Puzzle className="size-4" />
+   355→                    <span>My Modules</span>
+   356→                    {activeModules.length > 0 && (
+   357→                      <Badge variant="secondary" className="ml-auto text-[11px] px-1.5 py-0">
+   358→                        {activeModules.length}
+   359→                      </Badge>
+   360→                    )}
+   361→                  </SidebarMenuButton>
+   362→                </SidebarMenuItem>
+   363→              </SidebarMenu>
+   364→            </SidebarGroupContent>
+   365→          </SidebarGroup>
+   366→        )}
+   367→
+   368→        {/* Admin */}
+   369→        {isAdmin && (
+   370→          <SidebarGroup>
+   371→            <SidebarGroupLabel>Admin Panel</SidebarGroupLabel>
+   372→            <SidebarGroupContent>
+   373→              <SidebarMenu>
+   374→                <SidebarMenuItem>
+   375→                  <SidebarMenuButton
+   376→                    isActive={currentPage === 'admin-dashboard'}
+   377→                    onClick={() => setPage('admin-dashboard')}
+   378→                    tooltip="Dashboard"
+   379→                  >
+   380→                    <Shield className="size-4" />
+   381→                    <span>Dashboard</span>
+   382→                  </SidebarMenuButton>
+   383→                </SidebarMenuItem>
+   384→                <SidebarMenuItem>
+   385→                  <SidebarMenuButton
+   386→                    isActive={currentPage === 'admin-organizations'}
+   387→                    onClick={() => setPage('admin-organizations')}
+   388→                    tooltip="Organizations"
+   389→                  >
+   390→                    <Building2 className="size-4" />
+   391→                    <span>Organizations</span>
+   392→                  </SidebarMenuButton>
+   393→                </SidebarMenuItem>
+   394→                <SidebarMenuItem>
+   395→                  <SidebarMenuButton
+   396→                    isActive={currentPage === 'admin-users'}
+   397→                    onClick={() => setPage('admin-users')}
+   398→                    tooltip="Users"
+   399→                  >
+   400→                    <UserCog className="size-4" />
+   401→                    <span>Users</span>
+   402→                  </SidebarMenuButton>
+   403→                </SidebarMenuItem>
+   404→                <SidebarMenuItem>
+   405→                  <SidebarMenuButton
+   406→                    isActive={currentPage === 'admin-modules'}
+   407→                    onClick={() => setPage('admin-modules')}
+   408→                    tooltip="Modules & Pricing"
+   409→                  >
+   410→                    <Cog className="size-4" />
+   411→                    <span>Modules & Pricing</span>
+   412→                  </SidebarMenuButton>
+   413→                </SidebarMenuItem>
+   414→                <SidebarMenuItem>
+   415→                  <SidebarMenuButton
+   416→                    isActive={currentPage === 'admin-sales-team'}
+   417→                    onClick={() => setPage('admin-sales-team')}
+   418→                    tooltip="Sales Team"
+   419→                  >
+   420→                    <Megaphone className="size-4" />
+   421→                    <span>Sales Team</span>
+   422→                  </SidebarMenuButton>
+   423→                </SidebarMenuItem>
+   424→                <SidebarMenuItem>
+   425→                  <SidebarMenuButton
+   426→                    isActive={currentPage === 'admin-regions'}
+   427→                    onClick={() => setPage('admin-regions')}
+   428→                    tooltip="Regions & Cities"
+   429→                  >
+   430→                    <Globe2 className="size-4" />
+   431→                    <span>Regions & Cities</span>
+   432→                  </SidebarMenuButton>
+   433→                </SidebarMenuItem>
+   434→                <SidebarMenuItem>
+   435→                  <SidebarMenuButton
+   436→                    isActive={currentPage === 'audit-log'}
+   437→                    onClick={() => setPage('audit-log')}
+   438→                    tooltip="Audit Log"
+   439→                  >
+   440→                    <ScrollText className="size-4" />
+   441→                    <span>Audit Log</span>
+   442→                  </SidebarMenuButton>
+   443→                </SidebarMenuItem>
+   444→                <SidebarMenuItem>
+   445→                  <SidebarMenuButton
+   446→                    isActive={currentPage === 'scheduled-reports'}
+   447→                    onClick={() => setPage('scheduled-reports')}
+   448→                    tooltip="Scheduled Reports"
+   449→                  >
+   450→                    <CalendarClock className="size-4" />
+   451→                    <span>Scheduled Reports</span>
+   452→                  </SidebarMenuButton>
+   453→                </SidebarMenuItem>
+   454→                <SidebarMenuItem>
+   455→                  <SidebarMenuButton
+   456→                    isActive={currentPage === 'admin-notifications'}
+   457→                    onClick={() => setPage('admin-notifications')}
+   458→                    tooltip="Notifications"
+   459→                  >
+   460→                    <Bell className="size-4" />
+   461→                    <span>Notifications</span>
+   462→                  </SidebarMenuButton>
+   463→                </SidebarMenuItem>
+   464→              </SidebarMenu>
+   465→            </SidebarGroupContent>
+   466→          </SidebarGroup>
+   467→        )}
+   468→
+   469→        {/* Sales Rep */}
+   470→        {user?.role === 'sales_rep' && (
+   471→          <SidebarGroup>
+   472→            <SidebarGroupLabel>Sales</SidebarGroupLabel>
+   473→            <SidebarGroupContent>
+   474→              <SidebarMenu>
+   475→                <SidebarMenuItem>
+   476→                  <SidebarMenuButton
+   477→                    isActive={currentPage === 'sales-rep-dashboard'}
+   478→                    onClick={() => setPage('sales-rep-dashboard')}
+   479→                    tooltip="My Dashboard"
+   480→                  >
+   481→                    <UsersRound className="size-4" />
+   482→                    <span>My Dashboard</span>
+   483→                  </SidebarMenuButton>
+   484→                </SidebarMenuItem>
+   485→              </SidebarMenu>
+   486→            </SidebarGroupContent>
+   487→          </SidebarGroup>
+   488→        )}
+   489→      </SidebarContent>
+   490→
+   491→      <SidebarFooter>
+   492→        <SidebarMenu>
+   493→          {/* Settings — business users only (admin should not see business settings) */}
+   494→          {!isAdmin && (
+   495→            <SidebarMenuItem>
+   496→              <SidebarMenuButton
+   497→                isActive={currentPage === 'settings'}
+   498→                onClick={() => setPage('settings')}
+   499→                tooltip="Settings"
+   500→              >
+   501→                <Settings className="size-4" />
+   502→                <span>Settings</span>
+   503→              </SidebarMenuButton>
+   504→            </SidebarMenuItem>
+   505→          )}
+   506→          <SidebarSeparator />
+   507→          {/* Language & Currency Switchers */}
+   508→          <SidebarMenuItem>
+   509→            <div className="flex flex-col gap-1">
+   510→              <LanguageSwitcher />
+   511→              <CurrencySwitcher />
+   512→            </div>
+   513→          </SidebarMenuItem>
+   514→          <SidebarSeparator />
+   515→          <SidebarMenuItem>
+   516→            <DropdownMenu>
+   517→              <DropdownMenuTrigger asChild>
+   518→                <SidebarMenuButton
+   519→                  size="lg"
+   520→                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+   521→                >
+   522→                  <Avatar className="size-8 rounded-lg">
+   523→                    <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-xs font-semibold">
+   524→                      {initials}
+   525→                    </AvatarFallback>
+   526→                  </Avatar>
+   527→                  <div className="grid flex-1 text-left text-sm leading-tight">
+   528→                    <span className="truncate font-medium">{user?.name || 'User'}</span>
+   529→                    <span className="truncate text-xs text-muted-foreground">{user?.email || ''}</span>
+   530→                  </div>
+   531→                  <ChevronDown className="ml-auto size-4" />
+   532→                </SidebarMenuButton>
+   533→              </DropdownMenuTrigger>
+   534→              <DropdownMenuContent
+   535→                className="w-56"
+   536→                side="top"
+   537→                align="start"
+   538→                sideOffset={4}
+   539→              >
+   540→                <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive" aria-label="Log out of your account">
+   541→                  <LogOut className="size-4 mr-2" aria-hidden="true" />
+   542→                  Log out
+   543→                </DropdownMenuItem>
+   544→              </DropdownMenuContent>
+   545→            </DropdownMenu>
+   546→          </SidebarMenuItem>
+   547→        </SidebarMenu>
+   548→      </SidebarFooter>
+   549→
+   550→      <SidebarRail />
+   551→    </Sidebar>
+   552→  )
+   553→}
+   554→
+   555→// ============================================
+   556→// Mobile Bottom Navigation
+   557→// ============================================
+   558→export function MobileBottomNav() {
+   559→  const { currentPage, setPage } = useAppStore()
+   560→  const { user, currentOrg, currentOrgRole, activeModules, modulesLoaded } = useAuthStore()
+   561→  const { theme, setTheme } = useTheme()
+   562→  const [showMore, setShowMore] = useState(false)
+   563→  const morePanelRef = useRef<HTMLDivElement>(null)
+   564→  const moreButtonRef = useRef<HTMLButtonElement>(null)
+   565→
+   566→  const isService = currentOrg?.businessType === 'service'
+   567→  const isMixed = currentOrg?.businessType === 'mixed'
+   568→  const isManager = currentOrgRole === 'owner' || currentOrgRole === 'manager'
+   569→  const isAdmin = user?.role === 'admin'
+   570→
+   571→  // Check if a module is accessible
+   572→  const isModuleActive = (moduleKey?: string): boolean => {
+   573→    if (!moduleKey) return true
+   574→    if (!modulesLoaded) return true // Graceful degradation: modules not loaded yet, show all
+   575→    return activeModules.includes(moduleKey)
+   576→  }
+   577→
+   578→  const mainTabs: Array<{ page: Page; icon: React.ElementType; label: string }> = isAdmin
+   579→    ? [
+   580→        { page: 'admin-dashboard', icon: Shield, label: 'Dashboard' },
+   581→        { page: 'admin-regions', icon: Globe2, label: 'Regions' },
+   582→        { page: 'admin-organizations', icon: Building2, label: 'Orgs' },
+   583→      ]
+   584→    : [
+   585→        { page: 'dashboard', icon: LayoutDashboard, label: 'Home' },
+   586→        ...(isService && !isMixed && isModuleActive('services')
+   587→          ? [{ page: 'services' as Page, icon: Wrench, label: 'Services' }]
+   588→          : isModuleActive('inventory')
+   589→            ? [{ page: 'products' as Page, icon: Package, label: 'Products' }]
+   590→            : []),
+   591→        ...(isModuleActive('sales') ? [{ page: 'sales' as Page, icon: ShoppingCart, label: 'Sales' }] : []),
+   592→      ]
+   593→
+   594→  const moreItems: Array<{ page: Page; icon: React.ElementType; label: string }> = isAdmin
+   595→    ? [
+   596→        { page: 'admin-users' as Page, icon: UserCog, label: 'Users' },
+   597→        { page: 'admin-modules' as Page, icon: Cog, label: 'Modules' },
+   598→        { page: 'admin-sales-team' as Page, icon: Megaphone, label: 'Sales Team' },
+   599→        { page: 'admin-notifications' as Page, icon: Bell, label: 'Notify' },
+   600→      ]
+   601→    : [
+   602→        ...(isManager ? [{ page: 'branches' as Page, icon: GitBranch, label: 'Branches' }] : []),
+   603→        ...(isMixed && isModuleActive('services') ? [{ page: 'services' as Page, icon: Wrench, label: 'Services' }] : []),
+   604→        ...(isManager && isModuleActive('inventory') ? [{ page: 'inventory' as Page, icon: Warehouse, label: 'Inventory' }] : []),
+   605→        ...(isModuleActive('customers') ? [{ page: 'customers' as Page, icon: Users, label: 'Customers' }] : []),
+   606→        ...(isManager && isModuleActive('debts') ? [{ page: 'debts' as Page, icon: CreditCard, label: 'Debts' }] : []),
+   607→        ...(isManager && isModuleActive('reports') ? [{ page: 'reports' as Page, icon: BarChart3, label: 'Reports' }] : []),
+   608→        ...(isModuleActive('ai-assistant') ? [{ page: 'ai-assistant' as Page, icon: Bot, label: 'AI Chat' }] : []),
+   609→        { page: 'modules' as Page, icon: Puzzle, label: 'Modules' },
+   610→        { page: 'settings' as Page, icon: Settings, label: 'Settings' },
+   611→      ]
+   612→
+   613→  const isMoreActive = !['dashboard', 'products', 'sales', 'services', 'admin-dashboard', 'admin-regions', 'admin-organizations'].includes(currentPage)
+   614→
+   615→  // Focus trap for "More" panel (accessibility)
+   616→  const handleMoreKeyDown = useCallback((e: React.KeyboardEvent) => {
+   617→    if (e.key === 'Escape') {
+   618→      setShowMore(false)
+   619→      moreButtonRef.current?.focus()
+   620→    }
+   621→  }, [])
+   622→
+   623→  // Focus the more panel when it opens
+   624→  useEffect(() => {
+   625→    if (showMore && morePanelRef.current) {
+   626→      const firstButton = morePanelRef.current.querySelector<HTMLElement>('button')
+   627→      firstButton?.focus()
+   628→    }
+   629→  }, [showMore])
+   630→
+   631→  return (
+   632→    <>
+   633→      {/* More Menu Overlay — ARIA dialog for accessibility */}
+   634→      {showMore && (
+   635→        <div
+   636→          className="fixed inset-0 z-40 md:hidden"
+   637→          onClick={() => { setShowMore(false); moreButtonRef.current?.focus() }}
+   638→          onKeyDown={handleMoreKeyDown}
+   639→          role="dialog"
+   640→          aria-modal="true"
+   641→          aria-label="More navigation options"
+   642→        >
+   643→          <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
+   644→          <div
+   645→            ref={morePanelRef}
+   646→            className="absolute bottom-14 left-0 right-0 bg-background border-t rounded-t-2xl shadow-2xl p-4 max-h-[60vh] overflow-y-auto"
+   647→            onClick={(e) => e.stopPropagation()}
+   648→          >
+   649→            <div className="flex items-center justify-between mb-3">
+   650→              <h3 id="more-panel-title" className="font-semibold text-sm">More Options</h3>
+   651→              <button
+   652→                onClick={() => { setShowMore(false); moreButtonRef.current?.focus() }}
+   653→                className="text-muted-foreground p-2 min-w-11 min-h-11 flex items-center justify-center"
+   654→                aria-label="Close more options"
+   655→              >
+   656→                <X className="size-5" aria-hidden="true" />
+   657→              </button>
+   658→            </div>
+   659→            <div className="grid grid-cols-4 gap-3" role="list">
+   660→              {moreItems.map(item => (
+   661→                <button
+   662→                  key={item.page}
+   663→                  onClick={() => { setPage(item.page); setShowMore(false) }}
+   664→                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors min-h-11 ${
+   665→                    currentPage === item.page
+   666→                      ? 'bg-primary/10 text-primary'
+   667→                      : 'hover:bg-muted text-muted-foreground'
+   668→                  }`}
+   669→                  role="listitem"
+   670→                  aria-label={item.label}
+   671→                  aria-current={currentPage === item.page ? 'page' : undefined}
+   672→                >
+   673→                  <item.icon className="size-5" aria-hidden="true" />
+   674→                  <span className="text-xs font-medium">{item.label}</span>
+   675→                </button>
+   676→              ))}
+   677→              {/* Theme toggle */}
+   678→              <button
+   679→                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+   680→                className="flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors hover:bg-muted text-muted-foreground min-h-11"
+   681→                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+   682→              >
+   683→                {theme === 'dark' ? <Sun className="size-5" aria-hidden="true" /> : <Moon className="size-5" aria-hidden="true" />}
+   684→                <span className="text-xs font-medium">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+   685→              </button>
+   686→            </div>
+   687→          </div>
+   688→        </div>
+   689→      )}
+   690→
+   691→      {/* Bottom Nav Bar */}
+   692→      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80" aria-label="Mobile navigation">
+   693→        <div className="flex items-center justify-around h-14 pb-[env(safe-area-inset-bottom)]">
+   694→          {mainTabs.map(tab => (
+   695→            <button
+   696→              key={tab.page}
+   697→              onClick={() => setPage(tab.page)}
+   698→              className={`flex flex-col items-center justify-center gap-0.5 min-w-0 flex-1 h-full transition-colors min-h-11 ${
+   699→                currentPage === tab.page
+   700→                  ? 'text-primary'
+   701→                  : 'text-muted-foreground'
+   702→              }`}
+   703→              aria-label={tab.label}
+   704→              aria-current={currentPage === tab.page ? 'page' : undefined}
+   705→            >
+   706→              <tab.icon className="size-5" aria-hidden="true" />
+   707→              <span className="text-xs font-medium">{tab.label}</span>
+   708→            </button>
+   709→          ))}
+   710→          <button
+   711→            ref={moreButtonRef}
+   712→            onClick={() => setShowMore(true)}
+   713→            className={`flex flex-col items-center justify-center gap-0.5 min-w-0 flex-1 h-full transition-colors min-h-11 ${
+   714→              isMoreActive
+   715→                ? 'text-primary'
+   716→                : 'text-muted-foreground'
+   717→            }`}
+   718→            aria-label="More options"
+   719→            aria-expanded={showMore}
+   720→            aria-haspopup="dialog"
+   721→          >
+   722→            <BarChart3 className="size-5" aria-hidden="true" />
+   723→            <span className="text-xs font-medium">More</span>
+   724→          </button>
+   725→        </div>
+   726→      </nav>
+   727→    </>
+   728→  )
+   729→}
+   730→

@@ -1,0 +1,791 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import { useForm } from 'react-hook-form'
+     5→import { zodResolver } from '@hookform/resolvers/zod'
+     6→import {
+     7→  Users, UserPlus, Search, Eye, Pencil, Trash2,
+     8→  TrendingUp, CreditCard, Calendar, Mail, Phone, MapPin,
+     9→  ShoppingCart, DollarSign, UserCircle, ChevronLeft, ChevronRight, Loader2,
+    10→} from 'lucide-react'
+    11→import { api, type Customer, type Sale, type Debt } from '@/lib/api-client'
+    12→import { useAuthStore } from '@/lib/stores/auth-store'
+    13→import { customerSchema, type CustomerFormData } from '@/lib/validations'
+    14→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    15→import { Button } from '@/components/ui/button'
+    16→import { Input } from '@/components/ui/input'
+    17→import { Badge } from '@/components/ui/badge'
+    18→import {
+    19→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+    20→} from '@/components/ui/table'
+    21→import {
+    22→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
+    23→} from '@/components/ui/dialog'
+    24→import {
+    25→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    26→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    27→} from '@/components/ui/alert-dialog'
+    28→import { Form } from '@/components/ui/form'
+    29→import { FormInputField, FormTextareaField, FormSubmitButton } from '@/components/shared/form-fields'
+    30→import { Separator } from '@/components/ui/separator'
+    31→import { Skeleton } from '@/components/ui/skeleton'
+    32→import { toast } from 'sonner'
+    33→import { getNetworkErrorMessage } from '@/lib/validation'
+    34→import { ErrorState, EmptyState } from '@/components/shared/error-states'
+    35→
+    36→// ============================================
+    37→// Helpers
+    38→// ============================================
+    39→import { formatETB, formatDate } from '@/lib/format'
+    40→
+    41→// ============================================
+    42→// Main Component
+    43→// ============================================
+    44→export function CustomersPage() {
+    45→  const { currentOrg, currentShop } = useAuthStore()
+    46→  const orgId = currentOrg?.id || ''
+    47→  const shopId = currentShop?.id
+    48→
+    49→  const [customers, setCustomers] = useState<Customer[]>([])
+    50→  const [loading, setLoading] = useState(true)
+    51→  const [pageError, setPageError] = useState<string | null>(null)
+    52→  const [searchQuery, setSearchQuery] = useState('')
+    53→  const [page, setPage] = useState(1)
+    54→  const [totalPages, setTotalPages] = useState(1)
+    55→  const [total, setTotal] = useState(0)
+    56→  const limit = 10
+    57→
+    58→  // Dialogs
+    59→  const [showAddEdit, setShowAddEdit] = useState(false)
+    60→  const [showDetail, setShowDetail] = useState(false)
+    61→  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    62→  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+    63→  const [isEditing, setIsEditing] = useState(false)
+    64→
+    65→  // Form state
+    66→  const [formSubmitting, setFormSubmitting] = useState(false)
+    67→  const [deleting, setDeleting] = useState(false)
+    68→
+    69→  const form = useForm<CustomerFormData>({
+    70→    resolver: zodResolver(customerSchema),
+    71→    defaultValues: {
+    72→      name: '',
+    73→      email: '',
+    74→      phone: '',
+    75→      address: '',
+    76→    },
+    77→  })
+    78→
+    79→  // Customer detail data
+    80→  const [customerSales, setCustomerSales] = useState<Sale[]>([])
+    81→  const [customerDebts, setCustomerDebts] = useState<Debt[]>([])
+    82→  const [detailLoading, setDetailLoading] = useState(false)
+    83→  const [totalDebt, setTotalDebt] = useState(0)
+    84→
+    85→  // Per-customer debt map for table display
+    86→  const [customerDebtMap, setCustomerDebtMap] = useState<Record<string, number>>({})
+    87→
+    88→  // Stats
+    89→  const [newThisMonth, setNewThisMonth] = useState(0)
+    90→
+    91→  const fetchCustomers = useCallback(async () => {
+    92→    if (!orgId) return
+    93→    setLoading(true)
+    94→    setPageError(null)
+    95→    try {
+    96→      const data = await api.getCustomers(orgId, {
+    97→        search: searchQuery || undefined,
+    98→        page,
+    99→        limit,
+   100→        shopId,
+   101→      })
+   102→      setCustomers(data.customers)
+   103→      setTotalPages(data.pagination.totalPages)
+   104→      setTotal(data.pagination.total)
+   105→
+   106→      // Calculate stats and per-customer debt (only on first page without search)
+   107→      if (page === 1 && !searchQuery) {
+   108→        try {
+   109→          // Run stats and debts fetch in parallel for better performance
+   110→          const [allData, debtsData] = await Promise.all([
+   111→            api.getCustomers(orgId, { limit: 100, shopId }),
+   112→            api.getDebts(orgId, { type: 'customer_debt', status: 'all', limit: '100', shopId }),
+   113→          ])
+   114→
+   115→          // New this month
+   116→          const now = new Date()
+   117→          const newCount = allData.customers.filter((c) => {
+   118→            const created = new Date(c.createdAt)
+   119→            return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear()
+   120→          }).length
+   121→          setNewThisMonth(newCount)
+   122→
+   123→          // Build per-customer debt map from outstanding debts
+   124→          const debtMap: Record<string, number> = {}
+   125→          for (const d of debtsData.debts) {
+   126→            if (d.status !== 'paid' && d.customerId) {
+   127→              const outstanding = d.amount - d.paidAmount
+   128→              debtMap[d.customerId] = (debtMap[d.customerId] || 0) + outstanding
+   129→            }
+   130→          }
+   131→          setCustomerDebtMap(debtMap)
+   132→
+   133→          // Total outstanding debt
+   134→          const outstandingDebt = Object.values(debtMap).reduce((sum, v) => sum + v, 0)
+   135→          setTotalDebt(outstandingDebt)
+   136→        } catch {
+   137→          // Partial data load — stats may be incomplete but customers still show
+   138→        }
+   139→      }
+   140→    } catch (err) {
+   141→      const msg = getNetworkErrorMessage(err)
+   142→      setPageError(msg)
+   143→      toast.error(msg)
+   144→    } finally {
+   145→      setLoading(false)
+   146→    }
+   147→  }, [orgId, searchQuery, page, shopId])
+   148→
+   149→  useEffect(() => {
+   150→    fetchCustomers()
+   151→  }, [fetchCustomers])
+   152→
+   153→  // Reset page when search changes
+   154→  useEffect(() => {
+   155→    setPage(1)
+   156→  }, [searchQuery])
+   157→
+   158→  // ============================================
+   159→  // Handlers
+   160→  // ============================================
+   161→  const openAddDialog = () => {
+   162→    setIsEditing(false)
+   163→    setSelectedCustomer(null)
+   164→    form.reset({ name: '', email: '', phone: '', address: '' })
+   165→    setShowAddEdit(true)
+   166→  }
+   167→
+   168→  const openEditDialog = (customer: Customer) => {
+   169→    setIsEditing(true)
+   170→    setSelectedCustomer(customer)
+   171→    form.reset({
+   172→      name: customer.name,
+   173→      email: customer.email || '',
+   174→      phone: customer.phone || '',
+   175→      address: customer.address || '',
+   176→    })
+   177→    setShowAddEdit(true)
+   178→  }
+   179→
+   180→  const handleSave = async (data: CustomerFormData) => {
+   181→    if (!orgId) return
+   182→
+   183→    setFormSubmitting(true)
+   184→    try {
+   185→      if (isEditing && selectedCustomer) {
+   186→        await api.updateCustomer(selectedCustomer.id, orgId, {
+   187→          name: data.name.trim(),
+   188→          email: data.email?.trim() || undefined,
+   189→          phone: data.phone?.trim() || undefined,
+   190→          address: data.address?.trim() || undefined,
+   191→        })
+   192→        toast.success('Customer updated successfully')
+   193→      } else {
+   194→        await api.createCustomer(orgId, {
+   195→          name: data.name.trim(),
+   196→          email: data.email?.trim() || undefined,
+   197→          phone: data.phone?.trim() || undefined,
+   198→          address: data.address?.trim() || undefined,
+   199→          shopId,
+   200→        })
+   201→        toast.success('Customer created successfully')
+   202→      }
+   203→      setShowAddEdit(false)
+   204→      fetchCustomers()
+   205→    } catch (err) {
+   206→      toast.error(getNetworkErrorMessage(err))
+   207→    } finally {
+   208→      setFormSubmitting(false)
+   209→    }
+   210→  }
+   211→
+   212→  const openDeleteConfirm = (customer: Customer) => {
+   213→    setSelectedCustomer(customer)
+   214→    setShowDeleteConfirm(true)
+   215→  }
+   216→
+   217→  const handleDelete = async () => {
+   218→    if (!selectedCustomer || !orgId) return
+   219→    setDeleting(true)
+   220→    try {
+   221→      await api.deleteCustomer(selectedCustomer.id, orgId)
+   222→      toast.success('Customer deleted successfully')
+   223→      setShowDeleteConfirm(false)
+   224→      setSelectedCustomer(null)
+   225→      fetchCustomers()
+   226→    } catch (err) {
+   227→      toast.error(getNetworkErrorMessage(err))
+   228→    } finally {
+   229→      setDeleting(false)
+   230→    }
+   231→  }
+   232→
+   233→  const openDetail = async (customer: Customer) => {
+   234→    setSelectedCustomer(customer)
+   235→    setShowDetail(true)
+   236→    setDetailLoading(true)
+   237→    try {
+   238→      // Fetch sales for this customer
+   239→      const salesData = await api.getSales(orgId, { limit: 50, shopId })
+   240→      const filteredSales = salesData.sales.filter((s) => s.customerId === customer.id)
+   241→      setCustomerSales(filteredSales)
+   242→
+   243→      // Fetch debts for this customer
+   244→      const debtsData = await api.getDebts(orgId, { type: 'customer_debt', limit: '100', shopId })
+   245→      const filteredDebts = debtsData.debts.filter((d) => d.customerId === customer.id)
+   246→      setCustomerDebts(filteredDebts)
+   247→    } catch (err) {
+   248→      toast.error(getNetworkErrorMessage(err))
+   249→    } finally {
+   250→      setDetailLoading(false)
+   251→    }
+   252→  }
+   253→
+   254→  // Helper to get outstanding debt for a specific customer
+   255→  const getCustomerDebt = useCallback((customerId: string): number => {
+   256→    return customerDebtMap[customerId] || 0
+   257→  }, [customerDebtMap])
+   258→
+   259→  // Calculate active this month (customers with sales this month)
+   260→  const activeThisMonth = customers.filter((c) => {
+   261→    return c._count && c._count.sales > 0
+   262→  }).length
+   263→
+   264→  // ============================================
+   265→  // Render
+   266→  // ============================================
+   267→  return (
+   268→    <div className="space-y-6">
+   269→      {/* Header */}
+   270→      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+   271→        <div>
+   272→          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Customers</h1>
+   273→          <p className="text-muted-foreground text-sm mt-1">Manage your customer database and track purchase history</p>
+   274→        </div>
+   275→        <Button onClick={openAddDialog} className="gap-2">
+   276→          <UserPlus className="size-4" />
+   277→          Add Customer
+   278→        </Button>
+   279→      </div>
+   280→
+   281→      {/* Stats Cards */}
+   282→      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+   283→        <Card>
+   284→          <CardContent className="p-4">
+   285→            <div className="flex items-center gap-3">
+   286→              <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center">
+   287→                <Users className="size-5 text-primary" />
+   288→              </div>
+   289→              <div>
+   290→                <p className="text-sm text-muted-foreground">Total Customers</p>
+   291→                <p className="text-xl sm:text-2xl font-bold">{total}</p>
+   292→              </div>
+   293→            </div>
+   294→          </CardContent>
+   295→        </Card>
+   296→        <Card>
+   297→          <CardContent className="p-4">
+   298→            <div className="flex items-center gap-3">
+   299→              <div className="size-10 rounded-lg bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center">
+   300→                <TrendingUp className="size-5 text-sky-600 dark:text-sky-400" />
+   301→              </div>
+   302→              <div>
+   303→                <p className="text-sm text-muted-foreground">Active This Month</p>
+   304→                <p className="text-xl sm:text-2xl font-bold">{activeThisMonth}</p>
+   305→              </div>
+   306→            </div>
+   307→          </CardContent>
+   308→        </Card>
+   309→        <Card>
+   310→          <CardContent className="p-4">
+   311→            <div className="flex items-center gap-3">
+   312→              <div className="size-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+   313→                <CreditCard className="size-5 text-red-600 dark:text-red-400" />
+   314→              </div>
+   315→              <div>
+   316→                <p className="text-sm text-muted-foreground">Total Debt</p>
+   317→                <p className="text-xl sm:text-2xl font-bold">{formatETB(totalDebt)}</p>
+   318→              </div>
+   319→            </div>
+   320→          </CardContent>
+   321→        </Card>
+   322→        <Card>
+   323→          <CardContent className="p-4">
+   324→            <div className="flex items-center gap-3">
+   325→              <div className="size-10 rounded-lg bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center">
+   326→                <Calendar className="size-5 text-sky-600 dark:text-sky-400" />
+   327→              </div>
+   328→              <div>
+   329→                <p className="text-sm text-muted-foreground">New This Month</p>
+   330→                <p className="text-xl sm:text-2xl font-bold">{newThisMonth}</p>
+   331→              </div>
+   332→            </div>
+   333→          </CardContent>
+   334→        </Card>
+   335→      </div>
+   336→
+   337→      {/* Search */}
+   338→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+   339→        <div className="relative w-full sm:w-72">
+   340→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   341→          <Input
+   342→            placeholder="Search customers..."
+   343→            aria-label="Search customers"
+   344→            value={searchQuery}
+   345→            onChange={(e) => setSearchQuery(e.target.value)}
+   346→            className="pl-9"
+   347→          />
+   348→        </div>
+   349→      </div>
+   350→
+   351→      {/* Table */}
+   352→      {loading ? (
+   353→        <Card>
+   354→          <CardContent className="p-6 space-y-4">
+   355→            {Array.from({ length: 6 }).map((_, i) => (
+   356→              <Skeleton key={i} className="h-12 w-full" />
+   357→            ))}
+   358→          </CardContent>
+   359→        </Card>
+   360→      ) : pageError && customers.length === 0 ? (
+   361→        <ErrorState title="Failed to load customers" message={pageError} onRetry={fetchCustomers} />
+   362→      ) : customers.length === 0 ? (
+   363→        <EmptyState
+   364→          title={searchQuery ? 'No customers match your search' : 'No customers yet'}
+   365→          message={searchQuery ? 'Try a different search term' : 'Add your first customer to get started.'}
+   366→          icon={<Users className="size-7 text-muted-foreground" />}
+   367→          action={!searchQuery ? { label: 'Add Customer', onClick: openAddDialog } : undefined}
+   368→        />
+   369→      ) : (
+   370→        <Card>
+   371→          <CardContent className="p-0">
+   372→            {/* Desktop table */}
+   373→            <div className="hidden md:block overflow-x-auto -mx-4 md:mx-0">
+   374→              <Table>
+   375→                <TableHeader>
+   376→                  <TableRow>
+   377→                    <TableHead>Name</TableHead>
+   378→                    <TableHead className="hidden lg:table-cell">Email</TableHead>
+   379→                    <TableHead>Phone</TableHead>
+   380→                    <TableHead className="hidden lg:table-cell text-right">Purchases</TableHead>
+   381→                    <TableHead className="text-right">Outstanding Debt</TableHead>
+   382→                    <TableHead className="hidden lg:table-cell">Created</TableHead>
+   383→                    <TableHead className="text-right">Actions</TableHead>
+   384→                  </TableRow>
+   385→                </TableHeader>
+   386→                <TableBody>
+   387→                  {customers.map((customer) => (
+   388→                    <TableRow
+   389→                      key={customer.id}
+   390→                      className="cursor-pointer hover:bg-muted/50"
+   391→                      onClick={() => openDetail(customer)}
+   392→                    >
+   393→                      <TableCell>
+   394→                        <div className="flex items-center gap-3">
+   395→                          <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+   396→                            <UserCircle className="size-4 text-primary" />
+   397→                          </div>
+   398→                          <div>
+   399→                            <p className="font-medium">{customer.name}</p>
+   400→                            <p className="text-xs text-muted-foreground md:hidden">
+   401→                              {customer.email || customer.phone || ''}
+   402→                            </p>
+   403→                          </div>
+   404→                        </div>
+   405→                      </TableCell>
+   406→                      <TableCell className="hidden lg:table-cell text-muted-foreground">
+   407→                        {customer.email || '—'}
+   408→                      </TableCell>
+   409→                      <TableCell className="hidden md:table-cell text-muted-foreground">
+   410→                        {customer.phone || '—'}
+   411→                      </TableCell>
+   412→                      <TableCell className="hidden lg:table-cell text-right">
+   413→                        <Badge variant="secondary">
+   414→                          {customer._count?.sales || 0} sales
+   415→                        </Badge>
+   416→                      </TableCell>
+   417→                      <TableCell className="text-right">
+   418→                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">
+   419→                          {formatETB(getCustomerDebt(customer.id))}
+   420→                        </Badge>
+   421→                      </TableCell>
+   422→                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+   423→                        {formatDate(customer.createdAt)}
+   424→                      </TableCell>
+   425→                      <TableCell className="text-right">
+   426→                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+   427→                          <Button
+   428→                            variant="ghost"
+   429→                            size="sm"
+   430→                            className="h-9 w-9 sm:h-8 sm:w-8"
+   431→                            onClick={() => openDetail(customer)}
+   432→                            title="View Details"
+   433→                            aria-label={`View ${customer.name}`}
+   434→                          >
+   435→                            <Eye className="size-4" />
+   436→                          </Button>
+   437→                          <Button
+   438→                            variant="ghost"
+   439→                            size="sm"
+   440→                            className="h-9 w-9 sm:h-8 sm:w-8"
+   441→                            onClick={() => openEditDialog(customer)}
+   442→                            title="Edit"
+   443→                            aria-label={`Edit ${customer.name}`}
+   444→                          >
+   445→                            <Pencil className="size-4" />
+   446→                          </Button>
+   447→                          <Button
+   448→                            variant="ghost"
+   449→                            size="sm"
+   450→                            className="h-9 w-9 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
+   451→                            onClick={() => openDeleteConfirm(customer)}
+   452→                            title="Delete"
+   453→                            aria-label={`Delete ${customer.name}`}
+   454→                          >
+   455→                            <Trash2 className="size-4" />
+   456→                          </Button>
+   457→                        </div>
+   458→                      </TableCell>
+   459→                    </TableRow>
+   460→                  ))}
+   461→                </TableBody>
+   462→              </Table>
+   463→            </div>
+   464→            {/* Mobile card view */}
+   465→            <div className="md:hidden space-y-3 p-3">
+   466→              {customers.map((customer) => (
+   467→                <Card
+   468→                  key={customer.id}
+   469→                  className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+   470→                  onClick={() => openDetail(customer)}
+   471→                >
+   472→                  <div className="flex items-start justify-between mb-2">
+   473→                    <div className="flex items-center gap-3">
+   474→                      <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+   475→                        <UserCircle className="size-5 text-primary" />
+   476→                      </div>
+   477→                      <div className="min-w-0">
+   478→                        <p className="font-semibold text-sm truncate">{customer.name}</p>
+   479→                        <p className="text-xs text-muted-foreground truncate">{customer.email || customer.phone || 'No contact'}</p>
+   480→                      </div>
+   481→                    </div>
+   482→                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 shrink-0 text-xs">
+   483→                      {formatETB(getCustomerDebt(customer.id))}
+   484→                    </Badge>
+   485→                  </div>
+   486→                  <div className="flex items-center justify-between mt-2">
+   487→                    <span className="text-xs text-muted-foreground">{customer._count?.sales || 0} sales</span>
+   488→                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+   489→                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={() => openEditDialog(customer)}><Pencil className="size-3.5" /></Button>
+   490→                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive" onClick={() => openDeleteConfirm(customer)}><Trash2 className="size-3.5" /></Button>
+   491→                    </div>
+   492→                  </div>
+   493→                </Card>
+   494→              ))}
+   495→            </div>
+   496→          </CardContent>
+   497→        </Card>
+   498→      )}
+   499→
+   500→      {/* Pagination */}
+   501→      {totalPages > 1 && (
+   502→        <div className="flex items-center justify-between">
+   503→          <p className="text-xs sm:text-sm text-muted-foreground">
+   504→            Page {page} of {totalPages}
+   505→          </p>
+   506→          <div className="flex items-center gap-2">
+   507→            <Button
+   508→              variant="outline"
+   509→              size="sm"
+   510→              onClick={() => setPage((p) => Math.max(1, p - 1))}
+   511→              disabled={page === 1}
+   512→              className="h-9 min-w-9 sm:min-w-auto"
+   513→            >
+   514→              <ChevronLeft className="size-4" />
+   515→              <span className="hidden sm:inline ml-1">Previous</span>
+   516→            </Button>
+   517→            <Button
+   518→              variant="outline"
+   519→              size="sm"
+   520→              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+   521→              disabled={page === totalPages}
+   522→              className="h-9 min-w-9 sm:min-w-auto"
+   523→            >
+   524→              <span className="hidden sm:inline mr-1">Next</span>
+   525→              <ChevronRight className="size-4" />
+   526→            </Button>
+   527→          </div>
+   528→        </div>
+   529→      )}
+   530→
+   531→      {/* Add/Edit Customer Dialog */}
+   532→      <Dialog open={showAddEdit} onOpenChange={setShowAddEdit}>
+   533→        <DialogContent className="sm:max-w-md">
+   534→          <DialogHeader>
+   535→            <DialogTitle>{isEditing ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
+   536→            <DialogDescription>
+   537→              {isEditing ? 'Update customer information' : 'Enter details for the new customer'}
+   538→            </DialogDescription>
+   539→          </DialogHeader>
+   540→          <Form {...form}>
+   541→            <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
+   542→              <FormInputField
+   543→                name="name"
+   544→                label="Name"
+   545→                placeholder="Customer name"
+   546→                required
+   547→              />
+   548→              <FormInputField
+   549→                name="email"
+   550→                label="Email"
+   551→                placeholder="customer@email.com"
+   552→                type="email"
+   553→              />
+   554→              <FormInputField
+   555→                name="phone"
+   556→                label="Phone"
+   557→                placeholder="+251 9XX XXX XXXX"
+   558→                type="tel"
+   559→              />
+   560→              <FormTextareaField
+   561→                name="address"
+   562→                label="Address"
+   563→                placeholder="Customer address..."
+   564→                rows={3}
+   565→              />
+   566→              <DialogFooter>
+   567→                <Button variant="outline" type="button" onClick={() => setShowAddEdit(false)}>
+   568→                  Cancel
+   569→                </Button>
+   570→                <FormSubmitButton isLoading={formSubmitting} loadingText={isEditing ? 'Updating...' : 'Saving...'}>
+   571→                  {isEditing ? 'Update Customer' : 'Add Customer'}
+   572→                </FormSubmitButton>
+   573→              </DialogFooter>
+   574→            </form>
+   575→          </Form>
+   576→        </DialogContent>
+   577→      </Dialog>
+   578→
+   579→      {/* Delete Confirmation */}
+   580→      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+   581→        <AlertDialogContent>
+   582→          <AlertDialogHeader>
+   583→            <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+   584→            <AlertDialogDescription>
+   585→              Are you sure you want to delete <strong>{selectedCustomer?.name}</strong>?
+   586→              This action cannot be undone. The customer and all their data will be permanently deleted.
+   587→              Any associated sales records will be preserved.
+   588→            </AlertDialogDescription>
+   589→          </AlertDialogHeader>
+   590→          <AlertDialogFooter>
+   591→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   592→            <AlertDialogAction
+   593→              onClick={handleDelete}
+   594→              disabled={deleting}
+   595→              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+   596→            >
+   597→              {deleting && <Loader2 className="size-4 animate-spin" />}
+   598→              {deleting ? 'Deleting...' : 'Delete'}
+   599→            </AlertDialogAction>
+   600→          </AlertDialogFooter>
+   601→        </AlertDialogContent>
+   602→      </AlertDialog>
+   603→
+   604→      {/* Customer Detail Dialog */}
+   605→      <Dialog open={showDetail} onOpenChange={setShowDetail}>
+   606→        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+   607→          <DialogHeader>
+   608→            <DialogTitle>Customer Details</DialogTitle>
+   609→          </DialogHeader>
+   610→          {selectedCustomer && (
+   611→            <div className="space-y-6">
+   612→              {/* Info Card */}
+   613→              <Card className="bg-muted/50">
+   614→                <CardContent className="p-4">
+   615→                  <div className="flex items-start gap-4">
+   616→                    <div className="size-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+   617→                      <UserCircle className="size-7 text-primary" />
+   618→                    </div>
+   619→                    <div className="flex-1 space-y-3">
+   620→                      <div>
+   621→                        <h3 className="text-sm font-semibold">{selectedCustomer.name}</h3>
+   622→                        <p className="text-xs text-muted-foreground">
+   623→                          Customer since {formatDate(selectedCustomer.createdAt)}
+   624→                        </p>
+   625→                      </div>
+   626→                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+   627→                        {selectedCustomer.email && (
+   628→                          <div className="flex items-center gap-2 text-sm">
+   629→                            <Mail className="size-4 text-muted-foreground" />
+   630→                            <span>{selectedCustomer.email}</span>
+   631→                          </div>
+   632→                        )}
+   633→                        {selectedCustomer.phone && (
+   634→                          <div className="flex items-center gap-2 text-sm">
+   635→                            <Phone className="size-4 text-muted-foreground" />
+   636→                            <span>{selectedCustomer.phone}</span>
+   637→                          </div>
+   638→                        )}
+   639→                        {selectedCustomer.address && (
+   640→                          <div className="flex items-start gap-2 text-sm sm:col-span-2">
+   641→                            <MapPin className="size-4 text-muted-foreground shrink-0 mt-0.5" />
+   642→                            <span>{selectedCustomer.address}</span>
+   643→                          </div>
+   644→                        )}
+   645→                      </div>
+   646→                    </div>
+   647→                  </div>
+   648→                </CardContent>
+   649→              </Card>
+   650→
+   651→              {/* Summary Cards */}
+   652→              <div className="grid grid-cols-2 gap-4">
+   653→                <Card>
+   654→                  <CardContent className="p-4 text-center">
+   655→                    <ShoppingCart className="size-6 text-primary mx-auto mb-2" />
+   656→                    <p className="text-sm font-semibold">{selectedCustomer._count?.sales || 0}</p>
+   657→                    <p className="text-xs text-muted-foreground">Total Purchases</p>
+   658→                  </CardContent>
+   659→                </Card>
+   660→                <Card>
+   661→                  <CardContent className="p-4 text-center">
+   662→                    <DollarSign className="size-6 text-red-500 mx-auto mb-2" />
+   663→                    <p className="text-sm font-semibold">
+   664→                      {formatETB(
+   665→                        customerDebts
+   666→                          .filter((d) => d.status !== 'paid')
+   667→                          .reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
+   668→                      )}
+   669→                    </p>
+   670→                    <p className="text-xs text-muted-foreground">Outstanding Debt</p>
+   671→                  </CardContent>
+   672→                </Card>
+   673→              </div>
+   674→
+   675→              {detailLoading ? (
+   676→                <div className="space-y-3">
+   677→                  {Array.from({ length: 3 }).map((_, i) => (
+   678→                    <Skeleton key={i} className="h-16 w-full" />
+   679→                  ))}
+   680→                </div>
+   681→              ) : (
+   682→                <>
+   683→                  {/* Debt Summary */}
+   684→                  {customerDebts.length > 0 && (
+   685→                    <div>
+   686→                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+   687→                        <CreditCard className="size-4" />
+   688→                        Debt Summary
+   689→                      </h4>
+   690→                      <div className="space-y-2 max-h-48 overflow-y-auto">
+   691→                        {customerDebts.map((debt) => {
+   692→                          const remaining = debt.amount - debt.paidAmount
+   693→                          return (
+   694→                            <div key={debt.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+   695→                              <div>
+   696→                                <p className="text-sm font-medium">{debt.description || 'Debt'}</p>
+   697→                                <p className="text-xs text-muted-foreground">
+   698→                                  {formatDate(debt.createdAt)} · {debt.status}
+   699→                                </p>
+   700→                              </div>
+   701→                              <div className="text-right">
+   702→                                <p className="text-sm font-bold">
+   703→                                  {formatETB(remaining)}
+   704→                                </p>
+   705→                                <p className="text-xs text-muted-foreground">
+   706→                                  of {formatETB(debt.amount)}
+   707→                                </p>
+   708→                              </div>
+   709→                            </div>
+   710→                          )
+   711→                        })}
+   712→                      </div>
+   713→                    </div>
+   714→                  )}
+   715→
+   716→                  {/* Purchase History */}
+   717→                  <div>
+   718→                    <h4 className="font-semibold mb-3 flex items-center gap-2">
+   719→                      <ShoppingCart className="size-4" />
+   720→                      Purchase History
+   721→                    </h4>
+   722→                    {customerSales.length === 0 ? (
+   723→                      <p className="text-sm text-muted-foreground text-center py-4">
+   724→                        No purchases yet
+   725→                      </p>
+   726→                    ) : (
+   727→                      <div className="space-y-2 max-h-64 overflow-y-auto">
+   728→                        {customerSales.map((sale) => (
+   729→                          <div key={sale.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+   730→                            <div>
+   731→                              <p className="text-sm font-medium">{sale.invoiceNumber}</p>
+   732→                              <p className="text-xs text-muted-foreground">
+   733→                                {formatDate(sale.saleDate)} · {sale.items?.length || 0} items
+   734→                              </p>
+   735→                            </div>
+   736→                            <div className="text-right">
+   737→                              <p className="text-sm font-bold">{formatETB(sale.total)}</p>
+   738→                              <Badge
+   739→                                variant="outline"
+   740→                                className={
+   741→                                  sale.status === 'completed'
+   742→                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700'
+   743→                                    : sale.status === 'pending'
+   744→                                    ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700'
+   745→                                    : 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700'
+   746→                                }
+   747→                              >
+   748→                                {sale.status}
+   749→                              </Badge>
+   750→                            </div>
+   751→                          </div>
+   752→                        ))}
+   753→                      </div>
+   754→                    )}
+   755→                  </div>
+   756→                </>
+   757→              )}
+   758→
+   759→              {/* Actions */}
+   760→              <div className="flex gap-2">
+   761→                <Button
+   762→                  variant="outline"
+   763→                  className="flex-1 gap-2"
+   764→                  onClick={() => {
+   765→                    setShowDetail(false)
+   766→                    openEditDialog(selectedCustomer)
+   767→                  }}
+   768→                >
+   769→                  <Pencil className="size-4" />
+   770→                  Edit Customer
+   771→                </Button>
+   772→                <Button
+   773→                  variant="outline"
+   774→                  className="gap-2 text-destructive hover:text-destructive"
+   775→                  onClick={() => {
+   776→                    setShowDetail(false)
+   777→                    openDeleteConfirm(selectedCustomer)
+   778→                  }}
+   779→                >
+   780→                  <Trash2 className="size-4" />
+   781→                  Delete
+   782→                </Button>
+   783→              </div>
+   784→            </div>
+   785→          )}
+   786→        </DialogContent>
+   787→      </Dialog>
+   788→    </div>
+   789→  )
+   790→}
+   791→

@@ -11,8 +11,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from '@/components/ui/recharts-exports'
-import { api } from '@/lib/api-client'
-import { formatETB } from '@/lib/currency'
+import { api, type Expense } from '@/lib/api-client'
+import { formatETB } from '@/lib/format'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -38,26 +38,11 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Form } from '@/components/ui/form'
 import { toast } from 'sonner'
-import { z } from 'zod'
+import { expenseFormSchema, type ExpenseFormData } from '@/lib/validations'
 
 // ============================================
-// Types & Schema
+// Constants
 // ============================================
-
-interface Expense {
-  id: string
-  organizationId: string
-  shopId?: string | null
-  category: string
-  amount: number
-  description?: string | null
-  expenseDate: string
-  isRecurring: boolean
-  recurringPeriod?: string | null
-  createdAt: string
-  updatedAt: string
-  shop?: { id: string; name: string } | null
-}
 
 const EXPENSE_CATEGORIES = [
   { value: 'rent', label: 'Rent' },
@@ -68,18 +53,6 @@ const EXPENSE_CATEGORIES = [
   { value: 'transport', label: 'Transport' },
   { value: 'other', label: 'Other' },
 ]
-
-const expenseFormSchema = z.object({
-  category: z.string().min(1, 'Category is required'),
-  amount: z.number({ message: 'Amount is required' }).positive('Amount must be greater than 0'),
-  description: z.string().optional(),
-  expenseDate: z.string().min(1, 'Date is required'),
-  shopId: z.string().optional(),
-  isRecurring: z.boolean().optional(),
-  recurringPeriod: z.string().optional(),
-})
-
-type ExpenseFormData = z.infer<typeof expenseFormSchema>
 
 // ============================================
 // Helpers
@@ -151,17 +124,10 @@ export function ExpensesPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams({ organizationId: currentOrg.id })
-      if (categoryFilter && categoryFilter !== 'all') params.set('category', categoryFilter)
+      const params: { category?: string } = {}
+      if (categoryFilter && categoryFilter !== 'all') params.category = categoryFilter
 
-      const response = await fetch(`/api/expenses?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('sb_token')}` },
-      })
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.error || 'Failed to fetch expenses')
-      }
-      const result = await response.json()
+      const result = await api.getExpenses(currentOrg.id, params)
       setExpenses(result.expenses || [])
       setTotalExpenses(result.summary?.totalExpenses || 0)
       setMonthlySummary(result.monthlySummary || [])
@@ -217,40 +183,20 @@ export function ExpensesPage() {
     setIsSaving(true)
     try {
       const payload = {
-        organizationId: currentOrg.id,
-        ...formData,
-        shopId: formData.shopId || null,
+        category: formData.category,
+        amount: formData.amount,
         description: formData.description || null,
+        expenseDate: formData.expenseDate,
+        shopId: formData.shopId || null,
+        isRecurring: formData.isRecurring,
         recurringPeriod: formData.isRecurring ? formData.recurringPeriod : null,
       }
 
       if (editingExpense) {
-        const res = await fetch(`/api/expenses/${editingExpense.id}?organizationId=${currentOrg.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('sb_token')}`,
-          },
-          body: JSON.stringify(payload),
-        })
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || 'Failed to update expense')
-        }
+        await api.updateExpense(editingExpense.id, currentOrg.id, payload)
         toast.success('Expense updated successfully')
       } else {
-        const res = await fetch('/api/expenses', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('sb_token')}`,
-          },
-          body: JSON.stringify(payload),
-        })
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || 'Failed to create expense')
-        }
+        await api.createExpense(currentOrg.id, payload)
         toast.success('Expense created successfully')
       }
 
@@ -267,14 +213,7 @@ export function ExpensesPage() {
     if (!currentOrg || !deleteTarget) return
     setIsDeleting(true)
     try {
-      const res = await fetch(`/api/expenses/${deleteTarget.id}?organizationId=${currentOrg.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('sb_token')}` },
-      })
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || 'Failed to delete expense')
-      }
+      await api.deleteExpense(deleteTarget.id, currentOrg.id)
       toast.success('Expense deleted successfully')
       setDeleteTarget(null)
       fetchExpenses()
@@ -315,7 +254,7 @@ export function ExpensesPage() {
                 {isLoading ? <Skeleton className="h-9 w-32 inline-block" /> : formatETB(totalExpenses)}
               </p>
             </div>
-            <div className="size-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+            <div className="size-12 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center justify-center">
               <TrendingDown className="size-6" />
             </div>
           </div>
@@ -522,7 +461,7 @@ export function ExpensesPage() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add Expense'}</DialogTitle>
             <DialogDescription>

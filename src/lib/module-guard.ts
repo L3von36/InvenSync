@@ -84,15 +84,13 @@ export async function checkModuleAccess(
       status: orgModule?.status || null,
     }
   } catch (dbError) {
-    // If the database query fails (connection timeout, etc.), don't block the request.
-    // Allow access through with a warning — transient DB errors should not cause 403s.
-    console.warn(
-      `[module-guard] DB error while checking module "${moduleKey}" for org ${orgId}. Allowing access as fallback:`,
-      dbError instanceof Error ? dbError.message : dbError
-    )
+    // Fail CLOSED for security - if we can't verify access, deny it
+    // Only allow access if the module is in the free tier
+    console.error('[ModuleGuard] Error checking module access:', dbError)
+    const freeModules = ['dashboard', 'products', 'inventory', 'sales']
     return {
-      hasAccess: true,
-      status: null,
+      hasAccess: freeModules.includes(moduleKey),
+      reason: 'Unable to verify module access',
     }
   }
 }

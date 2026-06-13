@@ -27,6 +27,7 @@ import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
+import { formatDate, formatETB } from '@/lib/format'
 
 // ============================================
 // Types
@@ -361,26 +362,6 @@ export function PurchaseOrdersPage() {
   }
 
   // ----------------------------------------
-  // Format helpers
-  // ----------------------------------------
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '—'
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'decimal',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount)
-  }
-
-  // ----------------------------------------
   // Render loading skeleton
   // ----------------------------------------
   const renderSkeleton = () => (
@@ -522,7 +503,7 @@ export function PurchaseOrdersPage() {
                           {po.items.length} item{po.items.length > 1 ? 's' : ''}
                         </TableCell>
                         <TableCell className="font-medium">
-                          {formatCurrency(po.totalAmount)}
+                          {formatETB(po.totalAmount)}
                         </TableCell>
                         <TableCell>
                           <POStatusBadge status={po.status} />
@@ -610,7 +591,7 @@ export function PurchaseOrdersPage() {
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
                       <div>{formatDate(po.orderDate)} &middot; {po.items.length} item{po.items.length > 1 ? 's' : ''}</div>
-                      <div className="font-medium text-foreground">Total: {formatCurrency(po.totalAmount)}</div>
+                      <div className="font-medium text-foreground">Total: {formatETB(po.totalAmount)}</div>
                     </div>
                     <div className="flex items-center gap-1 pt-1 flex-wrap">
                       <Button
@@ -833,7 +814,7 @@ export function PurchaseOrdersPage() {
                   <div className="col-span-2 flex items-center gap-1">
                     <div className="text-sm font-medium text-right flex-1">
                       {item.quantity && item.unitCost
-                        ? formatCurrency((parseInt(item.quantity) || 0) * (parseFloat(item.unitCost) || 0))
+                        ? formatETB((parseInt(item.quantity) || 0) * (parseFloat(item.unitCost) || 0))
                         : '—'}
                     </div>
                     {formItems.length > 1 && (
@@ -862,7 +843,7 @@ export function PurchaseOrdersPage() {
               </Button>
               {formTotal > 0 && (
                 <div className="text-right font-semibold text-base pt-2 border-t">
-                  Total: {formatCurrency(formTotal)}
+                  Total: {formatETB(formTotal)}
                 </div>
               )}
             </div>
@@ -975,8 +956,8 @@ export function PurchaseOrdersPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">{item.quantity}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(item.unitCost)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(item.totalCost)}</TableCell>
+                          <TableCell className="text-right">{formatETB(item.unitCost)}</TableCell>
+                          <TableCell className="text-right font-medium">{formatETB(item.totalCost)}</TableCell>
                           {receiveMode && (
                             <TableCell className="text-right">
                               <Input
@@ -1010,7 +991,7 @@ export function PurchaseOrdersPage() {
 
                 {/* Total */}
                 <div className="text-right font-semibold text-base pt-2 border-t">
-                  Total: {formatCurrency(selectedPO.totalAmount)}
+                  Total: {formatETB(selectedPO.totalAmount)}
                 </div>
               </div>
 

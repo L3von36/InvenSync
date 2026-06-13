@@ -1,0 +1,1383 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import { usePageSearch } from '@/hooks/use-page-search'
+     5→import { useForm } from 'react-hook-form'
+     6→import { zodResolver } from '@hookform/resolvers/zod'
+     7→import {
+     8→  Plus,
+     9→  Search,
+    10→  Pencil,
+    11→  Trash2,
+    12→  Eye,
+    13→  Package,
+    14→  Loader2,
+    15→  ChevronLeft,
+    16→  ChevronRight,
+    17→  Upload,
+    18→  X,
+    19→  ArrowUpDown,
+    20→  ArrowLeft,
+    21→  MoreHorizontal,
+    22→  QrCode,
+    23→  FileDown,
+    24→} from 'lucide-react'
+    25→import { toast } from 'sonner'
+    26→import { api, type Product, type ProductType, type AttributeDefinition, type StockMovement } from '@/lib/api-client'
+    27→import { BarcodeDialog } from '@/components/app/products/barcode-dialog'
+    28→import { BulkImportDialog } from '@/components/app/products/bulk-import-dialog'
+    29→import { useAuthStore } from '@/lib/stores/auth-store'
+    30→import { getNetworkErrorMessage } from '@/lib/validation'
+    31→import { formatETB, formatDate } from '@/lib/format'
+    32→import { productSchema, type ProductFormData } from '@/lib/validations'
+    33→import { ErrorState, EmptyState } from '@/components/shared/error-states'
+    34→import { FormInputField, FormTextareaField } from '@/components/shared/form-fields'
+    35→import { Form } from '@/components/ui/form'
+    36→
+    37→import { Button } from '@/components/ui/button'
+    38→import { Input } from '@/components/ui/input'
+    39→import { Label } from '@/components/ui/label'
+    40→import { Badge } from '@/components/ui/badge'
+    41→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    42→import { Switch } from '@/components/ui/switch'
+    43→import { Separator } from '@/components/ui/separator'
+    44→import {
+    45→  Dialog,
+    46→  DialogContent,
+    47→  DialogDescription,
+    48→  DialogFooter,
+    49→  DialogHeader,
+    50→  DialogTitle,
+    51→} from '@/components/ui/dialog'
+    52→import {
+    53→  AlertDialog,
+    54→  AlertDialogAction,
+    55→  AlertDialogCancel,
+    56→  AlertDialogContent,
+    57→  AlertDialogDescription,
+    58→  AlertDialogFooter,
+    59→  AlertDialogHeader,
+    60→  AlertDialogTitle,
+    61→} from '@/components/ui/alert-dialog'
+    62→import {
+    63→  Select,
+    64→  SelectContent,
+    65→  SelectItem,
+    66→  SelectTrigger,
+    67→  SelectValue,
+    68→} from '@/components/ui/select'
+    69→import {
+    70→  Table,
+    71→  TableBody,
+    72→  TableCell,
+    73→  TableHead,
+    74→  TableHeader,
+    75→  TableRow,
+    76→} from '@/components/ui/table'
+    77→import { Skeleton } from '@/components/ui/skeleton'
+    78→import {
+    79→  DropdownMenu,
+    80→  DropdownMenuContent,
+    81→  DropdownMenuItem,
+    82→  DropdownMenuTrigger,
+    83→} from '@/components/ui/dropdown-menu'
+    84→
+    85→// ============================================
+    86→// Helpers
+    87→// ============================================
+    88→function getStockStatus(
+    89→  quantity: number,
+    90→  lowStockThreshold: number
+    91→): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } {
+    92→  if (quantity <= 0) return { label: 'Out of Stock', variant: 'destructive' }
+    93→  if (quantity <= lowStockThreshold) return { label: 'Low Stock', variant: 'secondary' }
+    94→  return { label: 'In Stock', variant: 'default' }
+    95→}
+    96→
+    97→/** Safely parse attribute options that may be double-encoded */
+    98→function parseAttributeOptions(raw: string | null | undefined): string[] | null {
+    99→  if (!raw) return null
+   100→  try {
+   101→    const parsed = JSON.parse(raw)
+   102→    if (Array.isArray(parsed)) {
+   103→      return parsed
+   104→    } else if (typeof parsed === 'string') {
+   105→      // Handle double-encoded: "Red,Blue,Green" instead of ["Red","Blue","Green"]
+   106→      return parsed.split(',').map((s: string) => s.trim()).filter(Boolean)
+   107→    }
+   108→    return null
+   109→  } catch {
+   110→    // If parsing fails, try splitting by comma
+   111→    return raw.split(',').map(s => s.trim()).filter(Boolean)
+   112→  }
+   113→}
+   114→
+   115→// ============================================
+   116→// Create/Edit Product Dialog
+   117→// ============================================
+   118→function ProductDialog({
+   119→  open,
+   120→  onOpenChange,
+   121→  product,
+   122→  productTypes,
+   123→  onSaved,
+   124→}: {
+   125→  open: boolean
+   126→  onOpenChange: (open: boolean) => void
+   127→  product: Product | null
+   128→  productTypes: ProductType[]
+   129→  onSaved: () => void
+   130→}) {
+   131→  const { currentOrg, currentShop } = useAuthStore()
+   132→  const [saving, setSaving] = useState(false)
+   133→  const [imagePreview, setImagePreview] = useState<string | null>(null)
+   134→  const [attributeValues, setAttributeValues] = useState<Record<string, string>>({})
+   135→  const [attrErrors, setAttrErrors] = useState<Record<string, string>>({})
+   136→  const isEditing = !!product
+   137→
+   138→  // Separate state to track selected product type ID reliably
+   139→  const [selectedTypeId, setSelectedTypeId] = useState<string>('')
+   140→
+   141→  const form = useForm<ProductFormData>({
+   142→    resolver: zodResolver(productSchema),
+   143→    defaultValues: {
+   144→      productTypeId: '',
+   145→      name: '',
+   146→      sku: '',
+   147→      description: '',
+   148→      costPrice: undefined as unknown as number,
+   149→      sellingPrice: undefined as unknown as number,
+   150→      lowStockThreshold: 10,
+   151→      quantity: 0,
+   152→    },
+   153→  })
+   154→
+   155→  // Watch productTypeId for reactive UI
+   156→  const watchedProductTypeId = form.watch('productTypeId')
+   157→
+   158→  // Use selectedTypeId as the source of truth (falls back to form value)
+   159→  const activeTypeId = selectedTypeId || watchedProductTypeId
+   160→  const selectedType = productTypes.find((pt) => pt.id === activeTypeId)
+   161→  const typeAttributes = selectedType?.attributes || []
+   162→
+   163→  // Reset form when dialog opens
+   164→  useEffect(() => {
+   165→    if (open) {
+   166→      setAttrErrors({})
+   167→      if (product) {
+   168→        const attrVals: Record<string, string> = {}
+   169→        product.attributeValues?.forEach((av) => {
+   170→          attrVals[av.attributeDefinitionId] = av.value
+   171→        })
+   172→        setAttributeValues(attrVals)
+   173→        setSelectedTypeId(product.productTypeId)
+   174→        form.reset({
+   175→          productTypeId: product.productTypeId,
+   176→          name: product.name,
+   177→          sku: product.sku || '',
+   178→          description: product.description || '',
+   179→          costPrice: product.costPrice,
+   180→          sellingPrice: product.sellingPrice,
+   181→          lowStockThreshold: product.lowStockThreshold,
+   182→          quantity: product.quantity,
+   183→        })
+   184→        setImagePreview(product.imageUrl || null)
+   185→      } else {
+   186→        setAttributeValues({})
+   187→        setSelectedTypeId('')
+   188→        form.reset({
+   189→          productTypeId: '',
+   190→          name: '',
+   191→          sku: '',
+   192→          description: '',
+   193→          costPrice: undefined as unknown as number,
+   194→          sellingPrice: undefined as unknown as number,
+   195→          lowStockThreshold: 10,
+   196→          quantity: 0,
+   197→        })
+   198→        setImagePreview(null)
+   199→      }
+   200→    } else {
+   201→      // Clean up state when dialog closes
+   202→      setSelectedTypeId('')
+   203→      setAttributeValues({})
+   204→      setAttrErrors({})
+   205→      setImagePreview(null)
+   206→    }
+   207→  }, [open, product, form])
+   208→
+   209→  // Handle product type selection
+   210→  const handleSelectType = (typeId: string) => {
+   211→    setSelectedTypeId(typeId)
+   212→    form.setValue('productTypeId', typeId, { shouldValidate: true, shouldDirty: true, shouldTouch: true })
+   213→    // Clear attribute values when switching types
+   214→    setAttributeValues({})
+   215→    setAttrErrors({})
+   216→  }
+   217→
+   218→  const updateAttributeValue = (attrId: string, value: string) => {
+   219→    setAttributeValues((prev) => ({ ...prev, [attrId]: value }))
+   220→    setAttrErrors((prev) => {
+   221→      const next = { ...prev }
+   222→      delete next[`attr_${attrId}`]
+   223→      return next
+   224→    })
+   225→  }
+   226→
+   227→  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+   228→    const file = e.target.files?.[0]
+   229→    if (!file) return
+   230→    const reader = new FileReader()
+   231→    reader.onloadend = () => {
+   232→      const base64 = reader.result as string
+   233→      setImagePreview(base64)
+   234→      typeAttributes
+   235→        .filter((a) => a.fieldType === 'image')
+   236→        .forEach((a) => {
+   237→          updateAttributeValue(a.id, base64)
+   238→        })
+   239→    }
+   240→    reader.readAsDataURL(file)
+   241→  }
+   242→
+   243→  const onSubmit = async (data: ProductFormData) => {
+   244→    if (!currentOrg) return
+   245→
+   246→    // Use selectedTypeId as the authoritative source for productTypeId
+   247→    const productTypeId = selectedTypeId || data.productTypeId || activeTypeId
+   248→    if (!productTypeId) {
+   249→      toast.error('Please select a product type')
+   250→      return
+   251→    }
+   252→
+   253→    // Safely convert form values to numbers (form may store them as strings from input onChange)
+   254→    const costPrice = Number(data.costPrice)
+   255→    const sellingPrice = Number(data.sellingPrice)
+   256→    const lowStockThreshold = Number(data.lowStockThreshold) || 10
+   257→    const quantity = Number(data.quantity) || 0
+   258→
+   259→    // Validate converted numbers
+   260→    if (!costPrice || Number.isNaN(costPrice) || costPrice <= 0) {
+   261→      toast.error('Cost price must be a valid number greater than 0')
+   262→      return
+   263→    }
+   264→    if (!sellingPrice || Number.isNaN(sellingPrice) || sellingPrice <= 0) {
+   265→      toast.error('Selling price must be a valid number greater than 0')
+   266→      return
+   267→    }
+   268→
+   269→    setSaving(true)
+   270→    try {
+   271→      const attrVals = Object.entries(attributeValues)
+   272→        .filter(([, value]) => value.trim() !== '')
+   273→        .map(([attributeDefinitionId, value]) => ({
+   274→          attributeDefinitionId,
+   275→          value,
+   276→        }))
+   277→
+   278→      if (isEditing && product) {
+   279→        await api.updateProduct(product.id, currentOrg.id, {
+   280→          name: data.name.trim(),
+   281→          sku: data.sku?.trim() || undefined,
+   282→          description: data.description?.trim() || undefined,
+   283→          imageUrl: imagePreview || product?.imageUrl || undefined,
+   284→          costPrice,
+   285→          sellingPrice,
+   286→          lowStockThreshold,
+   287→          attributeValues: attrVals,
+   288→        })
+   289→        toast.success('Product updated successfully')
+   290→      } else {
+   291→        await api.createProduct(currentOrg.id, {
+   292→          productTypeId,
+   293→          name: data.name.trim(),
+   294→          sku: data.sku?.trim() || undefined,
+   295→          description: data.description?.trim() || undefined,
+   296→          imageUrl: imagePreview || product?.imageUrl || undefined,
+   297→          quantity,
+   298→          costPrice,
+   299→          sellingPrice,
+   300→          lowStockThreshold,
+   301→          attributeValues: attrVals,
+   302→          shopId: currentShop?.id,
+   303→        })
+   304→        toast.success('Product created successfully')
+   305→      }
+   306→
+   307→      onOpenChange(false)
+   308→      onSaved()
+   309→    } catch (error) {
+   310→      toast.error(getNetworkErrorMessage(error))
+   311→    } finally {
+   312→      setSaving(false)
+   313→    }
+   314→  }
+   315→
+   316→  const handleSaveClick = async () => {
+   317→    // First validate attributes manually
+   318→    const missingRequired = typeAttributes
+   319→      .filter((a) => a.required)
+   320→      .filter((a) => !attributeValues[a.id] || attributeValues[a.id].trim() === '')
+   321→    if (missingRequired.length > 0) {
+   322→      const errors: Record<string, string> = {}
+   323→      missingRequired.forEach((a) => {
+   324→        errors[`attr_${a.id}`] = `${a.name} is required`
+   325→      })
+   326→      setAttrErrors(errors)
+   327→      return
+   328→    }
+   329→
+   330→    // Ensure productTypeId is set in form before validation
+   331→    if (selectedTypeId) {
+   332→      form.setValue('productTypeId', selectedTypeId, { shouldValidate: true, shouldDirty: true })
+   333→    }
+   334→
+   335→    // Validate all form fields including productTypeId
+   336→    const isValid = await form.trigger(['productTypeId', 'name', 'costPrice', 'sellingPrice', 'lowStockThreshold', 'quantity'])
+   337→    if (!isValid) return
+   338→
+   339→    // Final check: ensure we have a productTypeId
+   340→    if (!selectedTypeId && !form.getValues('productTypeId')) {
+   341→      toast.error('Please select a product type')
+   342→      return
+   343→    }
+   344→
+   345→    const data = form.getValues()
+   346→    onSubmit(data)
+   347→  }
+   348→
+   349→  return (
+   350→    <Dialog open={open} onOpenChange={onOpenChange}>
+   351→      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto w-[calc(100%-2rem)] sm:w-full">
+   352→        <DialogHeader>
+   353→          <DialogTitle>{isEditing ? 'Edit Product' : 'Add Product'}</DialogTitle>
+   354→          <DialogDescription>Fill in the product details below.</DialogDescription>
+   355→        </DialogHeader>
+   356→
+   357→        <Form {...form}>
+   358→          <div className="space-y-6">
+   359→            {/* Section 1: Product Type Selection */}
+   360→            <div className="space-y-2">
+   361→              <Label className="text-sm font-medium">Product Type *</Label>
+   362→              {productTypes.length === 0 ? (
+   363→                <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
+   364→                  <Package className="size-8 mx-auto mb-2 opacity-50" />
+   365→                  <p className="text-sm">No product types available.</p>
+   366→                  <p className="text-xs mt-1">Create a product type first.</p>
+   367→                </div>
+   368→              ) : (
+   369→                <>
+   370→                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+   371→                    {productTypes.map((pt) => (
+   372→                      <button
+   373→                        key={pt.id}
+   374→                        type="button"
+   375→                        onClick={() => handleSelectType(pt.id)}
+   376→                        className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all cursor-pointer ${
+   377→                          activeTypeId === pt.id
+   378→                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+   379→                            : 'border-border hover:border-primary/50'
+   380→                        }`}
+   381→                      >
+   382→                        <div className="text-2xl mb-1">{pt.icon || '📦'}</div>
+   383→                        <div className="text-sm font-medium">{pt.name}</div>
+   384→                        <div className="text-xs text-muted-foreground mt-0.5">
+   385→                          {pt.attributes?.length || 0} attributes
+   386→                        </div>
+   387→                      </button>
+   388→                    ))}
+   389→                  </div>
+   390→                  {form.formState.errors.productTypeId && (
+   391→                    <p className="text-sm text-destructive">{form.formState.errors.productTypeId.message}</p>
+   392→                  )}
+   393→                </>
+   394→              )}
+   395→            </div>
+   396→
+   397→            {/* Section 2: Basic Information — shown only after a type is selected */}
+   398→            {activeTypeId && (
+   399→              <div className="space-y-2">
+   400→                <Label className="text-sm font-medium">Basic Information</Label>
+   401→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   402→                  <FormInputField
+   403→                    name="name"
+   404→                    label="Product Name"
+   405→                    placeholder='e.g., Samsung 55" 4K Smart TV'
+   406→                    required
+   407→                    className="sm:col-span-2"
+   408→                  />
+   409→
+   410→                  <FormInputField
+   411→                    name="sku"
+   412→                    label="SKU"
+   413→                    placeholder="e.g., TV-SAM-55"
+   414→                  />
+   415→
+   416→                  <FormTextareaField
+   417→                    name="description"
+   418→                    label="Description"
+   419→                    placeholder="Product description..."
+   420→                    rows={2}
+   421→                  />
+   422→
+   423→                  <FormInputField
+   424→                    name="costPrice"
+   425→                    label="Cost Price (ETB)"
+   426→                    type="number"
+   427→                    step="0.01"
+   428→                    min="0.01"
+   429→                    placeholder="e.g. 5000"
+   430→                    required
+   431→                  />
+   432→
+   433→                  <FormInputField
+   434→                    name="sellingPrice"
+   435→                    label="Selling Price (ETB)"
+   436→                    type="number"
+   437→                    step="0.01"
+   438→                    min="0.01"
+   439→                    placeholder="e.g. 8000"
+   440→                    required
+   441→                  />
+   442→
+   443→                  <FormInputField
+   444→                    name="lowStockThreshold"
+   445→                    label="Low Stock Threshold"
+   446→                    type="number"
+   447→                    min="0"
+   448→                  />
+   449→
+   450→                  {!isEditing && (
+   451→                    <FormInputField
+   452→                      name="quantity"
+   453→                      label="Initial Quantity"
+   454→                      type="number"
+   455→                      min="0"
+   456→                    />
+   457→                  )}
+   458→                </div>
+   459→              </div>
+   460→            )}
+   461→
+   462→            {/* Section 3: Custom Attributes — shown only when type has attributes */}
+   463→            {activeTypeId && typeAttributes.length > 0 && (
+   464→              <div className="space-y-2">
+   465→                <Label className="text-sm font-medium">Custom Attributes</Label>
+   466→                <div className="space-y-4">
+   467→                  {typeAttributes.map((attr) => {
+   468→                    const options = parseAttributeOptions(attr.options)
+   469→                    return (
+   470→                      <div key={attr.id} className="space-y-2">
+   471→                        <Label className="flex items-center gap-1">
+   472→                          {attr.name}
+   473→                          {attr.required && <span className="text-destructive">*</span>}
+   474→                        </Label>
+   475→
+   476→                        {(attr.fieldType === 'text' || attr.fieldType === 'textarea') && (
+   477→                          <Input
+   478→                            placeholder={`Enter ${attr.name.toLowerCase()}`}
+   479→                            value={attributeValues[attr.id] || ''}
+   480→                            onChange={(e) => updateAttributeValue(attr.id, e.target.value)}
+   481→                          />
+   482→                        )}
+   483→
+   484→                        {attr.fieldType === 'number' && (
+   485→                          <Input
+   486→                            type="number"
+   487→                            step="any"
+   488→                            placeholder={`Enter ${attr.name.toLowerCase()}`}
+   489→                            value={attributeValues[attr.id] || ''}
+   490→                            onChange={(e) => updateAttributeValue(attr.id, e.target.value)}
+   491→                          />
+   492→                        )}
+   493→
+   494→                        {(attr.fieldType === 'boolean' || attr.fieldType === 'switch') && (
+   495→                          <div className="flex items-center gap-2">
+   496→                            <Switch
+   497→                              checked={attributeValues[attr.id] === 'true'}
+   498→                              onCheckedChange={(checked) =>
+   499→                                updateAttributeValue(attr.id, checked ? 'true' : 'false')
+   500→                              }
+   501→                            />
+   502→                            <span className="text-sm text-muted-foreground">
+   503→                              {attributeValues[attr.id] === 'true' ? 'Yes' : 'No'}
+   504→                            </span>
+   505→                          </div>
+   506→                        )}
+   507→
+   508→                        {attr.fieldType === 'select' && options && (
+   509→                          <Select
+   510→                            value={attributeValues[attr.id] || ''}
+   511→                            onValueChange={(v) => updateAttributeValue(attr.id, v)}
+   512→                          >
+   513→                            <SelectTrigger>
+   514→                              <SelectValue placeholder={`Select ${attr.name.toLowerCase()}`} />
+   515→                            </SelectTrigger>
+   516→                            <SelectContent>
+   517→                              {options.map((opt: string) => (
+   518→                                <SelectItem key={opt} value={opt}>
+   519→                                  {opt}
+   520→                                </SelectItem>
+   521→                              ))}
+   522→                            </SelectContent>
+   523→                          </Select>
+   524→                        )}
+   525→
+   526→                        {attr.fieldType === 'image' && (
+   527→                          <div className="space-y-2">
+   528→                            <div className="flex items-center gap-2">
+   529→                              <Button
+   530→                                type="button"
+   531→                                variant="outline"
+   532→                                size="sm"
+   533→                                className="gap-1"
+   534→                                onClick={() =>
+   535→                                  document.getElementById(`img-upload-${attr.id}`)?.click()
+   536→                                }
+   537→                              >
+   538→                                <Upload className="size-3.5" />
+   539→                                Upload Image
+   540→                              </Button>
+   541→                              {attributeValues[attr.id] && (
+   542→                                <Button
+   543→                                  type="button"
+   544→                                  variant="ghost"
+   545→                                  size="sm"
+   546→                                  onClick={() => {
+   547→                                    updateAttributeValue(attr.id, '')
+   548→                                    setImagePreview(null)
+   549→                                  }}
+   550→                                >
+   551→                                  <X className="size-3.5" />
+   552→                                </Button>
+   553→                              )}
+   554→                            </div>
+   555→                            <input
+   556→                              id={`img-upload-${attr.id}`}
+   557→                              type="file"
+   558→                              accept="image/*"
+   559→                              className="hidden"
+   560→                              onChange={handleImageUpload}
+   561→                            />
+   562→                            {(attributeValues[attr.id] || imagePreview) && (
+   563→                              <div className="size-20 rounded-lg border overflow-hidden">
+   564→                                <img
+   565→                                  src={attributeValues[attr.id] || imagePreview || ''}
+   566→                                  alt="Preview"
+   567→                                  className="size-full object-cover"
+   568→                                  loading="lazy"
+   569→                                />
+   570→                              </div>
+   571→                            )}
+   572→                          </div>
+   573→                        )}
+   574→
+   575→                        {attr.fieldType === 'date' && (
+   576→                          <Input
+   577→                            type="date"
+   578→                            value={attributeValues[attr.id] || ''}
+   579→                            onChange={(e) => updateAttributeValue(attr.id, e.target.value)}
+   580→                          />
+   581→                        )}
+   582→
+   583→                        {attrErrors[`attr_${attr.id}`] && (
+   584→                          <p className="text-sm text-destructive">{attrErrors[`attr_${attr.id}`]}</p>
+   585→                        )}
+   586→                      </div>
+   587→                    )
+   588→                  })}
+   589→                </div>
+   590→              </div>
+   591→            )}
+   592→          </div>
+   593→        </Form>
+   594→
+   595→        <DialogFooter>
+   596→          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving} type="button">
+   597→            Cancel
+   598→          </Button>
+   599→          <Button onClick={handleSaveClick} disabled={saving || !activeTypeId} type="button">
+   600→            {saving && <Loader2 className="size-4 animate-spin" />}
+   601→            {saving ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Product')}
+   602→          </Button>
+   603→        </DialogFooter>
+   604→      </DialogContent>
+   605→    </Dialog>
+   606→  )
+   607→}
+   608→
+   609→// ============================================
+   610→// Product Detail View
+   611→// ============================================
+   612→function ProductDetailView({
+   613→  product,
+   614→  onClose,
+   615→  onEdit,
+   616→}: {
+   617→  product: Product & {
+   618→    stockMovements?: StockMovement[]
+   619→    productType?: {
+   620→      id: string
+   621→      name: string
+   622→      icon?: string | null
+   623→      attributes?: AttributeDefinition[]
+   624→    }
+   625→  }
+   626→  onClose: () => void
+   627→  onEdit: (product: Product) => void
+   628→}) {
+   629→  const { currentOrg, currentShop } = useAuthStore()
+   630→  const [adjusting, setAdjusting] = useState(false)
+   631→  const [adjustQty, setAdjustQty] = useState('')
+   632→  const [adjustType, setAdjustType] = useState<'in' | 'out'>('in')
+   633→  const [currentProduct, setCurrentProduct] = useState(product)
+   634→
+   635→  const stockStatus = getStockStatus(currentProduct.quantity, currentProduct.lowStockThreshold)
+   636→
+   637→  const handleStockAdjust = async () => {
+   638→    if (!currentOrg || !adjustQty) return
+   639→    const qty = parseInt(adjustQty)
+   640→    if (isNaN(qty) || qty <= 0) {
+   641→      toast.error('Please enter a valid quantity')
+   642→      return
+   643→    }
+   644→    setAdjusting(true)
+   645→    try {
+   646→      const result = await api.addStockMovement(currentOrg.id, {
+   647→        productId: currentProduct.id,
+   648→        type: adjustType,
+   649→        quantity: qty,
+   650→        reason: `${adjustType === 'in' ? 'Stock in' : 'Stock out'} (manual adjustment)`,
+   651→        shopId: currentShop?.id,
+   652→      })
+   653→      setCurrentProduct((prev) => ({
+   654→        ...prev,
+   655→        quantity: result.movement.newStock,
+   656→      }))
+   657→      setAdjustQty('')
+   658→      toast.success(`Stock ${adjustType === 'in' ? 'added' : 'removed'} successfully`)
+   659→    } catch (error) {
+   660→      toast.error(getNetworkErrorMessage(error))
+   661→    } finally {
+   662→      setAdjusting(false)
+   663→    }
+   664→  }
+   665→
+   666→  return (
+   667→    <div className="space-y-6">
+   668→      {/* Back button */}
+   669→      <Button variant="ghost" size="sm" onClick={onClose} className="gap-1">
+   670→        <ArrowLeft className="size-4" />
+   671→        Back to Products
+   672→      </Button>
+   673→
+   674→      {/* Product Header */}
+   675→      <div className="flex flex-col sm:flex-row gap-6">
+   676→        <div className="size-24 rounded-xl bg-primary/10 flex items-center justify-center text-2xl shrink-0">
+   677→          {currentProduct.imageUrl ? (
+   678→            <img
+   679→              src={currentProduct.imageUrl}
+   680→              alt={currentProduct.name}
+   681→              className="size-full rounded-xl object-cover"
+   682→              loading="lazy"
+   683→            />
+   684→          ) : (
+   685→            currentProduct.productType?.icon || '📦'
+   686→          )}
+   687→        </div>
+   688→        <div className="flex-1">
+   689→          <div className="flex items-start justify-between gap-4">
+   690→            <div>
+   691→              <h2 className="text-base font-semibold">{currentProduct.name}</h2>
+   692→              <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+   693→                <span>{currentProduct.productType?.name}</span>
+   694→                {currentProduct.sku && (
+   695→                  <>
+   696→                    <span>•</span>
+   697→                    <span>SKU: {currentProduct.sku}</span>
+   698→                  </>
+   699→                )}
+   700→              </div>
+   701→            </div>
+   702→            <div className="flex gap-2">
+   703→              <Button
+   704→                variant="outline"
+   705→                size="sm"
+   706→                className="gap-1"
+   707→                onClick={() => onEdit(currentProduct)}
+   708→              >
+   709→                <Pencil className="size-3.5" />
+   710→                Edit
+   711→              </Button>
+   712→            </div>
+   713→          </div>
+   714→          {currentProduct.description && (
+   715→            <p className="text-muted-foreground mt-2 text-sm">{currentProduct.description}</p>
+   716→          )}
+   717→        </div>
+   718→      </div>
+   719→
+   720→      {/* Stats Cards */}
+   721→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
+   722→        <Card>
+   723→          <CardContent className="p-4">
+   724→            <div className="text-sm text-muted-foreground">Current Stock</div>
+   725→            <div className="text-xl sm:text-2xl font-bold mt-1">{currentProduct.quantity}</div>
+   726→            <Badge variant={stockStatus.variant} className="mt-1 text-xs">
+   727→              {stockStatus.label}
+   728→            </Badge>
+   729→          </CardContent>
+   730→        </Card>
+   731→        <Card>
+   732→          <CardContent className="p-4">
+   733→            <div className="text-sm text-muted-foreground">Cost Price</div>
+   734→            <div className="text-xl sm:text-2xl font-bold mt-1">
+   735→              {formatETB(currentProduct.costPrice)}
+   736→            </div>
+   737→          </CardContent>
+   738→        </Card>
+   739→        <Card>
+   740→          <CardContent className="p-4">
+   741→            <div className="text-sm text-muted-foreground">Selling Price</div>
+   742→            <div className="text-xl sm:text-2xl font-bold mt-1">
+   743→              {formatETB(currentProduct.sellingPrice)}
+   744→            </div>
+   745→          </CardContent>
+   746→        </Card>
+   747→        <Card>
+   748→          <CardContent className="p-4">
+   749→            <div className="text-sm text-muted-foreground">Total Value</div>
+   750→            <div className="text-xl sm:text-2xl font-bold mt-1">
+   751→              {formatETB(currentProduct.quantity * currentProduct.sellingPrice)}
+   752→            </div>
+   753→          </CardContent>
+   754→        </Card>
+   755→      </div>
+   756→
+   757→      {/* Quick Stock Adjustment */}
+   758→      <Card>
+   759→        <CardHeader className="pb-3">
+   760→          <CardTitle className="text-sm font-semibold">Quick Stock Adjustment</CardTitle>
+   761→        </CardHeader>
+   762→        <CardContent>
+   763→          <div className="flex items-end gap-3 sm:gap-4 flex-wrap">
+   764→            <div className="space-y-1.5">
+   765→              <Label className="text-xs">Type</Label>
+   766→              <Select
+   767→                value={adjustType}
+   768→                onValueChange={(v) => setAdjustType(v as 'in' | 'out')}
+   769→              >
+   770→                <SelectTrigger className="w-28 h-9">
+   771→                  <SelectValue />
+   772→                </SelectTrigger>
+   773→                <SelectContent>
+   774→                  <SelectItem value="in">Stock In</SelectItem>
+   775→                  <SelectItem value="out">Stock Out</SelectItem>
+   776→                </SelectContent>
+   777→              </Select>
+   778→            </div>
+   779→            <div className="space-y-1.5">
+   780→              <Label className="text-xs">Quantity</Label>
+   781→              <Input
+   782→                type="number"
+   783→                min="1"
+   784→                placeholder="Qty"
+   785→                value={adjustQty}
+   786→                onChange={(e) => setAdjustQty(e.target.value)}
+   787→                className="w-24 h-9"
+   788→              />
+   789→            </div>
+   790→            <Button onClick={handleStockAdjust} disabled={adjusting} size="sm" className="h-9">
+   791→              {adjusting ? (
+   792→                <Loader2 className="size-4 animate-spin" />
+   793→              ) : (
+   794→                <ArrowUpDown className="size-4" />
+   795→              )}
+   796→              {adjusting ? 'Adjusting...' : 'Adjust'}
+   797→            </Button>
+   798→          </div>
+   799→        </CardContent>
+   800→      </Card>
+   801→
+   802→      {/* Dynamic Attributes */}
+   803→      {(currentProduct.attributeValues?.length || 0) > 0 && (
+   804→        <Card>
+   805→          <CardHeader className="pb-3">
+   806→            <CardTitle className="text-sm font-semibold">Attributes</CardTitle>
+   807→          </CardHeader>
+   808→          <CardContent>
+   809→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   810→              {currentProduct.attributeValues?.map((av) => (
+   811→                <div
+   812→                  key={av.id}
+   813→                  className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+   814→                >
+   815→                  <span className="text-sm text-muted-foreground">
+   816→                    {av.attributeDefinition?.name}
+   817→                  </span>
+   818→                  <span className="text-sm font-medium">
+   819→                    {av.attributeDefinition?.fieldType === 'boolean' || av.attributeDefinition?.fieldType === 'switch'
+   820→                      ? av.value === 'true'
+   821→                        ? 'Yes'
+   822→                        : 'No'
+   823→                      : av.attributeDefinition?.fieldType === 'image'
+   824→                      ? '📷 Image'
+   825→                      : av.value}
+   826→                  </span>
+   827→                </div>
+   828→              ))}
+   829→            </div>
+   830→          </CardContent>
+   831→        </Card>
+   832→      )}
+   833→
+   834→      {/* Stock Movements History */}
+   835→      {currentProduct.stockMovements && currentProduct.stockMovements.length > 0 && (
+   836→        <Card>
+   837→          <CardHeader className="pb-3">
+   838→            <CardTitle className="text-sm font-semibold">Stock History</CardTitle>
+   839→          </CardHeader>
+   840→          <CardContent>
+   841→            <div className="space-y-2 max-h-64 overflow-y-auto">
+   842→              {currentProduct.stockMovements.map((movement) => (
+   843→                <div
+   844→                  key={movement.id}
+   845→                  className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-sm"
+   846→                >
+   847→                  <div className="flex items-center gap-2">
+   848→                    <Badge
+   849→                      variant={
+   850→                        movement.type === 'in'
+   851→                          ? 'default'
+   852→                          : movement.type === 'out'
+   853→                          ? 'destructive'
+   854→                          : 'secondary'
+   855→                      }
+   856→                      className="text-xs"
+   857→                    >
+   858→                      {movement.type.toUpperCase()}
+   859→                    </Badge>
+   860→                    <span className="text-muted-foreground">
+   861→                      {movement.reason || 'No reason'}
+   862→                    </span>
+   863→                  </div>
+   864→                  <div className="flex items-center gap-3">
+   865→                    <span className="font-medium">
+   866→                      {movement.type === 'in' ? '+' : '-'}
+   867→                      {movement.quantity}
+   868→                    </span>
+   869→                    <span className="text-xs text-muted-foreground">
+   870→                      {formatDate(movement.createdAt)}
+   871→                    </span>
+   872→                  </div>
+   873→                </div>
+   874→              ))}
+   875→            </div>
+   876→          </CardContent>
+   877→        </Card>
+   878→      )}
+   879→    </div>
+   880→  )
+   881→}
+   882→
+   883→// ============================================
+   884→// Loading Skeletons
+   885→// ============================================
+   886→function ProductsLoadingSkeleton() {
+   887→  return (
+   888→    <div className="space-y-3">
+   889→      <div className="flex items-center gap-3">
+   890→        <Skeleton className="h-10 w-48" />
+   891→        <Skeleton className="h-10 w-40" />
+   892→      </div>
+   893→      {Array.from({ length: 5 }).map((_, i) => (
+   894→        <div key={i} className="flex items-center gap-4 p-3">
+   895→          <Skeleton className="size-10 rounded-lg" />
+   896→          <Skeleton className="h-4 w-32" />
+   897→          <Skeleton className="h-4 w-20" />
+   898→          <Skeleton className="h-4 w-20" />
+   899→          <Skeleton className="h-4 w-16" />
+   900→          <Skeleton className="h-5 w-16 rounded-full" />
+   901→        </div>
+   902→      ))}
+   903→    </div>
+   904→  )
+   905→}
+   906→
+   907→// ============================================
+   908→// Main Products Page
+   909→// ============================================
+   910→export function ProductsPage() {
+   911→  const { currentOrg, currentShop } = useAuthStore()
+   912→  const [products, setProducts] = useState<Product[]>([])
+   913→  const [productTypes, setProductTypes] = useState<ProductType[]>([])
+   914→  const [loading, setLoading] = useState(true)
+   915→  const { search, setSearch, debouncedSearch } = usePageSearch()
+   916→  const [filterType, setFilterType] = useState<string>('all')
+   917→  const [page, setPage] = useState(1)
+   918→  const [totalPages, setTotalPages] = useState(1)
+   919→  const [total, setTotal] = useState(0)
+   920→  const limit = 10
+   921→
+   922→  const [dialogOpen, setDialogOpen] = useState(false)
+   923→  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+   924→  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+   925→  const [deleting, setDeleting] = useState(false)
+   926→
+   927→  // Barcode dialog state
+   928→  const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null)
+   929→  const [barcodeDialogOpen, setBarcodeDialogOpen] = useState(false)
+   930→
+   931→  // Bulk import dialog state
+   932→  const [importDialogOpen, setImportDialogOpen] = useState(false)
+   933→
+   934→  // Detail view state
+   935→  const [viewingProduct, setViewingProduct] = useState<
+   936→    (Product & { stockMovements?: StockMovement[]; productType?: { id: string; name: string; icon?: string | null; attributes?: AttributeDefinition[] } }) | null
+   937→  >(null)
+   938→  const [loadingDetail, setLoadingDetail] = useState(false)
+   939→  const [fetchError, setFetchError] = useState<string | null>(null)
+   940→
+   941→  const fetchProducts = useCallback(async () => {
+   942→    if (!currentOrg) return
+   943→    setLoading(true)
+   944→    setFetchError(null)
+   945→    try {
+   946→      const data = await api.getProducts(currentOrg.id, {
+   947→        productTypeId: filterType !== 'all' ? filterType : undefined,
+   948→        search: debouncedSearch || undefined,
+   949→        page,
+   950→        limit,
+   951→        shopId: currentShop?.id,
+   952→      })
+   953→      setProducts(data.products)
+   954→      setTotalPages(data.pagination.totalPages)
+   955→      setTotal(data.pagination.total)
+   956→    } catch (error) {
+   957→      setFetchError(getNetworkErrorMessage(error))
+   958→    } finally {
+   959→      setLoading(false)
+   960→    }
+   961→  }, [currentOrg, currentShop?.id, filterType, debouncedSearch, page, limit])
+   962→
+   963→  const fetchProductTypes = useCallback(async () => {
+   964→    if (!currentOrg) return
+   965→    try {
+   966→      const data = await api.getProductTypes(currentOrg.id, currentShop?.id)
+   967→      setProductTypes(data.productTypes)
+   968→    } catch {
+   969→      // Silent fail for types - not critical
+   970→    }
+   971→  }, [currentOrg])
+   972→
+   973→  useEffect(() => {
+   974→    fetchProducts()
+   975→  }, [fetchProducts])
+   976→
+   977→  useEffect(() => {
+   978→    fetchProductTypes()
+   979→  }, [fetchProductTypes])
+   980→
+   981→  // Reset page when search/filter changes
+   982→  useEffect(() => {
+   983→    setPage(1)
+   984→  }, [debouncedSearch, filterType])
+   985→
+   986→  const handleEdit = (product: Product) => {
+   987→    setEditingProduct(product)
+   988→    setDialogOpen(true)
+   989→  }
+   990→
+   991→  const handleViewDetail = async (product: Product) => {
+   992→    if (!currentOrg) return
+   993→    setLoadingDetail(true)
+   994→    try {
+   995→      // Fetch detailed product with stock movements
+   996→      const detailedProduct = await fetch(`/api/products/${product.id}?orgId=${currentOrg.id}${currentShop ? `&shopId=${currentShop.id}` : ''}`, {
+   997→        headers: {
+   998→          Authorization: `Bearer ${localStorage.getItem('sb_token')}`,
+   999→        },
+  1000→      }).then((r) => r.json())
+  1001→      setViewingProduct(detailedProduct.product)
+  1002→    } catch {
+  1003→      // Fallback: show the product data we already have
+  1004→      setViewingProduct(product)
+  1005→    } finally {
+  1006→      setLoadingDetail(false)
+  1007→    }
+  1008→  }
+  1009→
+  1010→  const handleDelete = async () => {
+  1011→    if (!currentOrg || !deleteTarget) return
+  1012→    setDeleting(true)
+  1013→    try {
+  1014→      await api.deleteProduct(deleteTarget.id, currentOrg.id)
+  1015→      toast.success('Product deleted')
+  1016→      setDeleteTarget(null)
+  1017→      fetchProducts()
+  1018→    } catch (error) {
+  1019→      toast.error(getNetworkErrorMessage(error))
+  1020→    } finally {
+  1021→      setDeleting(false)
+  1022→    }
+  1023→  }
+  1024→
+  1025→  const handleDialogClose = (open: boolean) => {
+  1026→    setDialogOpen(open)
+  1027→    if (!open) setEditingProduct(null)
+  1028→  }
+  1029→
+  1030→  // If viewing a product detail, show the detail view
+  1031→  if (viewingProduct) {
+  1032→    return (
+  1033→      <ProductDetailView
+  1034→        product={viewingProduct}
+  1035→        onClose={() => setViewingProduct(null)}
+  1036→        onEdit={(product) => {
+  1037→          setViewingProduct(null)
+  1038→          handleEdit(product)
+  1039→        }}
+  1040→      />
+  1041→    )
+  1042→  }
+  1043→
+  1044→  return (
+  1045→    <div className="space-y-6">
+  1046→      {/* Header */}
+  1047→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+  1048→        <div>
+  1049→          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Products</h1>
+  1050→          <p className="text-muted-foreground text-sm mt-1">
+  1051→            Manage your product catalog • {total} product{total !== 1 ? 's' : ''}
+  1052→          </p>
+  1053→        </div>
+  1054→        <div className="flex items-center gap-2">
+  1055→          <Button
+  1056→            variant="outline"
+  1057→            onClick={() => setImportDialogOpen(true)}
+  1058→            className="gap-2"
+  1059→          >
+  1060→            <FileDown className="size-4" />
+  1061→            Import CSV
+  1062→          </Button>
+  1063→          <Button
+  1064→            onClick={() => {
+  1065→              setEditingProduct(null)
+  1066→              setDialogOpen(true)
+  1067→            }}
+  1068→            className="gap-2"
+  1069→          >
+  1070→            <Plus className="size-4" />
+  1071→            Add Product
+  1072→          </Button>
+  1073→        </div>
+  1074→      </div>
+  1075→
+  1076→      {/* Filters */}
+  1077→      <div className="flex flex-col sm:flex-row gap-3">
+  1078→        <div className="relative flex-1 w-full sm:max-w-sm">
+  1079→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+  1080→          <Input
+  1081→            placeholder="Search by name or SKU..."
+  1082→            aria-label="Search products"
+  1083→            value={search}
+  1084→            onChange={(e) => setSearch(e.target.value)}
+  1085→            className="pl-9"
+  1086→          />
+  1087→        </div>
+  1088→        <Select value={filterType} onValueChange={setFilterType}>
+  1089→          <SelectTrigger className="w-full sm:w-48">
+  1090→            <SelectValue placeholder="Filter by type" />
+  1091→          </SelectTrigger>
+  1092→          <SelectContent>
+  1093→            <SelectItem value="all">All Types</SelectItem>
+  1094→            {productTypes.map((pt) => (
+  1095→              <SelectItem key={pt.id} value={pt.id}>
+  1096→                {pt.icon || '📦'} {pt.name}
+  1097→              </SelectItem>
+  1098→            ))}
+  1099→          </SelectContent>
+  1100→        </Select>
+  1101→      </div>
+  1102→
+  1103→      {/* Products Table */}
+  1104→      {loading ? (
+  1105→        <ProductsLoadingSkeleton />
+  1106→      ) : fetchError ? (
+  1107→        <ErrorState title="Failed to load products" message={fetchError} onRetry={fetchProducts} />
+  1108→      ) : products.length === 0 ? (
+  1109→        <EmptyState
+  1110→          title={search || filterType !== 'all' ? 'No matching products' : 'No products yet'}
+  1111→          message={search || filterType !== 'all'
+  1112→            ? 'Try adjusting your search or filter.'
+  1113→            : 'Add your first product to start managing your inventory.'}
+  1114→          icon={<Package className="size-7 text-muted-foreground" />}
+  1115→          action={!search && filterType === 'all' ? {
+  1116→            label: 'Add Product',
+  1117→            onClick: () => {
+  1118→              setEditingProduct(null)
+  1119→              setDialogOpen(true)
+  1120→            },
+  1121→          } : undefined}
+  1122→        />
+  1123→      ) : (
+  1124→        <>
+  1125→          {/* Desktop Table */}
+  1126→          <div className="hidden md:block rounded-lg border overflow-x-auto">
+  1127→            <Table>
+  1128→              <TableHeader>
+  1129→                <TableRow>
+  1130→                  <TableHead className="w-12">Image</TableHead>
+  1131→                  <TableHead>Name</TableHead>
+  1132→                  <TableHead>SKU</TableHead>
+  1133→                  <TableHead>Type</TableHead>
+  1134→                  <TableHead className="text-right">Price</TableHead>
+  1135→                  <TableHead className="text-right">Stock</TableHead>
+  1136→                  <TableHead>Status</TableHead>
+  1137→                  <TableHead className="w-12"></TableHead>
+  1138→                </TableRow>
+  1139→              </TableHeader>
+  1140→              <TableBody>
+  1141→                {products.map((product) => {
+  1142→                  const stockStatus = getStockStatus(
+  1143→                    product.quantity,
+  1144→                    product.lowStockThreshold
+  1145→                  )
+  1146→                  return (
+  1147→                    <TableRow
+  1148→                      key={product.id}
+  1149→                      className="cursor-pointer"
+  1150→                      onClick={() => handleViewDetail(product)}
+  1151→                    >
+  1152→                      <TableCell>
+  1153→                        <div className="size-10 rounded-lg bg-muted flex items-center justify-center text-lg overflow-hidden">
+  1154→                          {product.imageUrl ? (
+  1155→                            <img
+  1156→                              src={product.imageUrl}
+  1157→                              alt={product.name}
+  1158→                              className="size-full object-cover"
+  1159→                              loading="lazy"
+  1160→                            />
+  1161→                          ) : (
+  1162→                            product.productType?.icon || '📦'
+  1163→                          )}
+  1164→                        </div>
+  1165→                      </TableCell>
+  1166→                      <TableCell className="font-medium">{product.name}</TableCell>
+  1167→                      <TableCell className="text-muted-foreground">
+  1168→                        {product.sku || '—'}
+  1169→                      </TableCell>
+  1170→                      <TableCell>
+  1171→                        <Badge variant="outline" className="text-xs font-normal">
+  1172→                          {product.productType?.icon && (
+  1173→                            <span className="mr-1">{product.productType.icon}</span>
+  1174→                          )}
+  1175→                          {product.productType?.name || 'Unknown'}
+  1176→                        </Badge>
+  1177→                      </TableCell>
+  1178→                      <TableCell className="text-right">
+  1179→                        {formatETB(product.sellingPrice)}
+  1180→                      </TableCell>
+  1181→                      <TableCell className="text-right font-medium">
+  1182→                        {product.quantity}
+  1183→                      </TableCell>
+  1184→                      <TableCell>
+  1185→                        <Badge variant={stockStatus.variant} className="text-xs">
+  1186→                          {stockStatus.label}
+  1187→                        </Badge>
+  1188→                      </TableCell>
+  1189→                      <TableCell>
+  1190→                        <DropdownMenu>
+  1191→                          <DropdownMenuTrigger asChild>
+  1192→                            <Button
+  1193→                              variant="ghost"
+  1194→                              size="icon"
+  1195→                              className="size-8 h-9 w-9 sm:h-8 sm:w-8"
+  1196→                              onClick={(e) => e.stopPropagation()}
+  1197→                              aria-label={`Actions for ${product.name}`}
+  1198→                            >
+  1199→                              <MoreHorizontal className="size-4" />
+  1200→                            </Button>
+  1201→                          </DropdownMenuTrigger>
+  1202→                          <DropdownMenuContent align="end">
+  1203→                            <DropdownMenuItem
+  1204→                              onClick={(e) => {
+  1205→                                e.stopPropagation()
+  1206→                                handleViewDetail(product)
+  1207→                              }}
+  1208→                            >
+  1209→                              <Eye className="size-4 mr-2" />
+  1210→                              View Details
+  1211→                            </DropdownMenuItem>
+  1212→                            <DropdownMenuItem
+  1213→                              onClick={(e) => {
+  1214→                                e.stopPropagation()
+  1215→                                setBarcodeProduct(product)
+  1216→                                setBarcodeDialogOpen(true)
+  1217→                              }}
+  1218→                            >
+  1219→                              <QrCode className="size-4 mr-2" />
+  1220→                              Barcode / QR Code
+  1221→                            </DropdownMenuItem>
+  1222→                            <DropdownMenuItem
+  1223→                              onClick={(e) => {
+  1224→                                e.stopPropagation()
+  1225→                                handleEdit(product)
+  1226→                              }}
+  1227→                            >
+  1228→                              <Pencil className="size-4 mr-2" />
+  1229→                              Edit
+  1230→                            </DropdownMenuItem>
+  1231→                            <DropdownMenuItem
+  1232→                              onClick={(e) => {
+  1233→                                e.stopPropagation()
+  1234→                                setDeleteTarget(product)
+  1235→                              }}
+  1236→                              className="text-destructive focus:text-destructive"
+  1237→                            >
+  1238→                              <Trash2 className="size-4 mr-2" />
+  1239→                              Delete
+  1240→                            </DropdownMenuItem>
+  1241→                          </DropdownMenuContent>
+  1242→                        </DropdownMenu>
+  1243→                      </TableCell>
+  1244→                    </TableRow>
+  1245→                  )
+  1246→                })}
+  1247→              </TableBody>
+  1248→            </Table>
+  1249→          </div>
+  1250→
+  1251→          {/* Mobile Card View */}
+  1252→          <div className="md:hidden space-y-3">
+  1253→            {products.map((product) => {
+  1254→              const stockStatus = getStockStatus(product.quantity, product.lowStockThreshold)
+  1255→              return (
+  1256→                <Card
+  1257→                  key={product.id}
+  1258→                  className="cursor-pointer hover:shadow-md transition-shadow"
+  1259→                  onClick={() => handleViewDetail(product)}
+  1260→                >
+  1261→                  <CardContent className="p-4">
+  1262→                    <div className="flex items-start gap-3">
+  1263→                      <div className="size-12 rounded-lg bg-muted flex items-center justify-center text-xl shrink-0 overflow-hidden">
+  1264→                        {product.imageUrl ? (
+  1265→                          <img
+  1266→                            src={product.imageUrl}
+  1267→                            alt={product.name}
+  1268→                            className="size-full object-cover"
+  1269→                            loading="lazy"
+  1270→                          />
+  1271→                        ) : (
+  1272→                          product.productType?.icon || '📦'
+  1273→                        )}
+  1274→                      </div>
+  1275→                      <div className="flex-1 min-w-0">
+  1276→                        <div className="font-medium truncate">{product.name}</div>
+  1277→                        <div className="text-xs text-muted-foreground mt-0.5">
+  1278→                          {product.productType?.name}
+  1279→                          {product.sku ? ` • ${product.sku}` : ''}
+  1280→                        </div>
+  1281→                        <div className="flex items-center justify-between mt-2">
+  1282→                          <span className="text-sm font-semibold">
+  1283→                            {formatETB(product.sellingPrice)}
+  1284→                          </span>
+  1285→                          <Badge variant={stockStatus.variant} className="text-xs">
+  1286→                            {product.quantity} in stock
+  1287→                          </Badge>
+  1288→                        </div>
+  1289→                      </div>
+  1290→                    </div>
+  1291→                  </CardContent>
+  1292→                </Card>
+  1293→              )
+  1294→            })}
+  1295→          </div>
+  1296→
+  1297→          {/* Pagination */}
+  1298→          {totalPages > 1 && (
+  1299→            <div className="flex items-center justify-between">
+  1300→              <p className="text-sm text-muted-foreground">
+  1301→                Page {page} of {totalPages} • {total} results
+  1302→              </p>
+  1303→              <div className="flex gap-2">
+  1304→                <Button
+  1305→                  variant="outline"
+  1306→                  size="sm"
+  1307→                  onClick={() => setPage(Math.max(1, page - 1))}
+  1308→                  disabled={page === 1}
+  1309→                >
+  1310→                  <ChevronLeft className="size-4" />
+  1311→                  Previous
+  1312→                </Button>
+  1313→                <Button
+  1314→                  variant="outline"
+  1315→                  size="sm"
+  1316→                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+  1317→                  disabled={page === totalPages}
+  1318→                >
+  1319→                  Next
+  1320→                  <ChevronRight className="size-4" />
+  1321→                </Button>
+  1322→              </div>
+  1323→            </div>
+  1324→          )}
+  1325→        </>
+  1326→      )}
+  1327→
+  1328→      {/* Barcode/QR Dialog */}
+  1329→      <BarcodeDialog
+  1330→        open={barcodeDialogOpen}
+  1331→        onOpenChange={setBarcodeDialogOpen}
+  1332→        product={barcodeProduct}
+  1333→      />
+  1334→
+  1335→      {/* Bulk Import Dialog */}
+  1336→      <BulkImportDialog
+  1337→        open={importDialogOpen}
+  1338→        onOpenChange={setImportDialogOpen}
+  1339→        productTypes={productTypes}
+  1340→        onImportComplete={fetchProducts}
+  1341→      />
+  1342→
+  1343→      {/* Create/Edit Dialog — key forces fresh mount for add vs edit */}
+  1344→      <ProductDialog
+  1345→        key={editingProduct ? `edit-${editingProduct.id}` : 'add-new'}
+  1346→        open={dialogOpen}
+  1347→        onOpenChange={handleDialogClose}
+  1348→        product={editingProduct}
+  1349→        productTypes={productTypes}
+  1350→        onSaved={fetchProducts}
+  1351→      />
+  1352→
+  1353→      {/* Delete Confirmation */}
+  1354→      <AlertDialog
+  1355→        open={!!deleteTarget}
+  1356→        onOpenChange={(open) => !open && setDeleteTarget(null)}
+  1357→      >
+  1358→        <AlertDialogContent>
+  1359→          <AlertDialogHeader>
+  1360→            <AlertDialogTitle>Delete Product</AlertDialogTitle>
+  1361→            <AlertDialogDescription>
+  1362→              Are you sure you want to delete <strong>&quot;{deleteTarget?.name}&quot;</strong>?
+  1363→              This action cannot be undone. The product and all its data will be permanently deleted,
+  1364→              including stock history and attribute values.
+  1365→            </AlertDialogDescription>
+  1366→          </AlertDialogHeader>
+  1367→          <AlertDialogFooter>
+  1368→            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+  1369→            <AlertDialogAction
+  1370→              onClick={handleDelete}
+  1371→              disabled={deleting}
+  1372→              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+  1373→            >
+  1374→              {deleting && <Loader2 className="size-4 animate-spin" />}
+  1375→              {deleting ? 'Deleting...' : 'Delete'}
+  1376→            </AlertDialogAction>
+  1377→          </AlertDialogFooter>
+  1378→        </AlertDialogContent>
+  1379→      </AlertDialog>
+  1380→    </div>
+  1381→  )
+  1382→}
+  1383→

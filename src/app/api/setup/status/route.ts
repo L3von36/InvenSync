@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { isDatabaseError } from '@/lib/api-error'
 
 interface DatabaseInfo {
@@ -8,7 +8,19 @@ interface DatabaseInfo {
   error?: string
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Block in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 404 })
+  }
+
+  // Secret check for non-production
+  const setupSecret = process.env.SETUP_SECRET || 'dev-only'
+  const requestSecret = request.headers.get('x-setup-secret') || new URL(request.url).searchParams.get('secret')
+  if (requestSecret !== setupSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const isSupabaseConfigured =

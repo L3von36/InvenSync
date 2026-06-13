@@ -31,7 +31,7 @@ import {
   Legend,
 } from '@/components/ui/recharts-exports'
 import { api } from '@/lib/api-client'
-import { formatETB } from '@/lib/currency'
+import { formatETB, formatDateShort } from '@/lib/format'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -105,11 +105,6 @@ const MONTH_LABELS: Record<string, string> = {
 function formatMonthLabel(monthKey: string): string {
   const [year, month] = monthKey.split('-')
   return `${MONTH_LABELS[month] || month} ${year.slice(2)}`
-}
-
-function formatDateLabel(dateKey: string): string {
-  const d = new Date(dateKey)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 const PIE_COLORS = ['#ea580c', '#f97316', '#c2410c', '#fb923c', '#9a3412', '#fed7aa', '#7c2d12']
@@ -442,7 +437,7 @@ export function ProfitLossPage() {
                 <ResponsiveContainer width="100%" height={350}>
                   <LineChart data={(data?.profitTrend ?? []).map(d => ({
                     ...d,
-                    date: formatDateLabel(d.date),
+                    date: formatDateShort(d.date),
                   }))}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="date" className="text-xs" />

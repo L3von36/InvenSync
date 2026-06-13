@@ -36,16 +36,7 @@ import { ErrorState, EmptyState } from '@/components/shared/error-states'
 // ============================================
 // Helpers
 // ============================================
-function formatETB(amount: number): string {
-  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric'
-  })
-}
+import { formatETB, formatDate } from '@/lib/format'
 
 // ============================================
 // Main Component
@@ -91,6 +82,9 @@ export function CustomersPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [totalDebt, setTotalDebt] = useState(0)
 
+  // Per-customer debt map for table display
+  const [customerDebtMap, setCustomerDebtMap] = useState<Record<string, number>>({})
+
   // Stats
   const [newThisMonth, setNewThisMonth] = useState(0)
 
@@ -109,10 +103,16 @@ export function CustomersPage() {
       setTotalPages(data.pagination.totalPages)
       setTotal(data.pagination.total)
 
-      // Calculate new this month from all customers (fetch all)
+      // Calculate stats and per-customer debt (only on first page without search)
       if (page === 1 && !searchQuery) {
         try {
-          const allData = await api.getCustomers(orgId, { limit: 100, shopId })
+          // Run stats and debts fetch in parallel for better performance
+          const [allData, debtsData] = await Promise.all([
+            api.getCustomers(orgId, { limit: 100, shopId }),
+            api.getDebts(orgId, { type: 'customer_debt', status: 'all', limit: '100', shopId }),
+          ])
+
+          // New this month
           const now = new Date()
           const newCount = allData.customers.filter((c) => {
             const created = new Date(c.createdAt)
@@ -120,11 +120,18 @@ export function CustomersPage() {
           }).length
           setNewThisMonth(newCount)
 
-          // Total debt from debts API
-          const debtsData = await api.getDebts(orgId, { type: 'customer_debt', status: 'all', limit: '100', shopId })
-          const outstandingDebt = debtsData.debts
-            .filter((d) => d.status !== 'paid')
-            .reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
+          // Build per-customer debt map from outstanding debts
+          const debtMap: Record<string, number> = {}
+          for (const d of debtsData.debts) {
+            if (d.status !== 'paid' && d.customerId) {
+              const outstanding = d.amount - d.paidAmount
+              debtMap[d.customerId] = (debtMap[d.customerId] || 0) + outstanding
+            }
+          }
+          setCustomerDebtMap(debtMap)
+
+          // Total outstanding debt
+          const outstandingDebt = Object.values(debtMap).reduce((sum, v) => sum + v, 0)
           setTotalDebt(outstandingDebt)
         } catch {
           // Partial data load — stats may be incomplete but customers still show
@@ -244,6 +251,11 @@ export function CustomersPage() {
     }
   }
 
+  // Helper to get outstanding debt for a specific customer
+  const getCustomerDebt = useCallback((customerId: string): number => {
+    return customerDebtMap[customerId] || 0
+  }, [customerDebtMap])
+
   // Calculate active this month (customers with sales this month)
   const activeThisMonth = customers.filter((c) => {
     return c._count && c._count.sales > 0
@@ -255,10 +267,10 @@ export function CustomersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Customers</h1>
-          <p className="text-muted-foreground text-sm">Manage your customer database and track purchase history</p>
+          <p className="text-muted-foreground text-sm mt-1">Manage your customer database and track purchase history</p>
         </div>
         <Button onClick={openAddDialog} className="gap-2">
           <UserPlus className="size-4" />
@@ -284,8 +296,8 @@ export function CustomersPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
-                <TrendingUp className="size-5 text-primary" />
+              <div className="size-10 rounded-lg bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center">
+                <TrendingUp className="size-5 text-sky-600 dark:text-sky-400" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Active This Month</p>
@@ -310,8 +322,8 @@ export function CustomersPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                <Calendar className="size-5 text-amber-600 dark:text-amber-400" />
+              <div className="size-10 rounded-lg bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center">
+                <Calendar className="size-5 text-sky-600 dark:text-sky-400" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">New This Month</p>
@@ -404,7 +416,7 @@ export function CustomersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">
-                          {formatETB(0)}
+                          {formatETB(getCustomerDebt(customer.id))}
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
@@ -468,7 +480,7 @@ export function CustomersPage() {
                       </div>
                     </div>
                     <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 shrink-0 text-xs">
-                      {formatETB(0)}
+                      {formatETB(getCustomerDebt(customer.id))}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between mt-2">
@@ -594,6 +606,7 @@ export function CustomersPage() {
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Customer Details</DialogTitle>
+            <DialogDescription>View customer details and purchase history</DialogDescription>
           </DialogHeader>
           {selectedCustomer && (
             <div className="space-y-6">

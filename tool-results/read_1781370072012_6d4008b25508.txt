@@ -1,0 +1,902 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import { useForm } from 'react-hook-form'
+     5→import { zodResolver } from '@hookform/resolvers/zod'
+     6→import {
+     7→  Package, AlertTriangle, XCircle, TrendingUp, ArrowUpDown,
+     8→  Search, Plus, Minus, RefreshCw, ChevronLeft, ChevronRight,
+     9→  History, Filter
+    10→} from 'lucide-react'
+    11→import { api, type Product, type StockMovement, type InventoryStats, type ProductType } from '@/lib/api-client'
+    12→import { useAuthStore } from '@/lib/stores/auth-store'
+    13→import { getNetworkErrorMessage } from '@/lib/validation'
+    14→import { formatETB, formatDateTime } from '@/lib/format'
+    15→import { stockAdjustmentSchema, type StockAdjustmentFormData } from '@/lib/validations'
+    16→import { ErrorState, EmptyState } from '@/components/shared/error-states'
+    17→import { Form } from '@/components/ui/form'
+    18→import { FormSelectField, FormInputField, FormSubmitButton } from '@/components/shared/form-fields'
+    19→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    20→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    21→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    22→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+    23→import { Button } from '@/components/ui/button'
+    24→import { Input } from '@/components/ui/input'
+    25→import { Badge } from '@/components/ui/badge'
+    26→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    27→import { Separator } from '@/components/ui/separator'
+    28→import { Skeleton } from '@/components/ui/skeleton'
+    29→import { toast } from 'sonner'
+    30→
+    31→// ============================================
+    32→// Helpers
+    33→// ============================================
+    34→
+    35→function getStockStatus(quantity: number, threshold: number): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } {
+    36→  if (quantity === 0) return { label: 'Out of Stock', variant: 'destructive' }
+    37→  if (quantity <= threshold) return { label: 'Low Stock', variant: 'secondary' }
+    38→  return { label: 'In Stock', variant: 'default' }
+    39→}
+    40→
+    41→// ============================================
+    42→// Stats Cards
+    43→// ============================================
+    44→function InventoryStatsCards({ stats }: { stats: InventoryStats['overview'] | null }) {
+    45→  const cards = [
+    46→    { title: 'Total Products', value: stats?.totalProducts ?? 0, icon: Package, color: 'text-primary', bg: 'bg-primary/10' },
+    47→    { title: 'In Stock', value: (stats?.totalProducts ?? 0) - (stats?.outOfStock ?? 0) - (stats?.lowStock ?? 0), icon: TrendingUp, color: 'text-primary', bg: 'bg-brand-50 dark:bg-brand-900/20' },
+    48→    { title: 'Low Stock', value: stats?.lowStock ?? 0, icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+    49→    { title: 'Out of Stock', value: stats?.outOfStock ?? 0, icon: XCircle, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
+    50→    { title: 'Total Value', value: formatETB(stats?.totalRetailValue ?? 0), icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10' },
+    51→  ]
+    52→
+    53→  return (
+    54→    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+    55→      {cards.map((card) => (
+    56→        <Card key={card.title}>
+    57→          <CardContent className="p-4">
+    58→            <div className="flex items-center gap-3">
+    59→              <div className={`size-10 rounded-lg ${card.bg} flex items-center justify-center shrink-0`}>
+    60→                <card.icon className={`size-5 ${card.color}`} />
+    61→              </div>
+    62→              <div className="min-w-0">
+    63→                <p className="text-xs text-muted-foreground truncate">{card.title}</p>
+    64→                <p className="text-xl sm:text-2xl font-bold truncate">{card.value}</p>
+    65→              </div>
+    66→            </div>
+    67→          </CardContent>
+    68→        </Card>
+    69→      ))}
+    70→    </div>
+    71→  )
+    72→}
+    73→
+    74→// ============================================
+    75→// Stock Adjustment Dialog
+    76→// ============================================
+    77→function StockAdjustmentDialog({
+    78→  open,
+    79→  onClose,
+    80→  product,
+    81→  orgId,
+    82→  shopId,
+    83→  onAdjusted,
+    84→}: {
+    85→  open: boolean
+    86→  onClose: () => void
+    87→  product: Product | null
+    88→  orgId: string
+    89→  shopId?: string
+    90→  onAdjusted: () => void
+    91→}) {
+    92→  const [loading, setLoading] = useState(false)
+    93→
+    94→  const form = useForm<StockAdjustmentFormData>({
+    95→    resolver: zodResolver(stockAdjustmentSchema),
+    96→    defaultValues: { type: 'in', quantity: '' as unknown as number, reason: '' },
+    97→  })
+    98→
+    99→  const watchedType = form.watch('type')
+   100→  const watchedQty = form.watch('quantity')
+   101→  const qty = typeof watchedQty === 'number' ? watchedQty : (parseInt(String(watchedQty)) || 0)
+   102→  const previewStock = watchedType === 'in'
+   103→    ? (product?.quantity ?? 0) + qty
+   104→    : watchedType === 'out'
+   105→    ? Math.max(0, (product?.quantity ?? 0) - qty)
+   106→    : qty
+   107→
+   108→  const handleSubmit = async (data: StockAdjustmentFormData) => {
+   109→    if (!product) return
+   110→
+   111→    setLoading(true)
+   112→    try {
+   113→      await api.addStockMovement(orgId, {
+   114→        productId: product.id,
+   115→        type: data.type,
+   116→        quantity: data.quantity,
+   117→        reason: data.reason.trim(),
+   118→        shopId,
+   119→      })
+   120→      toast.success('Stock adjusted successfully')
+   121→      onAdjusted()
+   122→      onClose()
+   123→    } catch (err: unknown) {
+   124→      toast.error(getNetworkErrorMessage(err))
+   125→    } finally {
+   126→      setLoading(false)
+   127→    }
+   128→  }
+   129→
+   130→  useEffect(() => {
+   131→    if (!open) {
+   132→      form.reset({ type: 'in', quantity: '' as unknown as number, reason: '' })
+   133→    }
+   134→  }, [open, form])
+   135→
+   136→  if (!product) return null
+   137→
+   138→  return (
+   139→    <Dialog open={open} onOpenChange={onClose}>
+   140→      <DialogContent className="sm:max-w-md">
+   141→        <DialogHeader>
+   142→          <DialogTitle>Adjust Stock</DialogTitle>
+   143→          <DialogDescription>
+   144→            Adjust stock for <span className="font-semibold">{product.name}</span> (Current: {product.quantity})
+   145→          </DialogDescription>
+   146→        </DialogHeader>
+   147→        <Form {...form}>
+   148→          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-2">
+   149→            <FormSelectField
+   150→              name="type"
+   151→              label="Adjustment Type"
+   152→              options={[
+   153→                { value: 'in', label: 'Add Stock', icon: <Plus className="size-3" /> },
+   154→                { value: 'out', label: 'Remove Stock', icon: <Minus className="size-3" /> },
+   155→                { value: 'adjustment', label: 'Adjustment (Set)', icon: <RefreshCw className="size-3" /> },
+   156→              ]}
+   157→            />
+   158→            <FormInputField
+   159→              name="quantity"
+   160→              label="Quantity"
+   161→              placeholder="Enter quantity"
+   162→              type="number"
+   163→              required
+   164→              min={1}
+   165→            />
+   166→            <FormInputField
+   167→              name="reason"
+   168→              label="Reason"
+   169→              placeholder="Enter reason for adjustment"
+   170→              required
+   171→            />
+   172→            {qty > 0 && (
+   173→              <div className="rounded-lg border bg-muted/50 p-3">
+   174→                <p className="text-sm text-muted-foreground">Preview</p>
+   175→                <p className="text-sm font-bold">
+   176→                  {product.quantity} → {previewStock}
+   177→                </p>
+   178→              </div>
+   179→            )}
+   180→            <DialogFooter>
+   181→              <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+   182→              <FormSubmitButton isLoading={loading} loadingText="Adjusting...">
+   183→                Confirm Adjustment
+   184→              </FormSubmitButton>
+   185→            </DialogFooter>
+   186→          </form>
+   187→        </Form>
+   188→      </DialogContent>
+   189→    </Dialog>
+   190→  )
+   191→}
+   192→
+   193→// ============================================
+   194→// All Products Tab
+   195→// ============================================
+   196→function AllProductsTab({
+   197→  orgId,
+   198→  shopId,
+   199→  onAdjust,
+   200→}: {
+   201→  orgId: string
+   202→  shopId?: string
+   203→  onAdjust: (product: Product) => void
+   204→}) {
+   205→  const [products, setProducts] = useState<Product[]>([])
+   206→  const [productTypes, setProductTypes] = useState<ProductType[]>([])
+   207→  const [loading, setLoading] = useState(true)
+   208→  const [search, setSearch] = useState('')
+   209→  const [filterType, setFilterType] = useState<string>('all')
+   210→  const [sortCol, setSortCol] = useState<string>('name')
+   211→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+   212→  const [page, setPage] = useState(1)
+   213→  const [totalPages, setTotalPages] = useState(1)
+   214→
+   215→  const fetchData = useCallback(async () => {
+   216→    try {
+   217→      const [productsRes, typesRes] = await Promise.all([
+   218→        api.getProducts(orgId, {
+   219→          search: search || undefined,
+   220→          productTypeId: filterType !== 'all' ? filterType : undefined,
+   221→          page,
+   222→          limit: 10,
+   223→          shopId,
+   224→        }),
+   225→        api.getProductTypes(orgId, shopId),
+   226→      ])
+   227→      setProducts(productsRes.products)
+   228→      setTotalPages(productsRes.pagination.totalPages)
+   229→      setProductTypes(typesRes.productTypes)
+   230→    } catch (error) {
+   231→      toast.error(getNetworkErrorMessage(error))
+   232→    } finally {
+   233→      setLoading(false)
+   234→    }
+   235→  }, [orgId, shopId, search, filterType, page])
+   236→
+   237→  useEffect(() => {
+   238→    fetchData()
+   239→  }, [fetchData])
+   240→
+   241→  const handleSort = (col: string) => {
+   242→    if (sortCol === col) {
+   243→      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+   244→    } else {
+   245→      setSortCol(col)
+   246→      setSortDir('asc')
+   247→    }
+   248→  }
+   249→
+   250→  const sortedProducts = [...products].sort((a, b) => {
+   251→    const dir = sortDir === 'asc' ? 1 : -1
+   252→    switch (sortCol) {
+   253→      case 'name': return a.name.localeCompare(b.name) * dir
+   254→      case 'sku': return (a.sku || '').localeCompare(b.sku || '') * dir
+   255→      case 'quantity': return (a.quantity - b.quantity) * dir
+   256→      case 'costPrice': return (a.costPrice - b.costPrice) * dir
+   257→      case 'sellingPrice': return (a.sellingPrice - b.sellingPrice) * dir
+   258→      default: return 0
+   259→    }
+   260→  })
+   261→
+   262→  const SortHeader = ({ col, children }: { col: string; children: React.ReactNode }) => (
+   263→    <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort(col)}>
+   264→      <span className="flex items-center gap-1">
+   265→        {children}
+   266→        <ArrowUpDown className={`size-3 ${sortCol === col ? 'opacity-100' : 'opacity-30'}`} />
+   267→      </span>
+   268→    </TableHead>
+   269→  )
+   270→
+   271→  if (loading) {
+   272→    return (
+   273→      <div className="space-y-4">
+   274→        <div className="flex flex-col sm:flex-row gap-3">
+   275→          <Skeleton className="h-10 flex-1" />
+   276→          <Skeleton className="h-10 w-40" />
+   277→        </div>
+   278→        {Array.from({ length: 5 }).map((_, i) => (
+   279→          <Skeleton key={i} className="h-14 w-full" />
+   280→        ))}
+   281→      </div>
+   282→    )
+   283→  }
+   284→
+   285→  return (
+   286→    <div className="space-y-4">
+   287→      {/* Filters */}
+   288→      <div className="flex flex-col sm:flex-row gap-3">
+   289→        <div className="relative flex-1">
+   290→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   291→          <Input
+   292→            placeholder="Search products..."
+   293→            className="pl-9"
+   294→            aria-label="Search inventory"
+   295→            value={search}
+   296→            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+   297→          />
+   298→        </div>
+   299→        <Select value={filterType} onValueChange={(v) => { setFilterType(v); setPage(1) }}>
+   300→          <SelectTrigger className="w-full sm:w-48">
+   301→            <Filter className="size-4 mr-2" />
+   302→            <SelectValue placeholder="Filter by type" />
+   303→          </SelectTrigger>
+   304→          <SelectContent>
+   305→            <SelectItem value="all">All Types</SelectItem>
+   306→            {productTypes.map((pt) => (
+   307→              <SelectItem key={pt.id} value={pt.id}>{pt.name}</SelectItem>
+   308→            ))}
+   309→          </SelectContent>
+   310→        </Select>
+   311→      </div>
+   312→
+   313→      {/* Table */}
+   314→      <div className="rounded-lg border overflow-hidden">
+   315→        {/* Desktop table */}
+   316→        <div className="hidden md:block overflow-x-auto -mx-4 md:mx-0">
+   317→        <Table>
+   318→          <TableHeader>
+   319→            <TableRow>
+   320→              <SortHeader col="name">Product Name</SortHeader>
+   321→              <SortHeader col="sku">SKU</SortHeader>
+   322→              <TableHead>Type</TableHead>
+   323→              <SortHeader col="quantity">Quantity</SortHeader>
+   324→              <SortHeader col="costPrice">Cost Price</SortHeader>
+   325→              <SortHeader col="sellingPrice">Selling Price</SortHeader>
+   326→              <TableHead>Value</TableHead>
+   327→              <TableHead>Status</TableHead>
+   328→              <TableHead className="text-right">Actions</TableHead>
+   329→            </TableRow>
+   330→          </TableHeader>
+   331→          <TableBody>
+   332→            {sortedProducts.length === 0 ? (
+   333→              <TableRow>
+   334→                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+   335→                  No products found
+   336→                </TableCell>
+   337→              </TableRow>
+   338→            ) : (
+   339→              sortedProducts.map((product) => {
+   340→                const status = getStockStatus(product.quantity, product.lowStockThreshold)
+   341→                return (
+   342→                  <TableRow key={product.id}>
+   343→                    <TableCell className="font-medium max-w-[180px] truncate">{product.name}</TableCell>
+   344→                    <TableCell className="text-muted-foreground text-sm">{product.sku || '—'}</TableCell>
+   345→                    <TableCell>
+   346→                      <Badge variant="outline" className="text-xs">{product.productType?.name || '—'}</Badge>
+   347→                    </TableCell>
+   348→                    <TableCell className="font-mono">{product.quantity}</TableCell>
+   349→                    <TableCell className="text-sm">{formatETB(product.costPrice)}</TableCell>
+   350→                    <TableCell className="text-sm">{formatETB(product.sellingPrice)}</TableCell>
+   351→                    <TableCell className="text-sm font-medium">{formatETB(product.quantity * product.sellingPrice)}</TableCell>
+   352→                    <TableCell>
+   353→                      <Badge variant={status.variant} className="text-xs">{status.label}</Badge>
+   354→                    </TableCell>
+   355→                    <TableCell className="text-right">
+   356→                      <Button size="sm" variant="outline" onClick={() => onAdjust(product)}>
+   357→                        Adjust Stock
+   358→                      </Button>
+   359→                    </TableCell>
+   360→                  </TableRow>
+   361→                )
+   362→              })
+   363→            )}
+   364→          </TableBody>
+   365→        </Table>
+   366→        </div>
+   367→        {/* Mobile card view */}
+   368→        <div className="md:hidden space-y-3 p-3">
+   369→          {sortedProducts.length === 0 ? (
+   370→            <EmptyState
+   371→              title="No products found"
+   372→              message="No products match your current filters."
+   373→            />
+   374→          ) : (
+   375→            sortedProducts.map((product) => {
+   376→              const status = getStockStatus(product.quantity, product.lowStockThreshold)
+   377→              return (
+   378→                <Card key={product.id} className="p-4">
+   379→                  <div className="flex items-start justify-between mb-2">
+   380→                    <div className="min-w-0 flex-1">
+   381→                      <p className="font-semibold text-sm truncate">{product.name}</p>
+   382→                      <p className="text-xs text-muted-foreground">{product.productType?.name || '—'} {product.sku ? `· ${product.sku}` : ''}</p>
+   383→                    </div>
+   384→                    <Badge variant={status.variant} className="text-xs shrink-0 ml-2">{status.label}</Badge>
+   385→                  </div>
+   386→                  <div className="flex items-center justify-between text-xs mt-2">
+   387→                    <div className="flex items-center gap-3 text-muted-foreground">
+   388→                      <span>Qty: <strong className="text-foreground">{product.quantity}</strong></span>
+   389→                      <span>{formatETB(product.sellingPrice)}</span>
+   390→                    </div>
+   391→                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onAdjust(product)}>Adjust</Button>
+   392→                  </div>
+   393→                </Card>
+   394→              )
+   395→            })
+   396→          )}
+   397→        </div>
+   398→      </div>
+   399→
+   400→      {/* Pagination */}
+   401→      {totalPages > 1 && (
+   402→        <div className="flex items-center justify-between">
+   403→          <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>
+   404→          <div className="flex gap-2">
+   405→            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+   406→              <ChevronLeft className="size-4" />
+   407→            </Button>
+   408→            <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+   409→              <ChevronRight className="size-4" />
+   410→            </Button>
+   411→          </div>
+   412→        </div>
+   413→      )}
+   414→    </div>
+   415→  )
+   416→}
+   417→
+   418→// ============================================
+   419→// Low Stock Tab
+   420→// ============================================
+   421→function LowStockTab({
+   422→  orgId,
+   423→  shopId,
+   424→  lowStockProducts,
+   425→  onRestock,
+   426→}: {
+   427→  orgId: string
+   428→  shopId?: string
+   429→  lowStockProducts: InventoryStats['lowStockProducts']
+   430→  onRestock: (product: Product) => void
+   431→}) {
+   432→  const [products, setProducts] = useState<InventoryStats['lowStockProducts']>([])
+   433→  const [loading, setLoading] = useState(true)
+   434→
+   435→  useEffect(() => {
+   436→    const fetchLowStock = async () => {
+   437→      try {
+   438→        const data = await api.getInventory(orgId, shopId)
+   439→        setProducts(data.lowStockProducts)
+   440→      } catch (error) {
+   441→      toast.error(getNetworkErrorMessage(error))
+   442→      } finally {
+   443→        setLoading(false)
+   444→      }
+   445→    }
+   446→    fetchLowStock()
+   447→  }, [orgId, shopId])
+   448→
+   449→  useEffect(() => {
+   450→    if (lowStockProducts && lowStockProducts.length > 0) {
+   451→      setProducts(lowStockProducts)
+   452→      setLoading(false)
+   453→    }
+   454→  }, [lowStockProducts])
+   455→
+   456→  if (loading) {
+   457→    return (
+   458→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   459→        {Array.from({ length: 6 }).map((_, i) => (
+   460→          <Skeleton key={i} className="h-32" />
+   461→        ))}
+   462→      </div>
+   463→    )
+   464→  }
+   465→
+   466→  if (products.length === 0) {
+   467→    return (
+   468→      <EmptyState
+   469→        title="All Stocked Up!"
+   470→        message="No products are currently low on stock."
+   471→        icon={<AlertTriangle className="size-7 text-emerald-500" />}
+   472→      />
+   473→    )
+   474→  }
+   475→
+   476→  return (
+   477→    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   478→      {products.map((product) => (
+   479→        <Card key={product.id} className="border-amber-200 dark:border-amber-800">
+   480→          <CardContent className="p-4">
+   481→            <div className="flex items-start justify-between mb-2">
+   482→              <div>
+   483→                <h4 className="font-semibold text-sm truncate max-w-[200px]">{product.name}</h4>
+   484→                <p className="text-xs text-muted-foreground">{product.productType.name}</p>
+   485→              </div>
+   486→              <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 shrink-0">
+   487→                Low Stock
+   488→              </Badge>
+   489→            </div>
+   490→            <Separator className="my-3" />
+   491→            <div className="flex items-center justify-between text-sm">
+   492→              <div>
+   493→                <span className="text-muted-foreground">Current: </span>
+   494→                <span className="font-bold text-amber-600 dark:text-amber-400">{product.quantity}</span>
+   495→              </div>
+   496→              <div>
+   497→                <span className="text-muted-foreground">Threshold: </span>
+   498→                <span className="font-medium">{product.lowStockThreshold}</span>
+   499→              </div>
+   500→            </div>
+   501→            <Button
+   502→              size="sm"
+   503→              className="w-full mt-3"
+   504→              onClick={() => onRestock({
+   505→                id: product.id,
+   506→                name: product.name,
+   507→                quantity: product.quantity,
+   508→                lowStockThreshold: product.lowStockThreshold,
+   509→              } as Product)}
+   510→            >
+   511→              <Plus className="size-3 mr-1" /> Quick Restock
+   512→            </Button>
+   513→          </CardContent>
+   514→        </Card>
+   515→      ))}
+   516→    </div>
+   517→  )
+   518→}
+   519→
+   520→// ============================================
+   521→// Out of Stock Tab
+   522→// ============================================
+   523→function OutOfStockTab({
+   524→  orgId,
+   525→  shopId,
+   526→  onRestock,
+   527→}: {
+   528→  orgId: string
+   529→  shopId?: string
+   530→  onRestock: (product: Product) => void
+   531→}) {
+   532→  const [products, setProducts] = useState<Product[]>([])
+   533→  const [loading, setLoading] = useState(true)
+   534→
+   535→  useEffect(() => {
+   536→    const fetchOutOfStock = async () => {
+   537→      try {
+   538→        const res = await api.getProducts(orgId, { limit: 100, shopId })
+   539→        setProducts(res.products.filter(p => p.quantity === 0))
+   540→      } catch (error) {
+   541→      toast.error(getNetworkErrorMessage(error))
+   542→      } finally {
+   543→        setLoading(false)
+   544→      }
+   545→    }
+   546→    fetchOutOfStock()
+   547→  }, [orgId, shopId])
+   548→
+   549→  if (loading) {
+   550→    return (
+   551→      <div className="space-y-3">
+   552→        {Array.from({ length: 4 }).map((_, i) => (
+   553→          <Skeleton key={i} className="h-16" />
+   554→        ))}
+   555→      </div>
+   556→    )
+   557→  }
+   558→
+   559→  if (products.length === 0) {
+   560→    return (
+   561→      <EmptyState
+   562→        title="Everything In Stock!"
+   563→        message="No products are out of stock right now."
+   564→        icon={<XCircle className="size-7 text-emerald-500" />}
+   565→      />
+   566→    )
+   567→  }
+   568→
+   569→  return (
+   570→    <div className="space-y-3">
+   571→      {products.map((product) => (
+   572→        <Card key={product.id} className="border-red-200 dark:border-red-800">
+   573→          <CardContent className="p-4 flex items-center justify-between">
+   574→            <div className="flex items-center gap-3">
+   575→              <div className="size-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+   576→                <XCircle className="size-5 text-red-600 dark:text-red-400" />
+   577→              </div>
+   578→              <div>
+   579→                <h4 className="font-semibold text-sm">{product.name}</h4>
+   580→                <p className="text-xs text-muted-foreground">
+   581→                  {product.sku && `SKU: ${product.sku} • `}{product.productType?.name || 'No type'}
+   582→                </p>
+   583→              </div>
+   584→            </div>
+   585→            <Button size="sm" onClick={() => onRestock(product)}>
+   586→              <Plus className="size-3 mr-1" /> Restock
+   587→            </Button>
+   588→          </CardContent>
+   589→        </Card>
+   590→      ))}
+   591→    </div>
+   592→  )
+   593→}
+   594→
+   595→// ============================================
+   596→// Stock History Tab
+   597→// ============================================
+   598→function StockHistoryTab({ orgId, shopId }: { orgId: string; shopId?: string }) {
+   599→  const [movements, setMovements] = useState<StockMovement[]>([])
+   600→  const [products, setProducts] = useState<Product[]>([])
+   601→  const [loading, setLoading] = useState(true)
+   602→  const [filterProduct, setFilterProduct] = useState<string>('all')
+   603→  const [filterType, setFilterType] = useState<string>('all')
+   604→
+   605→  useEffect(() => {
+   606→    const fetchHistory = async () => {
+   607→      try {
+   608→        const [invData, prodRes] = await Promise.all([
+   609→          api.getInventory(orgId, shopId),
+   610→          api.getProducts(orgId, { limit: 100, shopId }),
+   611→        ])
+   612→        setMovements(invData.recentMovements)
+   613→        setProducts(prodRes.products)
+   614→      } catch (error) {
+   615→        toast.error(getNetworkErrorMessage(error))
+   616→      } finally {
+   617→        setLoading(false)
+   618→      }
+   619→    }
+   620→    fetchHistory()
+   621→  }, [orgId, shopId])
+   622→
+   623→  const filtered = movements.filter((m) => {
+   624→    if (filterProduct !== 'all' && m.productId !== filterProduct) return false
+   625→    if (filterType !== 'all' && m.type !== filterType) return false
+   626→    return true
+   627→  })
+   628→
+   629→  const typeLabel = (type: string) => {
+   630→    switch (type) {
+   631→      case 'in': return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">Stock In</Badge>
+   632→      case 'out': return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Stock Out</Badge>
+   633→      case 'adjustment': return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Adjustment</Badge>
+   634→      default: return <Badge variant="outline">{type}</Badge>
+   635→    }
+   636→  }
+   637→
+   638→  if (loading) {
+   639→    return (
+   640→      <div className="space-y-3">
+   641→        <div className="flex flex-col sm:flex-row gap-3">
+   642→          <Skeleton className="h-10 w-48" />
+   643→          <Skeleton className="h-10 w-36" />
+   644→        </div>
+   645→        {Array.from({ length: 6 }).map((_, i) => (
+   646→          <Skeleton key={i} className="h-14" />
+   647→        ))}
+   648→      </div>
+   649→    )
+   650→  }
+   651→
+   652→  return (
+   653→    <div className="space-y-4">
+   654→      {/* Filters */}
+   655→      <div className="flex flex-col sm:flex-row gap-3">
+   656→        <Select value={filterProduct} onValueChange={setFilterProduct}>
+   657→          <SelectTrigger className="w-full sm:w-52">
+   658→            <SelectValue placeholder="Filter by product" />
+   659→          </SelectTrigger>
+   660→          <SelectContent>
+   661→            <SelectItem value="all">All Products</SelectItem>
+   662→            {products.map((p) => (
+   663→              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+   664→            ))}
+   665→          </SelectContent>
+   666→        </Select>
+   667→        <Select value={filterType} onValueChange={setFilterType}>
+   668→          <SelectTrigger className="w-full sm:w-40">
+   669→            <SelectValue placeholder="Filter by type" />
+   670→          </SelectTrigger>
+   671→          <SelectContent>
+   672→            <SelectItem value="all">All Types</SelectItem>
+   673→            <SelectItem value="in">Stock In</SelectItem>
+   674→            <SelectItem value="out">Stock Out</SelectItem>
+   675→            <SelectItem value="adjustment">Adjustment</SelectItem>
+   676→          </SelectContent>
+   677→        </Select>
+   678→      </div>
+   679→
+   680→      {/* Empty state or Table */}
+   681→      {!loading && filtered.length === 0 ? (
+   682→        <Card>
+   683→          <CardContent className="py-12 text-center">
+   684→            <History className="size-12 text-muted-foreground mx-auto mb-4" />
+   685→            <h3 className="text-base font-semibold mb-1">
+   686→              {filterProduct !== 'all' || filterType !== 'all' ? 'No matching stock movements' : 'No stock movements yet'}
+   687→            </h3>
+   688→            <p className="text-muted-foreground text-sm mb-4">
+   689→              {filterProduct !== 'all' || filterType !== 'all'
+   690→                ? 'Try adjusting your filters'
+   691→                : 'Stock movements will appear here when you adjust product quantities'}
+   692→            </p>
+   693→          </CardContent>
+   694→        </Card>
+   695→      ) : (
+   696→      <div className="rounded-lg border overflow-hidden">
+   697→        {/* Desktop table */}
+   698→        <div className="hidden md:block overflow-x-auto -mx-4 md:mx-0">
+   699→          <Table>
+   700→            <TableHeader>
+   701→              <TableRow>
+   702→                <TableHead>Date</TableHead>
+   703→                <TableHead>Product</TableHead>
+   704→                <TableHead>Type</TableHead>
+   705→                <TableHead className="text-right">Quantity</TableHead>
+   706→                <TableHead className="text-right">Previous Stock</TableHead>
+   707→                <TableHead className="text-right">New Stock</TableHead>
+   708→                <TableHead>Reason</TableHead>
+   709→              </TableRow>
+   710→            </TableHeader>
+   711→            <TableBody>
+   712→              {filtered.map((m) => (
+   713→                <TableRow key={m.id}>
+   714→                  <TableCell className="text-sm whitespace-nowrap">{formatDateTime(m.createdAt)}</TableCell>
+   715→                  <TableCell className="font-medium text-sm">{m.product?.name || '—'}</TableCell>
+   716→                  <TableCell>{typeLabel(m.type)}</TableCell>
+   717→                  <TableCell className="text-right font-mono text-sm">
+   718→                    {m.type === 'in' ? '+' : m.type === 'out' ? '-' : '±'}{m.quantity}
+   719→                  </TableCell>
+   720→                  <TableCell className="text-right font-mono text-sm text-muted-foreground">{m.previousStock}</TableCell>
+   721→                  <TableCell className="text-right font-mono text-sm font-medium">{m.newStock}</TableCell>
+   722→                  <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{m.reason || '—'}</TableCell>
+   723→                </TableRow>
+   724→              ))}
+   725→            </TableBody>
+   726→          </Table>
+   727→        </div>
+   728→        {/* Mobile card view */}
+   729→        <div className="md:hidden space-y-3 p-3">
+   730→          {filtered.map((m) => (
+   731→            <Card key={m.id} className="p-4">
+   732→              <div className="flex items-start justify-between mb-2">
+   733→                <div className="min-w-0 flex-1">
+   734→                  <p className="font-semibold text-sm truncate">{m.product?.name || '—'}</p>
+   735→                  <p className="text-xs text-muted-foreground">{formatDateTime(m.createdAt)}</p>
+   736→                </div>
+   737→                {typeLabel(m.type)}
+   738→              </div>
+   739→              <div className="flex items-center justify-between text-xs mt-2">
+   740→                <div className="flex items-center gap-3 text-muted-foreground">
+   741→                  <span>Qty: <strong className="text-foreground">{m.type === 'in' ? '+' : m.type === 'out' ? '-' : '±'}{m.quantity}</strong></span>
+   742→                  <span>{m.previousStock} → {m.newStock}</span>
+   743→                </div>
+   744→              </div>
+   745→              {m.reason && (
+   746→                <p className="text-xs text-muted-foreground mt-1 truncate">{m.reason}</p>
+   747→              )}
+   748→            </Card>
+   749→          ))}
+   750→        </div>
+   751→      </div>
+   752→      )}
+   753→    </div>
+   754→  )
+   755→}
+   756→
+   757→// ============================================
+   758→// Main Inventory Page
+   759→// ============================================
+   760→export function InventoryPage() {
+   761→  const { currentOrg, currentShop } = useAuthStore()
+   762→  const orgId = currentOrg?.id || ''
+   763→  const shopId = currentShop?.id
+   764→
+   765→  const [inventoryStats, setInventoryStats] = useState<InventoryStats | null>(null)
+   766→  const [loading, setLoading] = useState(true)
+   767→  const [fetchError, setFetchError] = useState<string | null>(null)
+   768→  const [adjustProduct, setAdjustProduct] = useState<Product | null>(null)
+   769→  const [adjustDialogOpen, setAdjustDialogOpen] = useState(false)
+   770→  const [activeTab, setActiveTab] = useState('all')
+   771→
+   772→  const fetchInventory = useCallback(async () => {
+   773→    if (!orgId) return
+   774→    try {
+   775→      setFetchError(null)
+   776→      const data = await api.getInventory(orgId, shopId)
+   777→      setInventoryStats(data)
+   778→    } catch (error) {
+   779→      setFetchError(getNetworkErrorMessage(error))
+   780→    } finally {
+   781→      setLoading(false)
+   782→    }
+   783→  }, [orgId, shopId])
+   784→
+   785→  useEffect(() => {
+   786→    fetchInventory()
+   787→  }, [fetchInventory])
+   788→
+   789→  const handleAdjust = (product: Product) => {
+   790→    setAdjustProduct(product)
+   791→    setAdjustDialogOpen(true)
+   792→  }
+   793→
+   794→  const handleAdjusted = () => {
+   795→    fetchInventory()
+   796→  }
+   797→
+   798→  if (loading) {
+   799→    return (
+   800→      <div className="space-y-6">
+   801→        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+   802→          {Array.from({ length: 5 }).map((_, i) => (
+   803→            <Skeleton key={i} className="h-20" />
+   804→          ))}
+   805→        </div>
+   806→        <Skeleton className="h-10 w-full max-w-96" />
+   807→        {Array.from({ length: 5 }).map((_, i) => (
+   808→          <Skeleton key={i} className="h-14" />
+   809→        ))}
+   810→      </div>
+   811→    )
+   812→  }
+   813→
+   814→  if (fetchError) {
+   815→    return (
+   816→      <div className="space-y-6">
+   817→        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+   818→          <div>
+   819→            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
+   820→            <p className="text-muted-foreground text-sm mt-1">Track stock levels, manage movements, and monitor alerts.</p>
+   821→          </div>
+   822→        </div>
+   823→        <ErrorState title="Failed to load inventory" message={fetchError} onRetry={fetchInventory} />
+   824→      </div>
+   825→    )
+   826→  }
+   827→
+   828→  return (
+   829→    <div className="space-y-6">
+   830→      {/* Header */}
+   831→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+   832→        <div>
+   833→          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
+   834→          <p className="text-muted-foreground text-sm mt-1">Track stock levels, manage movements, and monitor alerts.</p>
+   835→        </div>
+   836→      </div>
+   837→
+   838→      {/* Stats */}
+   839→      <InventoryStatsCards stats={inventoryStats?.overview ?? null} />
+   840→
+   841→      {/* Tabs */}
+   842→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   843→        <TabsList className="w-full overflow-x-auto">
+   844→          <TabsTrigger value="all" className="gap-1 text-xs sm:text-sm">
+   845→            <Package className="size-4" /> <span className="hidden sm:inline">All</span> Products
+   846→          </TabsTrigger>
+   847→          <TabsTrigger value="low-stock" className="gap-1 text-xs sm:text-sm">
+   848→            <AlertTriangle className="size-4" /> <span className="hidden sm:inline">Low</span> Stock
+   849→            {inventoryStats?.overview.lowStock ? (
+   850→              <Badge variant="secondary" className="ml-1.5 size-5 p-0 text-[10px] flex items-center justify-center bg-amber-100 text-amber-800">
+   851→                {inventoryStats.overview.lowStock}
+   852→              </Badge>
+   853→            ) : null}
+   854→          </TabsTrigger>
+   855→          <TabsTrigger value="out-of-stock" className="gap-1 text-xs sm:text-sm">
+   856→            <XCircle className="size-4" /> <span className="hidden sm:inline">Out of</span> Stock
+   857→            {inventoryStats?.overview.outOfStock ? (
+   858→              <Badge variant="secondary" className="ml-1.5 size-5 p-0 text-[10px] flex items-center justify-center bg-red-100 text-red-800">
+   859→                {inventoryStats.overview.outOfStock}
+   860→              </Badge>
+   861→            ) : null}
+   862→          </TabsTrigger>
+   863→          <TabsTrigger value="history" className="gap-1 text-xs sm:text-sm">
+   864→            <History className="size-4" /> <span className="hidden sm:inline">Stock</span> History
+   865→          </TabsTrigger>
+   866→        </TabsList>
+   867→
+   868→        <TabsContent value="all" className="mt-4">
+   869→          <AllProductsTab orgId={orgId} shopId={shopId} onAdjust={handleAdjust} />
+   870→        </TabsContent>
+   871→
+   872→        <TabsContent value="low-stock" className="mt-4">
+   873→          <LowStockTab
+   874→            orgId={orgId}
+   875→            shopId={shopId}
+   876→            lowStockProducts={inventoryStats?.lowStockProducts ?? []}
+   877→            onRestock={handleAdjust}
+   878→          />
+   879→        </TabsContent>
+   880→
+   881→        <TabsContent value="out-of-stock" className="mt-4">
+   882→          <OutOfStockTab orgId={orgId} shopId={shopId} onRestock={handleAdjust} />
+   883→        </TabsContent>
+   884→
+   885→        <TabsContent value="history" className="mt-4">
+   886→          <StockHistoryTab orgId={orgId} shopId={shopId} />
+   887→        </TabsContent>
+   888→      </Tabs>
+   889→
+   890→      {/* Stock Adjustment Dialog */}
+   891→      <StockAdjustmentDialog
+   892→        open={adjustDialogOpen}
+   893→        onClose={() => setAdjustDialogOpen(false)}
+   894→        product={adjustProduct}
+   895→        orgId={orgId}
+   896→        shopId={shopId}
+   897→        onAdjusted={handleAdjusted}
+   898→      />
+   899→    </div>
+   900→  )
+   901→}
+   902→

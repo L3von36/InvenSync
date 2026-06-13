@@ -4,9 +4,16 @@ import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
 import { cache, CacheNamespaces, CacheTTL } from '@/lib/cache'
+import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 
 // GET /api/reports?orgId=xxx&type=daily|weekly|monthly&startDate=xxx&endDate=xxx&shopId=xxx
 export async function GET(request: Request) {
+  // Rate limit reports endpoint — stricter tier for expensive aggregation queries (10 req/min per user/IP)
+  const rateLimitResult = applyRateLimit(request, RateLimitTiers.ADMIN)
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
+
   try {
     const user = await getUserFromRequest(request)
     if (!user) {
@@ -109,6 +116,7 @@ async function fetchReportData(
   const [
     saleAggregates,
     salesForBreakdown,
+    paymentMethodBreakdown,
     saleItemsForCogs,
     bestSellingProducts,
     inventoryProducts,
@@ -125,6 +133,14 @@ async function fetchReportData(
       where: saleWhere,
       select: { total: true, saleDate: true },
       orderBy: { saleDate: 'asc' },
+    }),
+
+       // Payment method breakdown
+    db.sale.groupBy({
+      by: ['paymentMethod'],
+      where: saleWhere,
+      _count: true,
+      _sum: { total: true },
     }),
 
     // Sale items for COGS calculation (only needed fields)
@@ -239,6 +255,11 @@ async function fetchReportData(
       ...data,
     })),
     bestSellingProducts: bestSellingWithDetails,
+    paymentMethodBreakdown: paymentMethodBreakdown.map(item => ({
+      method: item.paymentMethod || 'cash',
+      count: item._count,
+      revenue: item._sum.total || 0,
+    })),
     inventoryValuation,
   }
 }

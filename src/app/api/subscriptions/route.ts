@@ -102,6 +102,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Only organization owner can change plan' }, { status: 403 })
     }
 
+    // TODO: Integrate with payment gateway (Chapa/Stripe)
+    // For now, only allow plan changes from admin endpoint
+    // Direct subscription upgrades without payment verification are blocked
+    if (body.plan === 'premium' || body.plan === 'enterprise') {
+      // Check if this request came from an admin or has a valid payment reference
+      if (!body.paymentReference && !user.isAdmin) {
+        return NextResponse.json({ 
+          error: 'Payment verification required for premium plans. Please complete payment first.' 
+        }, { status: 402 })
+      }
+    }
+
     const organization = await db.organization.update({
       where: { id: orgId },
       data: {

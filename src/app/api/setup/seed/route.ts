@@ -1,7 +1,19 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { isDatabaseError } from '@/lib/api-error'
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Block in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 404 })
+  }
+
+  // Secret check for non-production
+  const setupSecret = process.env.SETUP_SECRET || 'dev-only'
+  const requestSecret = request.headers.get('x-setup-secret') || new URL(request.url).searchParams.get('secret')
+  if (requestSecret !== setupSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { execSync } = await import('child_process')
     const output = execSync('bun run db:seed 2>&1', {

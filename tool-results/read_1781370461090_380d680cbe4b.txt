@@ -1,0 +1,1068 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import { useForm, useFieldArray } from 'react-hook-form'
+     5→import { zodResolver } from '@hookform/resolvers/zod'
+     6→import {
+     7→  ShoppingCart, DollarSign, Calendar, TrendingUp,
+     8→  Search, Plus, Trash2, ChevronLeft, ChevronRight,
+     9→  Eye, Printer, X, Receipt, CreditCard, Banknote, Smartphone, Loader2,
+    10→  FileText, Download
+    11→} from 'lucide-react'
+    12→import { api, type Sale, type SaleItem, type Product, type Customer } from '@/lib/api-client'
+    13→import { useAuthStore } from '@/lib/stores/auth-store'
+    14→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    15→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    16→import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+    17→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+    18→import { Button } from '@/components/ui/button'
+    19→import { Input } from '@/components/ui/input'
+    20→import { StatusBadge } from '@/components/shared/status-badge'
+    21→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    22→import { Separator } from '@/components/ui/separator'
+    23→import { Skeleton } from '@/components/ui/skeleton'
+    24→import { toast } from 'sonner'
+    25→import { getNetworkErrorMessage } from '@/lib/validation'
+    26→import { saleSchema, type SaleFormData } from '@/lib/validations'
+    27→import { ErrorState, EmptyState } from '@/components/shared/error-states'
+    28→import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
+    29→import { FormInputField, FormTextareaField } from '@/components/shared/form-fields'
+    30→
+    31→// ============================================
+    32→// Helpers
+    33→// ============================================
+    34→import { formatETB, formatDateShort } from '@/lib/format'
+    35→
+    36→function paymentMethodIcon(method: string) {
+    37→  switch (method) {
+    38→    case 'cash': return <Banknote className="size-3.5" />
+    39→    case 'card': return <CreditCard className="size-3.5" />
+    40→    case 'mobile_money': return <Smartphone className="size-3.5" />
+    41→    case 'credit': return <Receipt className="size-3.5" />
+    42→    default: return null
+    43→  }
+    44→}
+    45→
+    46→function paymentMethodLabel(method: string) {
+    47→  switch (method) {
+    48→    case 'cash': return 'Cash'
+    49→    case 'card': return 'Card'
+    50→    case 'mobile_money': return 'Mobile Money'
+    51→    case 'credit': return 'Credit'
+    52→    default: return method
+    53→  }
+    54→}
+    55→
+    56→// ============================================
+    57→// Sales Stats Cards
+    58→// ============================================
+    59→function SalesStatsCards({ sales }: { sales: Sale[] }) {
+    60→  const today = new Date()
+    61→  today.setHours(0, 0, 0, 0)
+    62→
+    63→  const startOfWeek = new Date(today)
+    64→  startOfWeek.setDate(today.getDate() - today.getDay())
+    65→
+    66→  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+    67→
+    68→  const todaySales = sales.filter(s => new Date(s.saleDate) >= today)
+    69→  const weekSales = sales.filter(s => new Date(s.saleDate) >= startOfWeek)
+    70→  const monthSales = sales.filter(s => new Date(s.saleDate) >= startOfMonth)
+    71→
+    72→  const todayTotal = todaySales.reduce((acc, s) => acc + s.total, 0)
+    73→  const weekTotal = weekSales.reduce((acc, s) => acc + s.total, 0)
+    74→  const monthTotal = monthSales.reduce((acc, s) => acc + s.total, 0)
+    75→  const avgSale = sales.length > 0 ? sales.reduce((acc, s) => acc + s.total, 0) / sales.length : 0
+    76→
+    77→  const cards = [
+    78→    { title: "Today's Sales", value: formatETB(todayTotal), icon: ShoppingCart, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    79→    { title: 'This Week', value: formatETB(weekTotal), icon: Calendar, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    80→    { title: 'This Month', value: formatETB(monthTotal), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    81→    { title: 'Avg Sale Value', value: formatETB(avgSale), icon: DollarSign, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    82→  ]
+    83→
+    84→  return (
+    85→    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+    86→      {cards.map((card) => (
+    87→        <Card key={card.title}>
+    88→          <CardContent className="p-4">
+    89→            <div className="flex items-center gap-3">
+    90→              <div className={`size-10 rounded-lg ${card.bg} flex items-center justify-center shrink-0`}>
+    91→                <card.icon className={`size-5 ${card.color}`} />
+    92→              </div>
+    93→              <div className="min-w-0">
+    94→                <p className="text-xs text-muted-foreground truncate">{card.title}</p>
+    95→                <p className="text-xl sm:text-2xl font-bold truncate">{card.value}</p>
+    96→              </div>
+    97→            </div>
+    98→          </CardContent>
+    99→        </Card>
+   100→      ))}
+   101→    </div>
+   102→  )
+   103→}
+   104→
+   105→// ============================================
+   106→// Sale Detail Dialog
+   107→// ============================================
+   108→function SaleDetailDialog({
+   109→  open,
+   110→  onClose,
+   111→  sale,
+   112→  orgName,
+   113→}: {
+   114→  open: boolean
+   115→  onClose: () => void
+   116→  sale: Sale | null
+   117→  orgName: string
+   118→}) {
+   119→  if (!sale) return null
+   120→
+   121→  const handlePrint = () => {
+   122→    window.print()
+   123→  }
+   124→
+   125→  return (
+   126→    <Dialog open={open} onOpenChange={onClose}>
+   127→      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto print:max-w-none print:max-h-none">
+   128→        <DialogHeader className="print:hidden">
+   129→          <DialogTitle>Sale Details</DialogTitle>
+   130→          <DialogDescription>Invoice {sale.invoiceNumber}</DialogDescription>
+   131→        </DialogHeader>
+   132→
+   133→        {/* Printable Invoice */}
+   134→        <div id="sale-invoice" className="space-y-6 p-2">
+   135→          {/* Header */}
+   136→          <div className="flex justify-between items-start">
+   137→            <div>
+   138→              <h2 className="text-sm font-semibold">{orgName}</h2>
+   139→              <p className="text-sm text-muted-foreground">Invoice</p>
+   140→            </div>
+   141→            <div className="text-right">
+   142→              <p className="text-sm font-semibold">{sale.invoiceNumber}</p>
+   143→              <p className="text-sm text-muted-foreground">{formatDateShort(sale.saleDate)}</p>
+   144→            </div>
+   145→          </div>
+   146→
+   147→          <Separator />
+   148→
+   149→          {/* Customer */}
+   150→          {sale.customer && (
+   151→            <div>
+   152→              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Customer</p>
+   153→              <p className="font-medium">{sale.customer.name}</p>
+   154→              {sale.customer.phone && <p className="text-sm text-muted-foreground">{sale.customer.phone}</p>}
+   155→            </div>
+   156→          )}
+   157→
+   158→          {/* Items Table */}
+   159→          <div className="rounded-lg border overflow-hidden">
+   160→            {/* Desktop table */}
+   161→            <div className="hidden md:block">
+   162→              <Table>
+   163→                <TableHeader>
+   164→                  <TableRow>
+   165→                    <TableHead>Item</TableHead>
+   166→                    <TableHead className="text-right">Qty</TableHead>
+   167→                    <TableHead className="text-right">Unit Price</TableHead>
+   168→                    <TableHead className="text-right">Total</TableHead>
+   169→                  </TableRow>
+   170→                </TableHeader>
+   171→                <TableBody>
+   172→                  {sale.items?.map((item) => (
+   173→                    <TableRow key={item.id}>
+   174→                      <TableCell className="font-medium">{item.product?.name || '—'}</TableCell>
+   175→                      <TableCell className="text-right">{item.quantity}</TableCell>
+   176→                      <TableCell className="text-right">{formatETB(item.unitPrice)}</TableCell>
+   177→                      <TableCell className="text-right font-medium">{formatETB(item.total)}</TableCell>
+   178→                    </TableRow>
+   179→                  ))}
+   180→                </TableBody>
+   181→              </Table>
+   182→            </div>
+   183→            {/* Mobile card view */}
+   184→            <div className="md:hidden divide-y">
+   185→              {sale.items?.map((item) => (
+   186→                <div key={item.id} className="flex items-center justify-between p-3">
+   187→                  <div className="min-w-0 flex-1">
+   188→                    <p className="font-medium text-sm truncate">{item.product?.name || '—'}</p>
+   189→                    <p className="text-xs text-muted-foreground">{item.quantity} × {formatETB(item.unitPrice)}</p>
+   190→                  </div>
+   191→                  <span className="font-semibold text-sm ml-3 shrink-0">{formatETB(item.total)}</span>
+   192→                </div>
+   193→              ))}
+   194→            </div>
+   195→          </div>
+   196→
+   197→          {/* Totals */}
+   198→          <div className="flex justify-end">
+   199→            <div className="w-full sm:w-64 space-y-2">
+   200→              <div className="flex justify-between text-sm">
+   201→                <span className="text-muted-foreground">Subtotal</span>
+   202→                <span>{formatETB(sale.subtotal)}</span>
+   203→              </div>
+   204→              {sale.discount > 0 && (
+   205→                <div className="flex justify-between text-sm">
+   206→                  <span className="text-muted-foreground">Discount</span>
+   207→                  <span className="text-red-600">-{formatETB(sale.discount)}</span>
+   208→                </div>
+   209→              )}
+   210→              {sale.tax > 0 && (
+   211→                <div className="flex justify-between text-sm">
+   212→                  <span className="text-muted-foreground">Tax</span>
+   213→                  <span>{formatETB(sale.tax)}</span>
+   214→                </div>
+   215→              )}
+   216→              <Separator />
+   217→              <div className="flex justify-between font-bold text-sm">
+   218→                <span>Total</span>
+   219→                <span>{formatETB(sale.total)}</span>
+   220→              </div>
+   221→              <div className="flex justify-between text-sm">
+   222→                <span className="text-muted-foreground">Payment</span>
+   223→                <span className="flex items-center gap-1">
+   224→                  {paymentMethodIcon(sale.paymentMethod)}
+   225→                  {paymentMethodLabel(sale.paymentMethod)}
+   226→                </span>
+   227→              </div>
+   228→              {sale.paymentMethod === 'credit' && (
+   229→                <div className="flex justify-between text-sm">
+   230→                  <span className="text-muted-foreground">Amount Paid</span>
+   231→                  <span>{formatETB(sale.amountPaid)}</span>
+   232→                </div>
+   233→              )}
+   234→              {sale.status && (
+   235→                <div className="flex justify-between text-sm">
+   236→                  <span className="text-muted-foreground">Status</span>
+   237→                  {<StatusBadge status={sale.status} />}
+   238→                </div>
+   239→              )}
+   240→            </div>
+   241→          </div>
+   242→
+   243→          {sale.notes && (
+   244→            <div>
+   245→              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Notes</p>
+   246→              <p className="text-sm">{sale.notes}</p>
+   247→            </div>
+   248→          )}
+   249→        </div>
+   250→
+   251→        {/* Action buttons */}
+   252→        <div className="flex flex-wrap justify-end gap-2 print:hidden mt-4">
+   253→          <Button variant="outline" onClick={onClose}>Close</Button>
+   254→          <Button variant="outline" onClick={() => {
+   255→            window.open(`/api/sales/${sale.id}/receipt?orgId=${sale.organizationId}`, '_blank')
+   256→          }}>
+   257→            <Download className="size-4 mr-1" /> Receipt
+   258→          </Button>
+   259→          <Button variant="outline" onClick={() => {
+   260→            window.open(`/api/sales/${sale.id}/invoice?orgId=${sale.organizationId}`, '_blank')
+   261→          }}>
+   262→            <FileText className="size-4 mr-1" /> Invoice
+   263→          </Button>
+   264→          <Button onClick={handlePrint}>
+   265→            <Printer className="size-4 mr-1" /> Print
+   266→          </Button>
+   267→        </div>
+   268→      </DialogContent>
+   269→    </Dialog>
+   270→  )
+   271→}
+   272→
+   273→// ============================================
+   274→// All Sales Tab
+   275→// ============================================
+   276→function AllSalesTab({
+   277→  orgId,
+   278→  shopId,
+   279→  onViewSale,
+   280→  onCreateSale,
+   281→}: {
+   282→  orgId: string
+   283→  shopId?: string
+   284→  onViewSale: (sale: Sale) => void
+   285→  onCreateSale: () => void
+   286→}) {
+   287→  const [sales, setSales] = useState<Sale[]>([])
+   288→  const [loading, setLoading] = useState(true)
+   289→  const [error, setError] = useState<string | null>(null)
+   290→  const [search, setSearch] = useState('')
+   291→  const [filterStatus, setFilterStatus] = useState<string>('all')
+   292→  const [filterPayment, setFilterPayment] = useState<string>('all')
+   293→  const [page, setPage] = useState(1)
+   294→  const [totalPages, setTotalPages] = useState(1)
+   295→
+   296→  const fetchSales = useCallback(async () => {
+   297→    setLoading(true)
+   298→    setError(null)
+   299→    try {
+   300→      const res = await api.getSales(orgId, {
+   301→        status: filterStatus !== 'all' ? filterStatus : undefined,
+   302→        page,
+   303→        limit: 10,
+   304→        shopId,
+   305→      })
+   306→      setSales(res.sales)
+   307→      setTotalPages(res.pagination.totalPages)
+   308→    } catch (err) {
+   309→      const msg = getNetworkErrorMessage(err)
+   310→      setError(msg)
+   311→      toast.error(msg)
+   312→    } finally {
+   313→      setLoading(false)
+   314→    }
+   315→  }, [orgId, filterStatus, page, shopId])
+   316→
+   317→  useEffect(() => {
+   318→    fetchSales()
+   319→  }, [fetchSales])
+   320→
+   321→  const filteredSales = sales.filter((s) => {
+   322→    if (filterPayment !== 'all' && s.paymentMethod !== filterPayment) return false
+   323→    if (search) {
+   324→      const q = search.toLowerCase()
+   325→      const matchInvoice = s.invoiceNumber.toLowerCase().includes(q)
+   326→      const matchCustomer = s.customer?.name.toLowerCase().includes(q)
+   327→      if (!matchInvoice && !matchCustomer) return false
+   328→    }
+   329→    return true
+   330→  })
+   331→
+   332→  if (loading) {
+   333→    return (
+   334→      <div className="space-y-4">
+   335→        <div className="flex flex-col sm:flex-row gap-3">
+   336→          <Skeleton className="h-10 flex-1" />
+   337→          <Skeleton className="h-10 w-36" />
+   338→          <Skeleton className="h-10 w-36" />
+   339→        </div>
+   340→        {Array.from({ length: 5 }).map((_, i) => (
+   341→          <Skeleton key={i} className="h-14" />
+   342→        ))}
+   343→      </div>
+   344→    )
+   345→  }
+   346→
+   347→  if (error && sales.length === 0) {
+   348→    return <ErrorState title="Failed to load sales" message={error} onRetry={fetchSales} />
+   349→  }
+   350→
+   351→  return (
+   352→    <div className="space-y-4">
+   353→      {/* Filters */}
+   354→      <div className="flex flex-col sm:flex-row gap-3">
+   355→        <div className="relative flex-1">
+   356→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   357→          <Input
+   358→            placeholder="Search by invoice # or customer..."
+   359→            className="pl-9"
+   360→            value={search}
+   361→            onChange={(e) => setSearch(e.target.value)}
+   362→          />
+   363→        </div>
+   364→        <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1) }}>
+   365→          <SelectTrigger className="w-full sm:w-40">
+   366→            <SelectValue placeholder="Status" />
+   367→          </SelectTrigger>
+   368→          <SelectContent>
+   369→            <SelectItem value="all">All Status</SelectItem>
+   370→            <SelectItem value="completed">Completed</SelectItem>
+   371→            <SelectItem value="pending">Pending</SelectItem>
+   372→            <SelectItem value="cancelled">Cancelled</SelectItem>
+   373→          </SelectContent>
+   374→        </Select>
+   375→        <Select value={filterPayment} onValueChange={setFilterPayment}>
+   376→          <SelectTrigger className="w-full sm:w-40">
+   377→            <SelectValue placeholder="Payment" />
+   378→          </SelectTrigger>
+   379→          <SelectContent>
+   380→            <SelectItem value="all">All Payment</SelectItem>
+   381→            <SelectItem value="cash">Cash</SelectItem>
+   382→            <SelectItem value="card">Card</SelectItem>
+   383→            <SelectItem value="mobile_money">Mobile Money</SelectItem>
+   384→            <SelectItem value="credit">Credit</SelectItem>
+   385→          </SelectContent>
+   386→        </Select>
+   387→      </div>
+   388→
+   389→      {/* Empty state or Table */}
+   390→      {!loading && filteredSales.length === 0 ? (
+   391→        <EmptyState
+   392→          title={search || filterStatus !== 'all' || filterPayment !== 'all' ? 'No sales match your filters' : 'No sales yet'}
+   393→          message={search || filterStatus !== 'all' || filterPayment !== 'all'
+   394→            ? 'Try adjusting your search or filters'
+   395→            : 'Create your first sale to start tracking transactions'}
+   396→          icon={<ShoppingCart className="size-7 text-muted-foreground" />}
+   397→          {...((!search && filterStatus === 'all' && filterPayment === 'all') ? { action: { label: 'Create Sale', onClick: onCreateSale } } : {})}
+   398→        />
+   399→      ) : (
+   400→      <div className="rounded-lg border overflow-hidden">
+   401→        {/* Desktop table */}
+   402→        <div className="hidden md:block overflow-x-auto">
+   403→          <Table>
+   404→            <TableHeader>
+   405→              <TableRow>
+   406→                <TableHead>Invoice #</TableHead>
+   407→                <TableHead>Customer</TableHead>
+   408→                <TableHead className="text-center">Items</TableHead>
+   409→                <TableHead className="text-right">Subtotal</TableHead>
+   410→                <TableHead className="text-right">Discount</TableHead>
+   411→                <TableHead className="text-right">Total</TableHead>
+   412→                <TableHead>Payment</TableHead>
+   413→                <TableHead>Status</TableHead>
+   414→                <TableHead>Date</TableHead>
+   415→                <TableHead className="text-right">Actions</TableHead>
+   416→              </TableRow>
+   417→            </TableHeader>
+   418→            <TableBody>
+   419→              {(
+   420→                filteredSales.map((sale) => (
+   421→                  <TableRow key={sale.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onViewSale(sale)}>
+   422→                    <TableCell className="font-medium font-mono text-sm">{sale.invoiceNumber}</TableCell>
+   423→                    <TableCell className="text-sm">{sale.customer?.name || 'Walk-in'}</TableCell>
+   424→                    <TableCell className="text-center text-sm">{sale.items?.length ?? 0}</TableCell>
+   425→                    <TableCell className="text-right text-sm">{formatETB(sale.subtotal)}</TableCell>
+   426→                    <TableCell className="text-right text-sm">{sale.discount > 0 ? formatETB(sale.discount) : '—'}</TableCell>
+   427→                    <TableCell className="text-right text-sm font-medium">{formatETB(sale.total)}</TableCell>
+   428→                    <TableCell>
+   429→                      <div className="flex items-center gap-1.5 text-sm">
+   430→                        {paymentMethodIcon(sale.paymentMethod)}
+   431→                        {paymentMethodLabel(sale.paymentMethod)}
+   432→                      </div>
+   433→                    </TableCell>
+   434→                    <TableCell>{<StatusBadge status={sale.status} />}</TableCell>
+   435→                    <TableCell className="text-sm whitespace-nowrap">{formatDateShort(sale.saleDate)}</TableCell>
+   436→                    <TableCell className="text-right">
+   437→                      <div className="flex items-center justify-end gap-1">
+   438→                        <Button size="sm" variant="ghost" className="min-h-9 min-w-9" onClick={(e) => { e.stopPropagation(); onViewSale(sale) }} title="View Details">
+   439→                          <Eye className="size-4" />
+   440→                        </Button>
+   441→                        <Button size="sm" variant="ghost" className="min-h-9 min-w-9" onClick={(e) => { e.stopPropagation(); window.open(`/api/sales/${sale.id}/receipt?orgId=${orgId}`, '_blank') }} title="Download Receipt">
+   442→                          <Download className="size-4" />
+   443→                        </Button>
+   444→                        <Button size="sm" variant="ghost" className="min-h-9 min-w-9" onClick={(e) => { e.stopPropagation(); window.open(`/api/sales/${sale.id}/invoice?orgId=${orgId}`, '_blank') }} title="Print Invoice">
+   445→                          <FileText className="size-4" />
+   446→                        </Button>
+   447→                      </div>
+   448→                    </TableCell>
+   449→                  </TableRow>
+   450→                ))
+   451→              )}
+   452→            </TableBody>
+   453→          </Table>
+   454→        </div>
+   455→        {/* Mobile card view */}
+   456→        <div className="md:hidden space-y-3 p-3">
+   457→          {filteredSales.map((sale) => (
+   458→            <Card key={sale.id} className="p-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onViewSale(sale)}>
+   459→              <div className="flex items-start justify-between mb-2">
+   460→                <div className="min-w-0 flex-1">
+   461→                  <p className="font-semibold text-sm">{sale.invoiceNumber}</p>
+   462→                  <p className="text-xs text-muted-foreground">
+   463→                    {sale.customer?.name || 'Walk-in'} · {sale.items?.length ?? 0} item{(sale.items?.length ?? 0) !== 1 ? 's' : ''}
+   464→                  </p>
+   465→                </div>
+   466→                <div className="flex items-center gap-2">
+   467→                  {<StatusBadge status={sale.status} />}
+   468→                </div>
+   469→              </div>
+   470→              <div className="flex items-center justify-between mt-2">
+   471→                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   472→                  {paymentMethodIcon(sale.paymentMethod)}
+   473→                  {paymentMethodLabel(sale.paymentMethod)}
+   474→                  <span>· {formatDateShort(sale.saleDate)}</span>
+   475→                </div>
+   476→                <span className="font-bold text-sm">{formatETB(sale.total)}</span>
+   477→              </div>
+   478→              <div className="flex items-center gap-1.5 mt-2">
+   479→                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); window.open(`/api/sales/${sale.id}/receipt?orgId=${orgId}`, '_blank') }}>
+   480→                  <Download className="size-3" /> Receipt
+   481→                </Button>
+   482→                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); window.open(`/api/sales/${sale.id}/invoice?orgId=${orgId}`, '_blank') }}>
+   483→                  <FileText className="size-3" /> Invoice
+   484→                </Button>
+   485→              </div>
+   486→            </Card>
+   487→          ))}
+   488→        </div>
+   489→      </div>
+   490→      )}
+   491→
+   492→      {/* Pagination */}
+   493→      {totalPages > 1 && (
+   494→        <div className="flex items-center justify-between">
+   495→          <p className="text-xs sm:text-sm text-muted-foreground">Page {page} of {totalPages}</p>
+   496→          <div className="flex gap-2">
+   497→            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)} className="h-9 min-w-9">
+   498→              <ChevronLeft className="size-4" />
+   499→            </Button>
+   500→            <Button size="sm" variant="outline" disabled={page >= totalPages} onClick={() => setPage(page + 1)} className="h-9 min-w-9">
+   501→              <ChevronRight className="size-4" />
+   502→            </Button>
+   503→          </div>
+   504→        </div>
+   505→      )}
+   506→    </div>
+   507→  )
+   508→}
+   509→
+   510→// ============================================
+   511→// Create Sale Form
+   512→// ============================================
+   513→
+   514→function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId?: string; onSaleCreated: () => void }) {
+   515→  const [customers, setCustomers] = useState<Customer[]>([])
+   516→  const [products, setProducts] = useState<Product[]>([])
+   517→  const [loading, setLoading] = useState(true)
+   518→  const [submitting, setSubmitting] = useState(false)
+   519→  const [showNewCustomer, setShowNewCustomer] = useState(false)
+   520→  const [customerSearch, setCustomerSearch] = useState('')
+   521→  const [fetchError, setFetchError] = useState<string | null>(null)
+   522→
+   523→  const form = useForm<SaleFormData>({
+   524→    resolver: zodResolver(saleSchema),
+   525→    defaultValues: {
+   526→      customerId: '',
+   527→      newCustomerName: '',
+   528→      newCustomerPhone: '',
+   529→      items: [],
+   530→      discount: 0,
+   531→      tax: 0,
+   532→      paymentMethod: 'cash',
+   533→      amountPaid: 0,
+   534→      notes: '',
+   535→    },
+   536→  })
+   537→
+   538→  const { fields, append, remove } = useFieldArray({ control: form.control, name: 'items' })
+   539→
+   540→  // Live computed values
+   541→  const watchedItems = form.watch('items')
+   542→  const watchedDiscount = form.watch('discount')
+   543→  const watchedTax = form.watch('tax')
+   544→  const watchedPaymentMethod = form.watch('paymentMethod')
+   545→  const watchedAmountPaid = form.watch('amountPaid')
+   546→
+   547→  const subtotal = watchedItems.reduce((acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0), 0)
+   548→  const discountVal = Number(watchedDiscount) || 0
+   549→  const taxVal = Number(watchedTax) || 0
+   550→  const grandTotal = subtotal - discountVal + taxVal
+   551→
+   552→  const filteredCustomers = customers.filter(c =>
+   553→    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+   554→    (c.phone && c.phone.includes(customerSearch))
+   555→  )
+   556→
+   557→  useEffect(() => {
+   558→    const fetchData = async () => {
+   559→      setFetchError(null)
+   560→      try {
+   561→        const [custRes, prodRes] = await Promise.all([
+   562→          api.getCustomers(orgId, { limit: 100, shopId }),
+   563→          api.getProducts(orgId, { limit: 100, shopId }),
+   564→        ])
+   565→        setCustomers(custRes.customers)
+   566→        setProducts(prodRes.products.filter(p => p.isActive && p.quantity > 0))
+   567→      } catch (err) {
+   568→        const msg = getNetworkErrorMessage(err)
+   569→        setFetchError(msg)
+   570→        toast.error(msg)
+   571→      } finally {
+   572→        setLoading(false)
+   573→      }
+   574→    }
+   575→    fetchData()
+   576→  }, [orgId, shopId])
+   577→
+   578→  const handleFormSubmit = async (data: SaleFormData) => {
+   579→    // Additional business validation beyond Zod: stock availability & new customer name
+   580→    let hasErrors = false
+   581→
+   582→    // Check stock availability for each item
+   583→    for (let i = 0; i < data.items.length; i++) {
+   584→      const item = data.items[i]
+   585→      const product = products.find(p => p.id === item.productId)
+   586→      if (product && item.quantity > product.quantity) {
+   587→        form.setError(`items.${i}.quantity` as const, {
+   588→          message: `Exceeds stock (${product.quantity} available)`,
+   589→        })
+   590→        hasErrors = true
+   591→      }
+   592→    }
+   593→
+   594→    // Validate new customer name when toggled
+   595→    if (showNewCustomer && !data.newCustomerName?.trim()) {
+   596→      form.setError('newCustomerName', { message: 'Customer name is required' })
+   597→      hasErrors = true
+   598→    }
+   599→
+   600→    if (hasErrors) {
+   601→      toast.error('Please fix the errors in the form')
+   602→      return
+   603→    }
+   604→
+   605→    setSubmitting(true)
+   606→    try {
+   607→      // Create customer inline if needed
+   608→      let finalCustomerId = data.customerId
+   609→      if (showNewCustomer && data.newCustomerName?.trim()) {
+   610→        const custRes = await api.createCustomer(orgId, {
+   611→          name: data.newCustomerName.trim(),
+   612→          phone: data.newCustomerPhone?.trim() || undefined,
+   613→          shopId,
+   614→        })
+   615→        finalCustomerId = custRes.customer.id
+   616→      }
+   617→
+   618→      await api.createSale(orgId, {
+   619→        customerId: finalCustomerId || undefined,
+   620→        items: data.items,
+   621→        paymentMethod: data.paymentMethod,
+   622→        discount: data.discount ?? 0,
+   623→        tax: data.tax ?? 0,
+   624→        amountPaid: data.paymentMethod === 'credit' ? (data.amountPaid ?? 0) : grandTotal,
+   625→        notes: data.notes?.trim() || undefined,
+   626→        shopId,
+   627→      })
+   628→
+   629→      toast.success('Sale completed successfully!')
+   630→      onSaleCreated()
+   631→
+   632→      // Reset form
+   633→      form.reset()
+   634→      setShowNewCustomer(false)
+   635→    } catch (err: unknown) {
+   636→      toast.error(getNetworkErrorMessage(err))
+   637→    } finally {
+   638→      setSubmitting(false)
+   639→    }
+   640→  }
+   641→
+   642→  if (loading) {
+   643→    return (
+   644→      <div className="space-y-4">
+   645→        <Skeleton className="h-10 w-full" />
+   646→        <Skeleton className="h-32 w-full" />
+   647→        <Skeleton className="h-40 w-full" />
+   648→      </div>
+   649→    )
+   650→  }
+   651→
+   652→  if (fetchError && customers.length === 0 && products.length === 0) {
+   653→    return <ErrorState title="Failed to load data" message={fetchError} onRetry={() => window.location.reload()} />
+   654→  }
+   655→
+   656→  return (
+   657→    <Form {...form}>
+   658→      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+   659→        {/* Customer Selection */}
+   660→        <Card>
+   661→          <CardHeader className="pb-3">
+   662→            <CardTitle className="text-sm font-semibold">Customer</CardTitle>
+   663→          </CardHeader>
+   664→          <CardContent className="space-y-3">
+   665→            {showNewCustomer ? (
+   666→              <div className="space-y-3">
+   667→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   668→                  <FormInputField name="newCustomerName" label="Name" placeholder="Customer name" required />
+   669→                  <FormInputField name="newCustomerPhone" label="Phone" placeholder="Phone number" type="tel" />
+   670→                </div>
+   671→                <Button type="button" variant="ghost" size="sm" onClick={() => setShowNewCustomer(false)}>
+   672→                  Cancel — Select existing customer
+   673→                </Button>
+   674→              </div>
+   675→            ) : (
+   676→              <div className="flex flex-col sm:flex-row gap-4">
+   677→                <div className="flex-1 relative">
+   678→                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   679→                  <Input
+   680→                    placeholder="Search customers..."
+   681→                    className="pl-9"
+   682→                    value={customerSearch}
+   683→                    onChange={(e) => setCustomerSearch(e.target.value)}
+   684→                  />
+   685→                </div>
+   686→                <FormField
+   687→                  name="customerId"
+   688→                  render={({ field }) => (
+   689→                    <FormItem className="w-full sm:w-64">
+   690→                      <Select value={field.value || ''} onValueChange={field.onChange}>
+   691→                        <FormControl>
+   692→                          <SelectTrigger>
+   693→                            <SelectValue placeholder="Select customer" />
+   694→                          </SelectTrigger>
+   695→                        </FormControl>
+   696→                        <SelectContent>
+   697→                          <SelectItem value="walk-in">Walk-in Customer</SelectItem>
+   698→                          {filteredCustomers.map((c) => (
+   699→                            <SelectItem key={c.id} value={c.id}>{c.name}{c.phone ? ` (${c.phone})` : ''}</SelectItem>
+   700→                          ))}
+   701→                        </SelectContent>
+   702→                      </Select>
+   703→                      <FormMessage />
+   704→                    </FormItem>
+   705→                  )}
+   706→                />
+   707→                <Button type="button" variant="outline" size="sm" onClick={() => setShowNewCustomer(true)}>
+   708→                  <Plus className="size-4 mr-1" /> New
+   709→                </Button>
+   710→              </div>
+   711→            )}
+   712→          </CardContent>
+   713→        </Card>
+   714→
+   715→        {/* Items */}
+   716→        <Card>
+   717→          <CardHeader className="pb-3">
+   718→            <div className="flex items-center justify-between">
+   719→              <CardTitle className="text-sm font-semibold">Items</CardTitle>
+   720→              <Button type="button" size="sm" onClick={() => append({ productId: '', quantity: 1, unitPrice: 0 })}>
+   721→                <Plus className="size-4 mr-1" /> Add Item
+   722→              </Button>
+   723→            </div>
+   724→          </CardHeader>
+   725→          <CardContent className="space-y-3">
+   726→            {fields.length === 0 ? (
+   727→              <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
+   728→                <ShoppingCart className="size-8 mx-auto mb-2 opacity-50" />
+   729→                <p className="text-sm">No items added yet. Click &quot;Add Item&quot; to start.</p>
+   730→                {form.formState.errors.items?.root && (
+   731→                  <p className="text-sm text-destructive mt-1">{form.formState.errors.items.root.message}</p>
+   732→                )}
+   733→                {form.formState.errors.items?.message && (
+   734→                  <p className="text-sm text-destructive mt-1">{form.formState.errors.items.message}</p>
+   735→                )}
+   736→              </div>
+   737→            ) : (
+   738→              <div className="space-y-3">
+   739→                {fields.map((field, index) => {
+   740→                  const itemData = watchedItems[index]
+   741→                  const itemTotal = (Number(itemData?.quantity) || 0) * (Number(itemData?.unitPrice) || 0)
+   742→                  const selectedProduct = products.find(p => p.id === itemData?.productId)
+   743→                  return (
+   744→                    <div key={field.id} className="border rounded-lg p-3">
+   745→                      <div className="space-y-1 mb-3">
+   746→                        <FormLabel className="text-xs">Product</FormLabel>
+   747→                        <FormField
+   748→                          name={`items.${index}.productId`}
+   749→                          render={({ field: productField }) => (
+   750→                            <FormItem>
+   751→                              <Select
+   752→                                value={productField.value}
+   753→                                onValueChange={(val) => {
+   754→                                  productField.onChange(val)
+   755→                                  const product = products.find(p => p.id === val)
+   756→                                  if (product) {
+   757→                                    form.setValue(`items.${index}.unitPrice`, product.sellingPrice)
+   758→                                  }
+   759→                                }}
+   760→                              >
+   761→                                <FormControl>
+   762→                                  <SelectTrigger>
+   763→                                    <SelectValue placeholder="Select product" />
+   764→                                  </SelectTrigger>
+   765→                                </FormControl>
+   766→                                <SelectContent>
+   767→                                  {products.map((p) => (
+   768→                                    <SelectItem key={p.id} value={p.id}>
+   769→                                      {p.name} (Stock: {p.quantity}) — {formatETB(p.sellingPrice)}
+   770→                                    </SelectItem>
+   771→                                  ))}
+   772→                                </SelectContent>
+   773→                              </Select>
+   774→                              <FormMessage />
+   775→                            </FormItem>
+   776→                          )}
+   777→                        />
+   778→                      </div>
+   779→                      <div className="grid grid-cols-12 gap-2 items-end">
+   780→                        <div className="col-span-4 sm:col-span-3 space-y-1">
+   781→                          <FormLabel className="text-xs">Qty</FormLabel>
+   782→                          <FormField
+   783→                            name={`items.${index}.quantity`}
+   784→                            render={({ field: qtyField }) => (
+   785→                              <FormItem>
+   786→                                <FormControl>
+   787→                                  <Input
+   788→                                    type="number"
+   789→                                    min="1"
+   790→                                    max={selectedProduct?.quantity}
+   791→                                    value={qtyField.value}
+   792→                                    onChange={(e) => {
+   793→                                      qtyField.onChange(e.target.value === '' ? '' : e.target.value)
+   794→                                    }}
+   795→                                  />
+   796→                                </FormControl>
+   797→                                <FormMessage />
+   798→                              </FormItem>
+   799→                            )}
+   800→                          />
+   801→                        </div>
+   802→                        <div className="col-span-4 sm:col-span-3 space-y-1">
+   803→                          <FormLabel className="text-xs">Price</FormLabel>
+   804→                          <FormField
+   805→                            name={`items.${index}.unitPrice`}
+   806→                            render={({ field: priceField }) => (
+   807→                              <FormItem>
+   808→                                <FormControl>
+   809→                                  <Input
+   810→                                    type="number"
+   811→                                    min="0"
+   812→                                    step="0.01"
+   813→                                    value={priceField.value}
+   814→                                    onChange={(e) => {
+   815→                                      priceField.onChange(e.target.value === '' ? '' : e.target.value)
+   816→                                    }}
+   817→                                  />
+   818→                                </FormControl>
+   819→                                <FormMessage />
+   820→                              </FormItem>
+   821→                            )}
+   822→                          />
+   823→                        </div>
+   824→                        <div className="col-span-3 sm:col-span-4 space-y-1">
+   825→                          <FormLabel className="text-xs">Total</FormLabel>
+   826→                          <p className="text-sm font-bold py-2 truncate">{formatETB(itemTotal)}</p>
+   827→                        </div>
+   828→                        <div className="col-span-1 flex justify-end">
+   829→                          <Button type="button" size="icon" variant="ghost" className="text-destructive size-9 min-w-9 min-h-9" onClick={() => remove(index)}>
+   830→                            <Trash2 className="size-4" />
+   831→                          </Button>
+   832→                        </div>
+   833→                      </div>
+   834→                    </div>
+   835→                  )
+   836→                })}
+   837→              </div>
+   838→            )}
+   839→          </CardContent>
+   840→        </Card>
+   841→
+   842→        {/* Totals & Payment */}
+   843→        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   844→          {/* Totals */}
+   845→          <Card>
+   846→            <CardHeader className="pb-3">
+   847→                <CardTitle className="text-sm font-semibold">Summary</CardTitle>
+   848→            </CardHeader>
+   849→            <CardContent className="space-y-3">
+   850→              <div className="space-y-2">
+   851→                <div className="flex justify-between text-sm">
+   852→                  <span className="text-muted-foreground">Subtotal</span>
+   853→                  <span className="font-medium">{formatETB(subtotal)}</span>
+   854→                </div>
+   855→                <div className="grid grid-cols-2 gap-3">
+   856→                  <FormInputField name="discount" label="Discount (ETB)" type="number" min={0} step="0.01" inputClassName="text-xs" />
+   857→                  <FormInputField name="tax" label="Tax (ETB)" type="number" min={0} step="0.01" inputClassName="text-xs" />
+   858→                </div>
+   859→                <Separator />
+   860→                <div className="flex justify-between text-sm font-semibold">
+   861→                  <span>Grand Total</span>
+   862→                  <span>{formatETB(grandTotal)}</span>
+   863→                </div>
+   864→              </div>
+   865→            </CardContent>
+   866→          </Card>
+   867→
+   868→          {/* Payment */}
+   869→          <Card>
+   870→            <CardHeader className="pb-3">
+   871→              <CardTitle className="text-sm font-semibold">Payment</CardTitle>
+   872→            </CardHeader>
+   873→            <CardContent className="space-y-4">
+   874→              <FormField
+   875→                name="paymentMethod"
+   876→                render={({ field }) => (
+   877→                  <FormItem>
+   878→                    <FormLabel>Payment Method</FormLabel>
+   879→                    <Select value={field.value} onValueChange={field.onChange}>
+   880→                      <FormControl>
+   881→                        <SelectTrigger>
+   882→                          <SelectValue />
+   883→                        </SelectTrigger>
+   884→                      </FormControl>
+   885→                      <SelectContent>
+   886→                        <SelectItem value="cash">
+   887→                          <span className="flex items-center gap-2"><Banknote className="size-4" /> Cash</span>
+   888→                        </SelectItem>
+   889→                        <SelectItem value="card">
+   890→                          <span className="flex items-center gap-2"><CreditCard className="size-4" /> Card</span>
+   891→                        </SelectItem>
+   892→                        <SelectItem value="mobile_money">
+   893→                          <span className="flex items-center gap-2"><Smartphone className="size-4" /> Mobile Money</span>
+   894→                        </SelectItem>
+   895→                        <SelectItem value="credit">
+   896→                          <span className="flex items-center gap-2"><Receipt className="size-4" /> Credit</span>
+   897→                        </SelectItem>
+   898→                      </SelectContent>
+   899→                    </Select>
+   900→                    <FormMessage />
+   901→                  </FormItem>
+   902→                )}
+   903→              />
+   904→
+   905→              {watchedPaymentMethod === 'credit' && (
+   906→                <div className="space-y-2">
+   907→                  <FormInputField name="amountPaid" label="Amount Paid Now (ETB)" type="number" min={0} step="0.01" />
+   908→                  {grandTotal > 0 && (
+   909→                    <p className="text-xs text-muted-foreground">
+   910→                      Remaining debt: {formatETB(grandTotal - (Number(watchedAmountPaid) || 0))}
+   911→                    </p>
+   912→                  )}
+   913→                </div>
+   914→              )}
+   915→
+   916→              <FormTextareaField name="notes" label="Notes" placeholder="Optional notes for this sale..." rows={3} />
+   917→            </CardContent>
+   918→          </Card>
+   919→        </div>
+   920→
+   921→        {/* Submit */}
+   922→        <div className="flex justify-end sm:justify-end">
+   923→          <Button
+   924→            type="submit"
+   925→            size="lg"
+   926→            disabled={submitting || fields.length === 0}
+   927→            className="w-full sm:w-auto sm:min-w-40"
+   928→          >
+   929→            {submitting && <Loader2 className="size-4 animate-spin mr-2" />}
+   930→            {submitting ? 'Processing...' : (
+   931→              <>
+   932→                <ShoppingCart className="size-4 mr-2" />
+   933→                Complete Sale
+   934→              </>
+   935→            )}
+   936→          </Button>
+   937→        </div>
+   938→      </form>
+   939→    </Form>
+   940→  )
+   941→}
+   942→
+   943→// ============================================
+   944→// Main Sales Page
+   945→// ============================================
+   946→export function SalesPage() {
+   947→  const { currentOrg, currentShop } = useAuthStore()
+   948→  const orgId = currentOrg?.id || ''
+   949→  const orgName = currentOrg?.name || 'Business'
+   950→
+   951→  const [allSales, setAllSales] = useState<Sale[]>([])
+   952→  const [loading, setLoading] = useState(true)
+   953→  const [pageError, setPageError] = useState<string | null>(null)
+   954→  const [activeTab, setActiveTab] = useState('all')
+   955→  const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
+   956→  const [saleDetailOpen, setSaleDetailOpen] = useState(false)
+   957→
+   958→  const fetchSales = useCallback(async () => {
+   959→    if (!orgId) return
+   960→    setPageError(null)
+   961→    try {
+   962→      const res = await api.getSales(orgId, { limit: 100, shopId: currentShop?.id })
+   963→      setAllSales(res.sales)
+   964→    } catch (err) {
+   965→      const msg = getNetworkErrorMessage(err)
+   966→      setPageError(msg)
+   967→      toast.error(msg)
+   968→    } finally {
+   969→      setLoading(false)
+   970→    }
+   971→  }, [orgId, currentShop?.id])
+   972→
+   973→  useEffect(() => {
+   974→    fetchSales()
+   975→  }, [fetchSales])
+   976→
+   977→  const handleViewSale = async (sale: Sale) => {
+   978→    try {
+   979→      const res = await api.getSale(sale.id, orgId)
+   980→      setSelectedSale(res.sale)
+   981→      setSaleDetailOpen(true)
+   982→    } catch (err) {
+   983→      // Fallback to using the sale data from the list
+   984→      setSelectedSale(sale)
+   985→      setSaleDetailOpen(true)
+   986→      toast.error(getNetworkErrorMessage(err))
+   987→    }
+   988→  }
+   989→
+   990→  const handleSaleCreated = () => {
+   991→    fetchSales()
+   992→    setActiveTab('all')
+   993→  }
+   994→
+   995→  if (loading) {
+   996→    return (
+   997→      <div className="space-y-6">
+   998→        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   999→          {Array.from({ length: 4 }).map((_, i) => (
+  1000→            <Skeleton key={i} className="h-20" />
+  1001→          ))}
+  1002→        </div>
+  1003→        <Skeleton className="h-10 w-64" />
+  1004→        {Array.from({ length: 5 }).map((_, i) => (
+  1005→          <Skeleton key={i} className="h-14" />
+  1006→        ))}
+  1007→      </div>
+  1008→    )
+  1009→  }
+  1010→
+  1011→  if (pageError && allSales.length === 0) {
+  1012→    return (
+  1013→      <div className="space-y-6">
+  1014→        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+  1015→          <div>
+  1016→            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Sales</h1>
+  1017→            <p className="text-muted-foreground text-sm mt-1">Record sales, view transactions, and manage invoices.</p>
+  1018→          </div>
+  1019→        </div>
+  1020→        <ErrorState title="Failed to load sales data" message={pageError} onRetry={fetchSales} />
+  1021→      </div>
+  1022→    )
+  1023→  }
+  1024→
+  1025→  return (
+  1026→    <div className="space-y-6">
+  1027→      {/* Header */}
+  1028→      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+  1029→        <div>
+  1030→          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Sales</h1>
+  1031→          <p className="text-muted-foreground text-sm mt-1">Record sales, view transactions, and manage invoices.</p>
+  1032→        </div>
+  1033→      </div>
+  1034→
+  1035→      {/* Stats */}
+  1036→      <SalesStatsCards sales={allSales} />
+  1037→
+  1038→      {/* Tabs */}
+  1039→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+  1040→        <TabsList>
+  1041→          <TabsTrigger value="all">
+  1042→            <ShoppingCart className="size-4 mr-1" /> All Sales
+  1043→          </TabsTrigger>
+  1044→          <TabsTrigger value="create">
+  1045→            <Plus className="size-4 mr-1" /> Create Sale
+  1046→          </TabsTrigger>
+  1047→        </TabsList>
+  1048→
+  1049→        <TabsContent value="all" className="mt-4">
+  1050→          <AllSalesTab orgId={orgId} shopId={currentShop?.id} onViewSale={handleViewSale} onCreateSale={() => setActiveTab('create')} />
+  1051→        </TabsContent>
+  1052→
+  1053→        <TabsContent value="create" className="mt-4">
+  1054→          <CreateSaleTab orgId={orgId} shopId={currentShop?.id} onSaleCreated={handleSaleCreated} />
+  1055→        </TabsContent>
+  1056→      </Tabs>
+  1057→
+  1058→      {/* Sale Detail Dialog */}
+  1059→      <SaleDetailDialog
+  1060→        open={saleDetailOpen}
+  1061→        onClose={() => setSaleDetailOpen(false)}
+  1062→        sale={selectedSale}
+  1063→        orgName={orgName}
+  1064→      />
+  1065→    </div>
+  1066→  )
+  1067→}
+  1068→

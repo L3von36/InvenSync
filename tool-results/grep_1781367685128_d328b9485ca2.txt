@@ -1,0 +1,238 @@
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:34:import { formatETB } from '@/lib/currency'
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:97:// formatETB is now imported from @/lib/currency (safe fallback for unsupported locales)
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:272:          value={formatETB(data?.revenue ?? 0)}
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:279:          value={formatETB(data?.costOfGoods ?? 0)}
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:286:          value={formatETB(data?.grossProfit ?? 0)}
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:301:          value={formatETB(data?.expenses ?? 0)}
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:308:          value={formatETB(data?.netProfit ?? 0)}
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:350:                      formatter={(value: number) => formatETB(value)}
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:401:                        <Tooltip formatter={(value: number) => formatETB(value)} />
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:417:                        <span className="text-sm font-semibold shrink-0">{formatETB(item.amount)}</span>
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:451:                      formatter={(value: number) => formatETB(value)}
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:507:                      <span>Revenue: {formatETB(product.revenue)}</span>
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:508:                      <span>Profit: {formatETB(product.profit)}</span>
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:538:                    <TableCell className="text-right truncate max-w-[130px]">{formatETB(product.revenue)}</TableCell>
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:539:                    <TableCell className="text-right truncate max-w-[130px]">{formatETB(product.cost)}</TableCell>
+/home/z/my-project/src/components/app/analytics/profit-loss-page.tsx:540:                    <TableCell className="text-right font-semibold truncate max-w-[130px]">{formatETB(product.profit)}</TableCell>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:34:function formatETB(amount: number): string {
+/home/z/my-project/src/components/app/sales/sales-page.tsx:106:    { title: "Today's Sales", value: formatETB(todayTotal), icon: ShoppingCart, color: 'text-primary', bg: 'bg-primary/10' },
+/home/z/my-project/src/components/app/sales/sales-page.tsx:107:    { title: 'This Week', value: formatETB(weekTotal), icon: Calendar, color: 'text-primary', bg: 'bg-brand-50 dark:bg-brand-900/20' },
+/home/z/my-project/src/components/app/sales/sales-page.tsx:108:    { title: 'This Month', value: formatETB(monthTotal), icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+/home/z/my-project/src/components/app/sales/sales-page.tsx:109:    { title: 'Avg Sale Value', value: formatETB(avgSale), icon: DollarSign, color: 'text-primary', bg: 'bg-primary/10' },
+/home/z/my-project/src/components/app/sales/sales-page.tsx:204:                      <TableCell className="text-right">{formatETB(item.unitPrice)}</TableCell>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:205:                      <TableCell className="text-right font-medium">{formatETB(item.total)}</TableCell>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:217:                    <p className="text-xs text-muted-foreground">{item.quantity} × {formatETB(item.unitPrice)}</p>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:219:                  <span className="font-semibold text-sm ml-3 shrink-0">{formatETB(item.total)}</span>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:230:                <span>{formatETB(sale.subtotal)}</span>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:235:                  <span className="text-red-600">-{formatETB(sale.discount)}</span>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:241:                  <span>{formatETB(sale.tax)}</span>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:247:                <span>{formatETB(sale.total)}</span>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:259:                  <span>{formatETB(sale.amountPaid)}</span>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:464:                    <TableCell className="text-right text-sm">{formatETB(sale.subtotal)}</TableCell>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:465:                    <TableCell className="text-right text-sm">{sale.discount > 0 ? formatETB(sale.discount) : '—'}</TableCell>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:466:                    <TableCell className="text-right text-sm font-medium">{formatETB(sale.total)}</TableCell>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:515:                <span className="font-bold text-sm">{formatETB(sale.total)}</span>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:808:                                      {p.name} (Stock: {p.quantity}) — {formatETB(p.sellingPrice)}
+/home/z/my-project/src/components/app/sales/sales-page.tsx:865:                          <p className="text-sm font-bold py-2 truncate">{formatETB(itemTotal)}</p>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:892:                  <span className="font-medium">{formatETB(subtotal)}</span>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:901:                  <span>{formatETB(grandTotal)}</span>
+/home/z/my-project/src/components/app/sales/sales-page.tsx:949:                      Remaining debt: {formatETB(grandTotal - (Number(watchedAmountPaid) || 0))}
+/home/z/my-project/src/components/app/inventory/inventory-page.tsx:14:import { formatETB } from '@/lib/currency'
+/home/z/my-project/src/components/app/inventory/inventory-page.tsx:56:    { title: 'Total Value', value: formatETB(stats?.totalRetailValue ?? 0), icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10' },
+/home/z/my-project/src/components/app/inventory/inventory-page.tsx:355:                    <TableCell className="text-sm">{formatETB(product.costPrice)}</TableCell>
+/home/z/my-project/src/components/app/inventory/inventory-page.tsx:356:                    <TableCell className="text-sm">{formatETB(product.sellingPrice)}</TableCell>
+/home/z/my-project/src/components/app/inventory/inventory-page.tsx:357:                    <TableCell className="text-sm font-medium">{formatETB(product.quantity * product.sellingPrice)}</TableCell>
+/home/z/my-project/src/components/app/inventory/inventory-page.tsx:395:                      <span>{formatETB(product.sellingPrice)}</span>
+/home/z/my-project/src/components/app/inventory/purchase-orders-page.tsx:375:  const formatCurrency = (amount: number) => {
+/home/z/my-project/src/components/app/inventory/purchase-orders-page.tsx:525:                          {formatCurrency(po.totalAmount)}
+/home/z/my-project/src/components/app/inventory/purchase-orders-page.tsx:613:                      <div className="font-medium text-foreground">Total: {formatCurrency(po.totalAmount)}</div>
+/home/z/my-project/src/components/app/inventory/purchase-orders-page.tsx:836:                        ? formatCurrency((parseInt(item.quantity) || 0) * (parseFloat(item.unitCost) || 0))
+/home/z/my-project/src/components/app/inventory/purchase-orders-page.tsx:865:                  Total: {formatCurrency(formTotal)}
+/home/z/my-project/src/components/app/inventory/purchase-orders-page.tsx:978:                          <TableCell className="text-right">{formatCurrency(item.unitCost)}</TableCell>
+/home/z/my-project/src/components/app/inventory/purchase-orders-page.tsx:979:                          <TableCell className="text-right font-medium">{formatCurrency(item.totalCost)}</TableCell>
+/home/z/my-project/src/components/app/inventory/purchase-orders-page.tsx:1013:                  Total: {formatCurrency(selectedPO.totalAmount)}
+/home/z/my-project/src/components/app/products/products-page.tsx:95:function formatCurrency(value: number): string {
+/home/z/my-project/src/components/app/products/products-page.tsx:749:              {formatCurrency(currentProduct.costPrice)}
+/home/z/my-project/src/components/app/products/products-page.tsx:757:              {formatCurrency(currentProduct.sellingPrice)}
+/home/z/my-project/src/components/app/products/products-page.tsx:765:              {formatCurrency(currentProduct.quantity * currentProduct.sellingPrice)}
+/home/z/my-project/src/components/app/products/products-page.tsx:1193:                        {formatCurrency(product.sellingPrice)}
+/home/z/my-project/src/components/app/products/products-page.tsx:1297:                            {formatCurrency(product.sellingPrice)}
+/home/z/my-project/src/components/app/expenses/expenses-page.tsx:15:import { formatETB } from '@/lib/currency'
+/home/z/my-project/src/components/app/expenses/expenses-page.tsx:315:                {isLoading ? <Skeleton className="h-9 w-32 inline-block" /> : formatETB(totalExpenses)}
+/home/z/my-project/src/components/app/expenses/expenses-page.tsx:344:                <Tooltip formatter={(value: number) => formatETB(value)} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+/home/z/my-project/src/components/app/expenses/expenses-page.tsx:430:                        <TableCell className="text-right font-semibold">{formatETB(expense.amount)}</TableCell>
+/home/z/my-project/src/components/app/expenses/expenses-page.tsx:477:                      <span className="font-semibold">{formatETB(expense.amount)}</span>
+/home/z/my-project/src/components/app/expenses/expenses-page.tsx:674:              Are you sure you want to delete this expense of {deleteTarget ? formatETB(deleteTarget.amount) : ''}?
+/home/z/my-project/src/components/app/services/services-page.tsx:40:function formatETB(amount: number): string {
+/home/z/my-project/src/components/app/services/services-page.tsx:288:                          {st.name} — {formatETB(st.price)} ({st.duration} min)
+/home/z/my-project/src/components/app/services/services-page.tsx:428:                      <span className="flex items-center gap-1"><DollarSign className="size-3.5" /> {formatETB(st.price)}</span>
+/home/z/my-project/src/components/app/suppliers/suppliers-page.tsx:34:import { formatETB } from '@/lib/currency'
+/home/z/my-project/src/components/app/suppliers/suppliers-page.tsx:282:                <p className="text-xl sm:text-2xl font-bold">{formatETB(totalOwedToSuppliers)}</p>
+/home/z/my-project/src/components/app/suppliers/suppliers-page.tsx:369:                          {formatETB(0)}
+/home/z/my-project/src/components/app/suppliers/suppliers-page.tsx:433:                      {formatETB(0)}
+/home/z/my-project/src/components/app/suppliers/suppliers-page.tsx:607:                      {formatETB(
+/home/z/my-project/src/components/app/suppliers/suppliers-page.tsx:647:                                  {formatETB(remaining)}
+/home/z/my-project/src/components/app/suppliers/suppliers-page.tsx:650:                                  of {formatETB(debt.amount)}
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:61:function formatETB(amount: number): string {
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:257:                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalCreditExtended)}</p>
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:270:                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalUsed)}</p>
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:283:                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalAvailable)}</p>
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:373:                          {formatETB(cl.creditLimit)}
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:377:                            {formatETB(cl.usedCredit)}
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:381:                          {formatETB(cl.availableCredit)}
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:487:                          {formatETB(cl.usedCredit)} of {formatETB(cl.creditLimit)}
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:501:                        <p className="text-sm font-medium">{formatETB(cl.creditLimit)}</p>
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:505:                        <p className={`text-sm font-medium ${getUsageColor(usagePct)}`}>{formatETB(cl.usedCredit)}</p>
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:509:                        <p className="text-sm font-medium text-emerald-600">{formatETB(cl.availableCredit)}</p>
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:597:                    <p className="font-medium">{formatETB(editLimit.creditLimit)}</p>
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:601:                    <p className="font-medium">{formatETB(editLimit.usedCredit)}</p>
+/home/z/my-project/src/components/app/customers/credit-limits-page.tsx:605:                    <p className="font-medium text-emerald-600">{formatETB(editLimit.availableCredit)}</p>
+/home/z/my-project/src/components/app/customers/customers-page.tsx:39:function formatETB(amount: number): string {
+/home/z/my-project/src/components/app/customers/customers-page.tsx:305:                <p className="text-xl sm:text-2xl font-bold">{formatETB(totalDebt)}</p>
+/home/z/my-project/src/components/app/customers/customers-page.tsx:407:                          {formatETB(0)}
+/home/z/my-project/src/components/app/customers/customers-page.tsx:471:                      {formatETB(0)}
+/home/z/my-project/src/components/app/customers/customers-page.tsx:652:                      {formatETB(
+/home/z/my-project/src/components/app/customers/customers-page.tsx:691:                                  {formatETB(remaining)}
+/home/z/my-project/src/components/app/customers/customers-page.tsx:694:                                  of {formatETB(debt.amount)}
+/home/z/my-project/src/components/app/customers/customers-page.tsx:725:                              <p className="text-sm font-bold">{formatETB(sale.total)}</p>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:31:import { formatETB, formatShortETB } from '@/lib/currency'
+/home/z/my-project/src/components/app/reports/reports-page.tsx:384:                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalRevenue || 0)}</p>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:410:                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.averageSaleValue || 0)}</p>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:439:                            formatter={(value: number) => formatETB(value)}
+/home/z/my-project/src/components/app/reports/reports-page.tsx:516:                              <TableCell className="text-right">{formatETB(row.revenue)}</TableCell>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:517:                              <TableCell className="text-right text-muted-foreground">{formatETB(row.cost)}</TableCell>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:520:                                  {formatETB(row.profit)}
+/home/z/my-project/src/components/app/reports/reports-page.tsx:550:                            <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatETB(row.revenue)}</span></div>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:551:                            <div><span className="text-muted-foreground">Cost:</span> <span className="text-muted-foreground">{formatETB(row.cost)}</span></div>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:552:                            <div><span className="text-muted-foreground">Profit:</span> <span className={`font-bold ${row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatETB(row.profit)}</span></div>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:594:                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalRevenue || 0)}</p>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:607:                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalCost || 0)}</p>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:620:                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalProfit || 0)}</p>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:664:                          formatter={(value: number) => formatETB(value)}
+/home/z/my-project/src/components/app/reports/reports-page.tsx:733:                              <TableCell className="text-right">{formatETB(row.revenue)}</TableCell>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:734:                              <TableCell className="text-right text-muted-foreground">{formatETB(row.cost)}</TableCell>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:737:                                  {formatETB(row.profit)}
+/home/z/my-project/src/components/app/reports/reports-page.tsx:793:                            <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatETB(row.revenue)}</span></div>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:794:                            <div><span className="text-muted-foreground">Cost:</span> <span className="text-muted-foreground">{formatETB(row.cost)}</span></div>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:795:                            <div><span className="text-muted-foreground">Profit:</span> <span className={`font-bold ${row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatETB(row.profit)}</span></div>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:840:                        <Tooltip formatter={(value: number) => formatETB(value)} />
+/home/z/my-project/src/components/app/reports/reports-page.tsx:906:                              <TableCell className="text-right">{formatETB(product.totalRevenue)}</TableCell>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:908:                                {formatETB(product.totalQuantity > 0 ? product.totalRevenue / product.totalQuantity : 0)}
+/home/z/my-project/src/components/app/reports/reports-page.tsx:936:                                <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatETB(product.totalRevenue)}</span></div>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:937:                                <div className="col-span-2"><span className="text-muted-foreground">Avg:</span> {formatETB(product.totalQuantity > 0 ? product.totalRevenue / product.totalQuantity : 0)}</div>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:981:                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:994:                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:1007:                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.potentialProfit || 0)}</p>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:1051:                      <Tooltip formatter={(value: number) => formatETB(value)} />
+/home/z/my-project/src/components/app/reports/reports-page.tsx:1071:                        <p className="text-sm font-semibold">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
+/home/z/my-project/src/components/app/reports/reports-page.tsx:1077:                        <p className="text-sm font-semibold">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
+/home/z/my-project/src/components/app/admin/admin-sales-team-page.tsx:16:import { formatETB, statusBadge, progressColor, progressTrackColor } from '@/lib/admin-utils'
+/home/z/my-project/src/components/app/admin/admin-sales-team-page.tsx:295:                      <span className="font-semibold text-orange-600 dark:text-orange-400">{formatETB(rep.commissionPerReg)}</span>
+/home/z/my-project/src/components/app/admin/admin-sales-team-page.tsx:303:                      <span className="font-semibold text-amber-600 dark:text-amber-400">{formatETB(rep.commissions.pending)}</span>
+/home/z/my-project/src/components/app/admin/admin-sales-team-page.tsx:578:                        <p className="text-base font-semibold text-orange-600 dark:text-orange-400">{goal ? formatETB(goal.bonusAmount) : 'ETB 0'}</p>
+/home/z/my-project/src/components/app/admin/admin-sales-team-page.tsx:590:                        <p className="font-semibold">{formatETB(rep.commissionPerReg)}/reg</p>
+/home/z/my-project/src/components/app/admin/admin-sales-team-page.tsx:779:                <p className="text-base font-semibold text-amber-600 dark:text-amber-400">{formatETB(summary.totalPending)}</p>
+/home/z/my-project/src/components/app/admin/admin-sales-team-page.tsx:792:                <p className="text-base font-semibold text-emerald-600 dark:text-emerald-400">{formatETB(summary.totalPaidThisMonth)}</p>
+/home/z/my-project/src/components/app/admin/admin-sales-team-page.tsx:866:                <p className="font-semibold text-sm">{formatETB(comm.amount)}</p>
+/home/z/my-project/src/components/app/admin/admin-sales-team-page.tsx:1000:                <p className="text-base font-semibold">{formatETB(overview.overview.totalCommissionsPaidThisMonth)}</p>
+/home/z/my-project/src/components/app/admin/admin-sales-team-page.tsx:1048:              <span>Bonus pool: {formatETB(overview.teamGoal.totalBonusPool)}</span>
+/home/z/my-project/src/components/app/admin/admin-dashboard-page.tsx:20:import { formatETB, businessTypeColor, CHART_COLORS, formatDateWithTime } from '@/lib/admin-utils'
+/home/z/my-project/src/components/app/admin/admin-dashboard-page.tsx:141:      title: `Platform revenue at ${formatETB(data.totalRevenue)}`,
+/home/z/my-project/src/components/app/admin/admin-dashboard-page.tsx:155:      description: formatETB(data.topShopsByRevenue[0].totalRevenue) + ' in total',
+/home/z/my-project/src/components/app/admin/admin-dashboard-page.tsx:242:    { title: 'Platform Revenue', value: formatETB(data.totalRevenue), icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+/home/z/my-project/src/components/app/admin/admin-dashboard-page.tsx:329:                  <Tooltip formatter={(value: number) => formatETB(value)} />
+/home/z/my-project/src/components/app/admin/admin-dashboard-page.tsx:385:                <Tooltip formatter={(value: number) => formatETB(value)} />
+/home/z/my-project/src/components/app/admin/admin-dashboard-page.tsx:507:                    <span>Revenue: <strong className="text-foreground">{formatETB(shop.totalRevenue)}</strong></span>
+/home/z/my-project/src/components/app/admin/admin-dashboard-page.tsx:643:                    <p className="font-semibold text-sm">{formatETB(p.revenue)}</p>
+/home/z/my-project/src/components/app/admin/admin-dashboard-page.tsx:697:                  <Tooltip formatter={(value: number) => formatETB(value)} />
+/home/z/my-project/src/components/app/admin/admin-dashboard-page.tsx:1557:                        <span className="text-xs font-semibold">{formatETB(region.revenue)}</span>
+/home/z/my-project/src/components/app/modules/modules-page.tsx:54:function formatETB(amount: number): string {
+/home/z/my-project/src/components/app/modules/modules-page.tsx:218:              {formatETB(mod.priceETB)}
+/home/z/my-project/src/components/app/modules/modules-page.tsx:450:                <span className="font-semibold">{formatETB(mod.priceETB)}/mo</span>
+/home/z/my-project/src/components/app/settings/settings-page.tsx:52:function formatETB(amount: number): string {
+/home/z/my-project/src/components/app/settings/settings-page.tsx:1297:                <p className="text-sm font-semibold">{totalMonthlyCost === 0 ? 'Free' : formatETB(totalMonthlyCost) + '/mo'}</p>
+/home/z/my-project/src/components/app/settings/settings-page.tsx:1359:                        <span className="text-sm font-semibold">{formatETB(mod.priceETB)}</span>
+/home/z/my-project/src/components/app/sales-rep/sales-rep-dashboard-page.tsx:106:function formatETB(amount: number): string {
+/home/z/my-project/src/components/app/sales-rep/sales-rep-dashboard-page.tsx:714:          value={formatETB(stats.commissions.pending)}
+/home/z/my-project/src/components/app/sales-rep/sales-rep-dashboard-page.tsx:722:          value={formatETB(stats.commissions.paid)}
+/home/z/my-project/src/components/app/sales-rep/sales-rep-dashboard-page.tsx:764:                        Congratulations! You&apos;ve met your monthly target and earned a bonus of {formatETB(currentGoal.bonusAmount)}
+/home/z/my-project/src/components/app/sales-rep/sales-rep-dashboard-page.tsx:811:                      <p className="text-base font-semibold text-primary">{formatETB(currentGoal.bonusAmount)}</p>
+/home/z/my-project/src/components/app/sales-rep/sales-rep-dashboard-page.tsx:1002:                    <span className="text-sm font-semibold">{formatETB(commission.amount)}</span>
+/home/z/my-project/src/components/app/admin/admin-regions-page.tsx:13:import { formatETB, slugify } from '@/lib/admin-utils'
+/home/z/my-project/src/components/app/admin/admin-regions-page.tsx:472:                <p className="text-xl font-semibold">{formatETB(totalRevenue)}</p>
+/home/z/my-project/src/components/app/admin/admin-regions-page.tsx:519:                      <Tooltip formatter={(value: number) => formatETB(value)} />
+/home/z/my-project/src/components/app/admin/admin-regions-page.tsx:584:                      <p className="font-semibold">{formatETB(region.revenue ?? 0)}</p>
+/home/z/my-project/src/components/app/admin/admin-regions-page.tsx:726:                      <p className="text-xl font-semibold">{formatETB(regionDetail.revenue ?? 0)}</p>
+/home/z/my-project/src/components/app/admin/admin-regions-page.tsx:772:                                  <DollarSign className="size-3" />{formatETB(org.revenue)}
+/home/z/my-project/src/components/app/admin/admin-regions-page.tsx:869:                            <td className="text-right py-2.5 px-3">{formatETB(region.revenue ?? 0)}</td>
+/home/z/my-project/src/components/app/admin/admin-regions-page.tsx:870:                            <td className="text-right py-2.5 px-3">{formatETB(avgRevPerOrg)}</td>
+/home/z/my-project/src/components/app/admin/admin-regions-page.tsx:885:                        <td className="text-right py-2.5 px-3">{formatETB(totalRevenue)}</td>
+/home/z/my-project/src/components/app/admin/admin-regions-page.tsx:887:                          {formatETB(totalOrgs > 0 ? Math.round(totalRevenue / totalOrgs) : 0)}
+/home/z/my-project/src/components/app/admin/admin-modules-page.tsx:17:import { formatETB, businessTypeBadge, categoryBadge, moduleStatusBadge, CHART_COLORS, daysUntil } from '@/lib/admin-utils'
+/home/z/my-project/src/components/app/admin/admin-modules-page.tsx:439:                            {mod.isFree ? 'Free' : formatETB(mod.priceETB)}
+/home/z/my-project/src/components/app/admin/admin-modules-page.tsx:890:                                  {mod.priceAtActivation > 0 && <span>{formatETB(mod.priceAtActivation)}/mo</span>}
+/home/z/my-project/src/components/app/admin/admin-modules-page.tsx:939:                                    {m.name} {m.isFree ? '(Free)' : `(${formatETB(m.priceETB)}/mo)`}
+/home/z/my-project/src/components/app/admin/admin-modules-page.tsx:1124:    { title: 'Monthly Recurring Revenue', value: formatETB(monthlyRecurringRevenue), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+/home/z/my-project/src/components/app/admin/admin-modules-page.tsx:1167:                  <Tooltip formatter={(value: number) => formatETB(value)} />
+/home/z/my-project/src/components/app/admin/admin-modules-page.tsx:1193:                    label={({ type, revenue }: { type: string; revenue: number }) => `${type} (${formatETB(revenue)})`}
+/home/z/my-project/src/components/app/admin/admin-modules-page.tsx:1199:                  <Tooltip formatter={(value: number) => formatETB(value)} />
+/home/z/my-project/src/components/app/admin/admin-modules-page.tsx:1255:                  <span className="font-semibold text-sm">{formatETB(mod.revenue)}/mo</span>
+/home/z/my-project/src/components/app/ai/smart-search-page.tsx:13:import { formatETB } from '@/lib/admin-utils'
+/home/z/my-project/src/components/app/ai/smart-search-page.tsx:539:            <span className="text-xs font-medium">{formatETB(p.sellingPrice)}</span>
+/home/z/my-project/src/components/app/ai/smart-search-page.tsx:571:            <span className="text-xs font-medium">{formatETB(s.total)}</span>
+/home/z/my-project/src/components/app/ai/smart-search-page.tsx:604:              Balance: {formatETB(c.balance)}
+/home/z/my-project/src/components/app/ai/smart-search-page.tsx:624:              Balance: {formatETB(s.balance)}
+/home/z/my-project/src/components/app/ai/sales-forecast-page.tsx:189:  const formatCurrency = (val: number) =>
+/home/z/my-project/src/components/app/ai/sales-forecast-page.tsx:316:                  {formatCurrency(result.predictedTotalRevenue)}
+/home/z/my-project/src/components/app/ai/sales-forecast-page.tsx:559:                                {formatCurrency(product.predictedRevenue)} {currency}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:113:function formatCurrency(value: number): string {
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:391:            <p className="text-sm font-semibold">{formatCurrency(sale.total)}</p>
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:735:          value={formatCurrency(stats.periodRevenue ?? stats.monthRevenue)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:736:          subtitle={`Today: ${formatCurrency(stats.todayRevenue)}`}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:752:          value={formatCurrency(stats.periodExpenses ?? 0)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:761:          value={formatCurrency(stats.periodNetProfit ?? 0)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:778:          value={formatCurrency(stats.totalCustomerDebt)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:888:                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:914:                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:962:                        <TableCell className="font-semibold">{formatCurrency(sale.total)}</TableCell>
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:982:                      <span className="font-bold text-sm">{formatCurrency(sale.total)}</span>
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1108:          value={formatCurrency(stats.periodRevenue ?? stats.monthRevenue)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1109:          subtitle={`Today: ${formatCurrency(stats.todayRevenue)}`}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1125:          value={formatCurrency(stats.totalStockRetailValue)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1126:          subtitle={`Cost: ${formatCurrency(stats.totalStockCostValue)}`}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1133:          value={formatCurrency(stats.periodExpenses ?? 0)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1142:          value={formatCurrency(stats.periodNetProfit ?? 0)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1151:          value={formatCurrency(stats.totalCustomerDebt)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1177:                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1196:                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1244:                        <TableCell className="font-semibold">{formatCurrency(sale.total)}</TableCell>
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1264:                      <span className="font-bold text-sm">{formatCurrency(sale.total)}</span>
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1432:                      <p className="text-sm font-semibold">{formatCurrency(product.sellingPrice)}</p>
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1460:          value={formatCurrency(todayRevenue)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1468:          value={formatCurrency(avgTransaction)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1602:                      Cost: {formatCurrency(product.costPrice)} · Sell: {formatCurrency(product.sellingPrice)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1651:          value={formatCurrency(overview?.totalRetailValue || stats.totalStockRetailValue)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1652:          subtitle={`Cost: ${formatCurrency(overview?.totalCostValue || stats.totalStockCostValue)}`}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1833:          value={formatCurrency(todayRevenue)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1841:          value={formatCurrency(stats.monthRevenue)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1849:          value={formatCurrency(stats.totalCustomerDebt)}
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1889:                        <p className="text-sm font-semibold text-red-600 dark:text-red-400">{formatCurrency(remaining)}</p>
+/home/z/my-project/src/components/app/dashboard/dashboard-page.tsx:1890:                        <p className="text-xs text-muted-foreground">of {formatCurrency(debt.amount)}</p>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:31:import { formatETB } from '@/lib/currency'
+/home/z/my-project/src/components/app/debts/debts-page.tsx:218:      toast.error(`Payment cannot exceed remaining amount of ${formatETB(remaining)}`)
+/home/z/my-project/src/components/app/debts/debts-page.tsx:299:                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalCustomerDebt)}</p>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:312:                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalSupplierDebt)}</p>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:338:                <p className="text-xl sm:text-2xl font-bold">{formatETB(collectedThisMonth)}</p>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:498:                      <span className="font-medium">{formatETB(selectedDebt.amount)}</span>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:502:                      <span className="font-medium text-emerald-600">{formatETB(selectedDebt.paidAmount)}</span>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:508:                        {formatETB(selectedDebt.amount - selectedDebt.paidAmount)}
+/home/z/my-project/src/components/app/debts/debts-page.tsx:577:                    <span className="font-medium">{formatETB(selectedDebt.amount)}</span>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:581:                    <span className="font-medium text-emerald-600">{formatETB(selectedDebt.paidAmount)}</span>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:586:                      {formatETB(selectedDebt.amount - selectedDebt.paidAmount)}
+/home/z/my-project/src/components/app/debts/debts-page.tsx:630:                              +{formatETB(payment.amount)}
+/home/z/my-project/src/components/app/debts/debts-page.tsx:755:                  <TableCell className="text-right">{formatETB(debt.amount)}</TableCell>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:757:                    {formatETB(debt.paidAmount)}
+/home/z/my-project/src/components/app/debts/debts-page.tsx:761:                      {formatETB(remaining)}
+/home/z/my-project/src/components/app/debts/debts-page.tsx:823:                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-medium">{formatETB(debt.amount)}</span></div>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:824:                  <div><span className="text-muted-foreground">Remaining:</span> <span className={`font-bold ${overdue ? 'text-red-600' : ''}`}>{formatETB(remaining)}</span></div>
+/home/z/my-project/src/components/app/debts/debts-page.tsx:825:                  <div><span className="text-muted-foreground">Paid:</span> <span className="text-emerald-600">{formatETB(debt.paidAmount)}</span></div>

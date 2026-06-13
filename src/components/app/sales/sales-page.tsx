@@ -17,49 +17,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/shared/status-badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { saleSchema, type SaleFormData } from '@/lib/validations'
-import { ErrorState } from '@/components/shared/error-states'
+import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { FormInputField, FormTextareaField } from '@/components/shared/form-fields'
 
 // ============================================
 // Helpers
 // ============================================
-function formatETB(amount: number): string {
-  return new Intl.NumberFormat('en-ET', {
-    style: 'decimal',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount) + ' ETB'
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-  })
-}
-
-function formatDateShort(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric'
-  })
-}
-
-function statusBadge(status: string) {
-  switch (status) {
-    case 'completed': return <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">Completed</Badge>
-    case 'pending': return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Pending</Badge>
-    case 'cancelled': return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">Cancelled</Badge>
-    case 'refunded': return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">Refunded</Badge>
-    default: return <Badge variant="outline">{status}</Badge>
-  }
-}
+import { formatETB, formatDateShort } from '@/lib/format'
 
 function paymentMethodIcon(method: string) {
   switch (method) {
@@ -103,10 +75,10 @@ function SalesStatsCards({ sales }: { sales: Sale[] }) {
   const avgSale = sales.length > 0 ? sales.reduce((acc, s) => acc + s.total, 0) / sales.length : 0
 
   const cards = [
-    { title: "Today's Sales", value: formatETB(todayTotal), icon: ShoppingCart, color: 'text-primary', bg: 'bg-primary/10' },
-    { title: 'This Week', value: formatETB(weekTotal), icon: Calendar, color: 'text-primary', bg: 'bg-brand-50 dark:bg-brand-900/20' },
-    { title: 'This Month', value: formatETB(monthTotal), icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
-    { title: 'Avg Sale Value', value: formatETB(avgSale), icon: DollarSign, color: 'text-primary', bg: 'bg-primary/10' },
+    { title: "Today's Sales", value: formatETB(todayTotal), icon: ShoppingCart, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    { title: 'This Week', value: formatETB(weekTotal), icon: Calendar, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    { title: 'This Month', value: formatETB(monthTotal), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    { title: 'Avg Sale Value', value: formatETB(avgSale), icon: DollarSign, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
   ]
 
   return (
@@ -262,7 +234,7 @@ function SaleDetailDialog({
               {sale.status && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Status</span>
-                  {statusBadge(sale.status)}
+                  {<StatusBadge status={sale.status} />}
                 </div>
               )}
             </div>
@@ -384,6 +356,7 @@ function AllSalesTab({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search by invoice # or customer..."
+            aria-label="Search sales"
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -416,25 +389,14 @@ function AllSalesTab({
 
       {/* Empty state or Table */}
       {!loading && filteredSales.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <ShoppingCart className="size-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-base font-semibold mb-1">
-              {search || filterStatus !== 'all' || filterPayment !== 'all' ? 'No sales match your filters' : 'No sales yet'}
-            </h3>
-            <p className="text-muted-foreground text-sm mb-4">
-              {search || filterStatus !== 'all' || filterPayment !== 'all'
-                ? 'Try adjusting your search or filters'
-                : 'Create your first sale to start tracking transactions'}
-            </p>
-            {!search && filterStatus === 'all' && filterPayment === 'all' && (
-              <Button onClick={onCreateSale} className="gap-2">
-                <Plus className="size-4 mr-2" />
-                Create Sale
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <EmptyState
+          title={search || filterStatus !== 'all' || filterPayment !== 'all' ? 'No sales match your filters' : 'No sales yet'}
+          message={search || filterStatus !== 'all' || filterPayment !== 'all'
+            ? 'Try adjusting your search or filters'
+            : 'Create your first sale to start tracking transactions'}
+          icon={<ShoppingCart className="size-7 text-muted-foreground" />}
+          {...((!search && filterStatus === 'all' && filterPayment === 'all') ? { action: { label: 'Create Sale', onClick: onCreateSale } } : {})}
+        />
       ) : (
       <div className="rounded-lg border overflow-hidden">
         {/* Desktop table */}
@@ -470,7 +432,7 @@ function AllSalesTab({
                         {paymentMethodLabel(sale.paymentMethod)}
                       </div>
                     </TableCell>
-                    <TableCell>{statusBadge(sale.status)}</TableCell>
+                    <TableCell>{<StatusBadge status={sale.status} />}</TableCell>
                     <TableCell className="text-sm whitespace-nowrap">{formatDateShort(sale.saleDate)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -503,7 +465,7 @@ function AllSalesTab({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {statusBadge(sale.status)}
+                  {<StatusBadge status={sale.status} />}
                 </div>
               </div>
               <div className="flex items-center justify-between mt-2">
@@ -717,6 +679,7 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input
                     placeholder="Search customers..."
+                    aria-label="Search customers"
                     className="pl-9"
                     value={customerSearch}
                     onChange={(e) => setCustomerSearch(e.target.value)}
@@ -1050,9 +1013,11 @@ export function SalesPage() {
   if (pageError && allSales.length === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Sales</h1>
-          <p className="text-muted-foreground">Record sales, view transactions, and manage invoices.</p>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Sales</h1>
+            <p className="text-muted-foreground text-sm mt-1">Record sales, view transactions, and manage invoices.</p>
+          </div>
         </div>
         <ErrorState title="Failed to load sales data" message={pageError} onRetry={fetchSales} />
       </div>
@@ -1062,9 +1027,11 @@ export function SalesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Sales</h1>
-        <p className="text-muted-foreground">Record sales, view transactions, and manage invoices.</p>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Sales</h1>
+          <p className="text-muted-foreground text-sm mt-1">Record sales, view transactions, and manage invoices.</p>
+        </div>
       </div>
 
       {/* Stats */}

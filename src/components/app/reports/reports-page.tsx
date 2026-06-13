@@ -28,7 +28,8 @@ import {
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { exportToCSV } from '@/lib/export-utils'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
-import { formatETB, formatShortETB } from '@/lib/currency'
+import { formatETB } from '@/lib/format'
+import { formatShortETB } from '@/lib/currency'
 
 // ============================================
 // Helpers
@@ -36,14 +37,26 @@ import { formatETB, formatShortETB } from '@/lib/currency'
 
 const CHART_COLORS = [
   'oklch(0.637 0.237 25.331)',  // orange (brand)
-  'oklch(0.6 0.118 184.704)', // teal
-  'oklch(0.398 0.07 227.392)', // blue
-  'oklch(0.828 0.189 84.429)', // yellow
-  'oklch(0.769 0.188 70.08)',  // orange
-  'oklch(0.627 0.265 303.9)',  // purple
-  'oklch(0.645 0.246 16.439)', // red
-  'oklch(0.55 0.19 25)',      // dark orange
+  'oklch(0.6 0.118 184.704)',  // teal
+  'oklch(0.592 0.172 142.495)', // green
+  'oklch(0.627 0.265 303.9)',   // purple
+  'oklch(0.645 0.246 16.439)',  // red
+  'oklch(0.769 0.188 70.08)',   // amber
+  'oklch(0.55 0.19 25)',        // dark orange
+  'oklch(0.592 0.214 105.38)',  // lime
 ]
+
+function paymentMethodLabel(method: string): string {
+  const labels: Record<string, string> = {
+    cash: 'Cash',
+    card: 'Card',
+    mobile_money: 'Mobile Money',
+    bank_transfer: 'Bank Transfer',
+    credit: 'Credit',
+  other: 'Other',
+  }
+  return labels[method] || method.charAt(0).toUpperCase() + method.slice(1)
+}
 
 // ============================================
 // Types
@@ -72,6 +85,11 @@ interface ReportData {
     totalRevenue: number
     totalQuantity: number
     salesCount: number
+  }>
+  paymentMethodBreakdown: Array<{
+    method: string
+    count: number
+    revenue: number
   }>
   inventoryValuation: {
     totalItems: number
@@ -254,12 +272,14 @@ export function ReportsPage() {
     }
   }, [activeTab, reportData, salesByDate, bestSelling])
 
-  // Payment method distribution for pie chart (mock from sales data)
-  const paymentMethodData = [
-    { name: 'Cash', value: 45 },
-    { name: 'Card', value: 30 },
-    { name: 'Mobile Money', value: 25 },
-  ]
+  // Payment method distribution derived from real sales data
+  const paymentMethodData = (reportData?.paymentMethodBreakdown || []).reduce((acc, item) => {
+    const label = paymentMethodLabel(item.method)
+    const existing = acc.find(entry => entry.name === label)
+    if (existing) existing.value += item.count
+    else acc.push({ name: label, value: item.count })
+    return acc
+  }, [] as { name: string; value: number }[])
 
   return (
     <div className="space-y-6">

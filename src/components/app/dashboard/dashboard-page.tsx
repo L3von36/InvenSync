@@ -110,28 +110,7 @@ interface EnhancedDashboardData extends DashboardData {
 // Helpers
 // ============================================
 
-function formatCurrency(value: number): string {
-  return `ETB ${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString('en-US')
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function formatDateShort(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function formatTime(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-}
+import { formatETB, formatNumber, formatDate, formatDateShort, formatTime } from '@/lib/format'
 
 // ============================================
 // Date Range Helpers
@@ -388,7 +367,7 @@ const RecentSalesList = memo(function RecentSalesList({ sales, onItemClick }: { 
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-semibold">{formatCurrency(sale.total)}</p>
+            <p className="text-sm font-semibold">{formatETB(sale.total)}</p>
             <StatusBadge status={sale.status} />
           </div>
         </div>
@@ -732,8 +711,8 @@ function OwnerDashboard({
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
         <StatCard
           title="Period Revenue"
-          value={formatCurrency(stats.periodRevenue ?? stats.monthRevenue)}
-          subtitle={`Today: ${formatCurrency(stats.todayRevenue)}`}
+          value={formatETB(stats.periodRevenue ?? stats.monthRevenue)}
+          subtitle={`Today: ${formatETB(stats.todayRevenue)}`}
           icon={<TrendingUp className="size-5" />}
           iconBgClass="bg-brand-50 dark:bg-brand-900/20"
           iconTextClass="text-primary"
@@ -749,7 +728,7 @@ function OwnerDashboard({
         />
         <StatCard
           title="Expenses"
-          value={formatCurrency(stats.periodExpenses ?? 0)}
+          value={formatETB(stats.periodExpenses ?? 0)}
           subtitle="Period expenses"
           icon={<Receipt className="size-5" />}
           iconBgClass="bg-rose-100 dark:bg-rose-900/30"
@@ -758,7 +737,7 @@ function OwnerDashboard({
         />
         <StatCard
           title="Net Profit"
-          value={formatCurrency(stats.periodNetProfit ?? 0)}
+          value={formatETB(stats.periodNetProfit ?? 0)}
           subtitle={stats.periodNetProfit !== undefined && stats.periodNetProfit >= 0 ? 'Profitable' : 'Loss'}
           icon={<PiggyBank className="size-5" />}
           iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
@@ -775,7 +754,7 @@ function OwnerDashboard({
         />
         <StatCard
           title="Customer Debts"
-          value={formatCurrency(stats.totalCustomerDebt)}
+          value={formatETB(stats.totalCustomerDebt)}
           subtitle={stats.totalCustomerDebt > 0 ? 'Outstanding balance' : 'No outstanding debts'}
           icon={<CreditCard className="size-5" />}
           iconBgClass="bg-red-100 dark:bg-red-900/30"
@@ -885,7 +864,7 @@ function OwnerDashboard({
                   width={isMobile ? 35 : 50}
                   tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
                 />
-                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatETB(Number(value))} />} />
                 <Area type="monotone" dataKey="revenue" stroke="#ea580c" fill="url(#fillRevenue)" strokeWidth={2} />
               </AreaChart>
             </ChartContainer>
@@ -911,7 +890,7 @@ function OwnerDashboard({
                     tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
                   />
                   <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={isMobile ? 60 : 120} fontSize={isMobile ? 9 : 12} />
-                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatETB(Number(value))} />} />
                   <Bar dataKey="revenue" fill="#ea580c" radius={[0, 4, 4, 0]} maxBarSize={32} />
                 </BarChart>
               </ChartContainer>
@@ -959,7 +938,7 @@ function OwnerDashboard({
                         <TableCell className="font-medium font-mono text-sm">{sale.invoiceNumber}</TableCell>
                         <TableCell>{sale.customer?.name || <span className="text-muted-foreground italic">Walk-in</span>}</TableCell>
                         <TableCell className="text-muted-foreground">{sale.items?.length || 0} item{(sale.items?.length || 0) !== 1 ? 's' : ''}</TableCell>
-                        <TableCell className="font-semibold">{formatCurrency(sale.total)}</TableCell>
+                        <TableCell className="font-semibold">{formatETB(sale.total)}</TableCell>
                         <TableCell className="text-muted-foreground">{formatDate(sale.saleDate)}</TableCell>
                         <TableCell><StatusBadge status={sale.status} /></TableCell>
                       </TableRow>
@@ -979,7 +958,7 @@ function OwnerDashboard({
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">{formatDate(sale.saleDate)}</span>
-                      <span className="font-bold text-sm">{formatCurrency(sale.total)}</span>
+                      <span className="font-bold text-sm">{formatETB(sale.total)}</span>
                     </div>
                   </Card>
                 ))}
@@ -1105,8 +1084,8 @@ function ManagerDashboard({
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
         <StatCard
           title="Period Revenue"
-          value={formatCurrency(stats.periodRevenue ?? stats.monthRevenue)}
-          subtitle={`Today: ${formatCurrency(stats.todayRevenue)}`}
+          value={formatETB(stats.periodRevenue ?? stats.monthRevenue)}
+          subtitle={`Today: ${formatETB(stats.todayRevenue)}`}
           icon={<TrendingUp className="size-5" />}
           iconBgClass="bg-brand-50 dark:bg-brand-900/20"
           iconTextClass="text-primary"
@@ -1122,15 +1101,15 @@ function ManagerDashboard({
         />
         <StatCard
           title="Inventory Value"
-          value={formatCurrency(stats.totalStockRetailValue)}
-          subtitle={`Cost: ${formatCurrency(stats.totalStockCostValue)}`}
+          value={formatETB(stats.totalStockRetailValue)}
+          subtitle={`Cost: ${formatETB(stats.totalStockCostValue)}`}
           icon={<WarehouseIcon className="size-5" />}
           iconBgClass="bg-amber-100 dark:bg-amber-900/30"
           iconTextClass="text-amber-600 dark:text-amber-400"
         />
         <StatCard
           title="Expenses"
-          value={formatCurrency(stats.periodExpenses ?? 0)}
+          value={formatETB(stats.periodExpenses ?? 0)}
           subtitle="Period expenses"
           icon={<Receipt className="size-5" />}
           iconBgClass="bg-rose-100 dark:bg-rose-900/30"
@@ -1139,7 +1118,7 @@ function ManagerDashboard({
         />
         <StatCard
           title="Net Profit"
-          value={formatCurrency(stats.periodNetProfit ?? 0)}
+          value={formatETB(stats.periodNetProfit ?? 0)}
           subtitle={stats.periodNetProfit !== undefined && stats.periodNetProfit >= 0 ? 'Profitable' : 'Loss'}
           icon={<PiggyBank className="size-5" />}
           iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
@@ -1148,7 +1127,7 @@ function ManagerDashboard({
         />
         <StatCard
           title="Customer Debts"
-          value={formatCurrency(stats.totalCustomerDebt)}
+          value={formatETB(stats.totalCustomerDebt)}
           subtitle={stats.totalCustomerDebt > 0 ? 'Outstanding balance' : 'No outstanding debts'}
           icon={<CreditCard className="size-5" />}
           iconBgClass="bg-red-100 dark:bg-red-900/30"
@@ -1174,7 +1153,7 @@ function ManagerDashboard({
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} interval="preserveStartEnd" fontSize={isMobile ? 10 : 12} />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} fontSize={isMobile ? 10 : 12} width={isMobile ? 35 : 50} tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()} />
-                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatETB(Number(value))} />} />
                 <Area type="monotone" dataKey="revenue" stroke="#ea580c" fill="url(#fillRevenueMgr)" strokeWidth={2} />
               </AreaChart>
             </ChartContainer>
@@ -1193,7 +1172,7 @@ function ManagerDashboard({
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" tickLine={false} axisLine={false} tickMargin={8} fontSize={isMobile ? 10 : 12} tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()} />
                   <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={isMobile ? 60 : 120} fontSize={isMobile ? 9 : 12} />
-                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatCurrency(Number(value))} />} />
+                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatETB(Number(value))} />} />
                   <Bar dataKey="revenue" fill="#ea580c" radius={[0, 4, 4, 0]} maxBarSize={32} />
                 </BarChart>
               </ChartContainer>
@@ -1241,7 +1220,7 @@ function ManagerDashboard({
                         <TableCell className="font-medium font-mono text-sm">{sale.invoiceNumber}</TableCell>
                         <TableCell>{sale.customer?.name || <span className="text-muted-foreground italic">Walk-in</span>}</TableCell>
                         <TableCell className="text-muted-foreground">{sale.items?.length || 0} item{(sale.items?.length || 0) !== 1 ? 's' : ''}</TableCell>
-                        <TableCell className="font-semibold">{formatCurrency(sale.total)}</TableCell>
+                        <TableCell className="font-semibold">{formatETB(sale.total)}</TableCell>
                         <TableCell className="text-muted-foreground">{formatDate(sale.saleDate)}</TableCell>
                         <TableCell><StatusBadge status={sale.status} /></TableCell>
                       </TableRow>
@@ -1261,7 +1240,7 @@ function ManagerDashboard({
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">{formatDate(sale.saleDate)}</span>
-                      <span className="font-bold text-sm">{formatCurrency(sale.total)}</span>
+                      <span className="font-bold text-sm">{formatETB(sale.total)}</span>
                     </div>
                   </Card>
                 ))}
@@ -1429,7 +1408,7 @@ function CashierDashboard({
                   </div>
                   <div className="flex items-center gap-4 ml-3 shrink-0">
                     <div className="text-right">
-                      <p className="text-sm font-semibold">{formatCurrency(product.sellingPrice)}</p>
+                      <p className="text-sm font-semibold">{formatETB(product.sellingPrice)}</p>
                       <p className={`text-xs ${product.quantity <= 0 ? 'text-red-500' : product.quantity <= product.lowStockThreshold ? 'text-amber-500' : 'text-muted-foreground'}`}>
                         {product.quantity} in stock
                       </p>
@@ -1457,7 +1436,7 @@ function CashierDashboard({
         />
         <StatCard
           title="Today's Revenue"
-          value={formatCurrency(todayRevenue)}
+          value={formatETB(todayRevenue)}
           subtitle={`${recentSales.length} total recent`}
           icon={<DollarSign className="size-5" />}
           iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
@@ -1465,7 +1444,7 @@ function CashierDashboard({
         />
         <StatCard
           title="Avg. Transaction"
-          value={formatCurrency(avgTransaction)}
+          value={formatETB(avgTransaction)}
           subtitle="per sale today"
           icon={<BarChart3 className="size-5" />}
           iconBgClass="bg-sky-100 dark:bg-sky-900/30"
@@ -1599,7 +1578,7 @@ function WarehouseDashboard({
                     <p className="text-sm font-medium truncate">{product.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {product.sku && <span className="font-mono">{product.sku} · </span>}
-                      Cost: {formatCurrency(product.costPrice)} · Sell: {formatCurrency(product.sellingPrice)}
+                      Cost: {formatETB(product.costPrice)} · Sell: {formatETB(product.sellingPrice)}
                     </p>
                   </div>
                   <div className="flex items-center gap-4 ml-3 shrink-0">
@@ -1648,8 +1627,8 @@ function WarehouseDashboard({
         />
         <StatCard
           title="Inventory Value"
-          value={formatCurrency(overview?.totalRetailValue || stats.totalStockRetailValue)}
-          subtitle={`Cost: ${formatCurrency(overview?.totalCostValue || stats.totalStockCostValue)}`}
+          value={formatETB(overview?.totalRetailValue || stats.totalStockRetailValue)}
+          subtitle={`Cost: ${formatETB(overview?.totalCostValue || stats.totalStockCostValue)}`}
           icon={<WarehouseIcon className="size-5" />}
           iconBgClass="bg-brand-50 dark:bg-brand-900/20"
           iconTextClass="text-primary"
@@ -1830,7 +1809,7 @@ function SalesDashboard({
         />
         <StatCard
           title="Today's Revenue"
-          value={formatCurrency(todayRevenue)}
+          value={formatETB(todayRevenue)}
           subtitle="total today"
           icon={<DollarSign className="size-5" />}
           iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
@@ -1838,7 +1817,7 @@ function SalesDashboard({
         />
         <StatCard
           title="Month Revenue"
-          value={formatCurrency(stats.monthRevenue)}
+          value={formatETB(stats.monthRevenue)}
           subtitle="this month"
           icon={<TrendingUp className="size-5" />}
           iconBgClass="bg-sky-100 dark:bg-sky-900/30"
@@ -1846,7 +1825,7 @@ function SalesDashboard({
         />
         <StatCard
           title="Customer Debts"
-          value={formatCurrency(stats.totalCustomerDebt)}
+          value={formatETB(stats.totalCustomerDebt)}
           subtitle="outstanding"
           icon={<CreditCard className="size-5" />}
           iconBgClass="bg-red-100 dark:bg-red-900/30"
@@ -1886,8 +1865,8 @@ function SalesDashboard({
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-red-600 dark:text-red-400">{formatCurrency(remaining)}</p>
-                        <p className="text-xs text-muted-foreground">of {formatCurrency(debt.amount)}</p>
+                        <p className="text-sm font-semibold text-red-600 dark:text-red-400">{formatETB(remaining)}</p>
+                        <p className="text-xs text-muted-foreground">of {formatETB(debt.amount)}</p>
                       </div>
                     </div>
                   )

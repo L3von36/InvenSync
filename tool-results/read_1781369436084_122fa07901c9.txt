@@ -1,0 +1,698 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useCallback } from 'react'
+     4→     4→import { useForm } from 'react-hook-form'
+     5→     5→import { zodResolver } from '@hookform/resolvers/zod'
+     6→     6→import {
+     7→     7→  Plus, Search, RefreshCw, Pencil, Trash2, Loader2,
+     8→     8→  DollarSign, TrendingDown, CalendarDays, Receipt, Repeat,
+     9→     9→} from 'lucide-react'
+    10→    10→import {
+    11→    11→  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+    12→    12→  ResponsiveContainer,
+    13→    13→} from '@/components/ui/recharts-exports'
+    14→    14→import { api } from '@/lib/api-client'
+    15→    15→import { formatETB } from '@/lib/currency'
+    16→    16→import { getNetworkErrorMessage } from '@/lib/validation'
+    17→    17→import { ErrorState, EmptyState } from '@/components/shared/error-states'
+    18→    18→import { useAuthStore } from '@/lib/stores/auth-store'
+    19→    19→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    20→    20→import { Button } from '@/components/ui/button'
+    21→    21→import { Input } from '@/components/ui/input'
+    22→    22→import { Badge } from '@/components/ui/badge'
+    23→    23→import { Skeleton } from '@/components/ui/skeleton'
+    24→    24→import { Switch } from '@/components/ui/switch'
+    25→    25→import { Separator } from '@/components/ui/separator'
+    26→    26→import {
+    27→    27→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    28→    28→} from '@/components/ui/select'
+    29→    29→import {
+    30→    30→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    31→    31→} from '@/components/ui/table'
+    32→    32→import {
+    33→    33→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+    34→    34→} from '@/components/ui/dialog'
+    35→    35→import {
+    36→    36→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    37→    37→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    38→    38→} from '@/components/ui/alert-dialog'
+    39→    39→import { Form } from '@/components/ui/form'
+    40→    40→import { toast } from 'sonner'
+    41→    41→import { z } from 'zod'
+    42→    42→
+    43→    43→// ============================================
+    44→    44→// Types & Schema
+    45→    45→// ============================================
+    46→    46→
+    47→    47→interface Expense {
+    48→    48→  id: string
+    49→    49→  organizationId: string
+    50→    50→  shopId?: string | null
+    51→    51→  category: string
+    52→    52→  amount: number
+    53→    53→  description?: string | null
+    54→    54→  expenseDate: string
+    55→    55→  isRecurring: boolean
+    56→    56→  recurringPeriod?: string | null
+    57→    57→  createdAt: string
+    58→    58→  updatedAt: string
+    59→    59→  shop?: { id: string; name: string } | null
+    60→    60→}
+    61→    61→
+    62→    62→const EXPENSE_CATEGORIES = [
+    63→    63→  { value: 'rent', label: 'Rent' },
+    64→    64→  { value: 'salary', label: 'Salary' },
+    65→    65→  { value: 'utilities', label: 'Utilities' },
+    66→    66→  { value: 'marketing', label: 'Marketing' },
+    67→    67→  { value: 'supplies', label: 'Supplies' },
+    68→    68→  { value: 'transport', label: 'Transport' },
+    69→    69→  { value: 'other', label: 'Other' },
+    70→    70→]
+    71→    71→
+    72→    72→const expenseFormSchema = z.object({
+    73→    73→  category: z.string().min(1, 'Category is required'),
+    74→    74→  amount: z.number({ message: 'Amount is required' }).positive('Amount must be greater than 0'),
+    75→    75→  description: z.string().optional(),
+    76→    76→  expenseDate: z.string().min(1, 'Date is required'),
+    77→    77→  shopId: z.string().optional(),
+    78→    78→  isRecurring: z.boolean().optional(),
+    79→    79→  recurringPeriod: z.string().optional(),
+    80→    80→})
+    81→    81→
+    82→    82→type ExpenseFormData = z.infer<typeof expenseFormSchema>
+    83→    83→
+    84→    84→// ============================================
+    85→    85→// Helpers
+    86→    86→// ============================================
+    87→    87→
+    88→    88→const CATEGORY_LABELS: Record<string, string> = {
+    89→    89→  rent: 'Rent', salary: 'Salary', utilities: 'Utilities',
+    90→    90→  marketing: 'Marketing', supplies: 'Supplies', transport: 'Transport', other: 'Other',
+    91→    91→}
+    92→    92→
+    93→    93→const CATEGORY_COLORS: Record<string, string> = {
+    94→    94→  rent: 'bg-blue-100 text-blue-700',
+    95→    95→  salary: 'bg-purple-100 text-purple-700',
+    96→    96→  utilities: 'bg-amber-100 text-amber-700',
+    97→    97→  marketing: 'bg-pink-100 text-pink-700',
+    98→    98→  supplies: 'bg-emerald-100 text-emerald-700',
+    99→    99→  transport: 'bg-cyan-100 text-cyan-700',
+   100→   100→  other: 'bg-gray-100 text-gray-700',
+   101→   101→}
+   102→   102→
+   103→   103→function formatMonthLabel(monthKey: string): string {
+   104→   104→  const MONTH_LABELS: Record<string, string> = {
+   105→   105→    '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
+   106→   106→    '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
+   107→   107→    '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec',
+   108→   108→  }
+   109→   109→  const [year, month] = monthKey.split('-')
+   110→   110→  return `${MONTH_LABELS[month] || month} ${year.slice(2)}`
+   111→   111→}
+   112→   112→
+   113→   113→// ============================================
+   114→   114→// Main Component
+   115→   115→// ============================================
+   116→   116→
+   117→   117→export function ExpensesPage() {
+   118→   118→  const { currentOrg, shops } = useAuthStore()
+   119→   119→  const [expenses, setExpenses] = useState<Expense[]>([])
+   120→   120→  const [isLoading, setIsLoading] = useState(true)
+   121→   121→  const [error, setError] = useState<string | null>(null)
+   122→   122→  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+   123→   123→  const [searchQuery, setSearchQuery] = useState('')
+   124→   124→  const [totalExpenses, setTotalExpenses] = useState(0)
+   125→   125→  const [monthlySummary, setMonthlySummary] = useState<Array<{ month: string; total: number }>>([])
+   126→   126→
+   127→   127→  // Dialog states
+   128→   128→  const [dialogOpen, setDialogOpen] = useState(false)
+   129→   129→  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+   130→   130→  const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null)
+   131→   131→  const [isSaving, setIsSaving] = useState(false)
+   132→   132→  const [isDeleting, setIsDeleting] = useState(false)
+   133→   133→
+   134→   134→  const form = useForm<ExpenseFormData>({
+   135→   135→    resolver: zodResolver(expenseFormSchema),
+   136→   136→    defaultValues: {
+   137→   137→      category: '',
+   138→   138→      amount: 0,
+   139→   139→      description: '',
+   140→   140→      expenseDate: new Date().toISOString().split('T')[0],
+   141→   141→      shopId: '',
+   142→   142→      isRecurring: false,
+   143→   143→      recurringPeriod: '',
+   144→   144→    },
+   145→   145→  })
+   146→   146→
+   147→   147→  const isRecurring = form.watch('isRecurring')
+   148→   148→
+   149→   149→  const fetchExpenses = useCallback(async () => {
+   150→   150→    if (!currentOrg) return
+   151→   151→    setIsLoading(true)
+   152→   152→    setError(null)
+   153→   153→    try {
+   154→   154→      const params = new URLSearchParams({ organizationId: currentOrg.id })
+   155→   155→      if (categoryFilter && categoryFilter !== 'all') params.set('category', categoryFilter)
+   156→   156→
+   157→   157→      const response = await fetch(`/api/expenses?${params.toString()}`, {
+   158→   158→        headers: { Authorization: `Bearer ${localStorage.getItem('sb_token')}` },
+   159→   159→      })
+   160→   160→      if (!response.ok) {
+   161→   161→        const errData = await response.json().catch(() => ({}))
+   162→   162→        throw new Error(errData.error || 'Failed to fetch expenses')
+   163→   163→      }
+   164→   164→      const result = await response.json()
+   165→   165→      setExpenses(result.expenses || [])
+   166→   166→      setTotalExpenses(result.summary?.totalExpenses || 0)
+   167→   167→      setMonthlySummary(result.monthlySummary || [])
+   168→   168→    } catch (err) {
+   169→   169→      setError(getNetworkErrorMessage(err))
+   170→   170→    } finally {
+   171→   171→      setIsLoading(false)
+   172→   172→    }
+   173→   173→  }, [currentOrg, categoryFilter])
+   174→   174→
+   175→   175→  useEffect(() => {
+   176→   176→    fetchExpenses()
+   177→   177→  }, [fetchExpenses])
+   178→   178→
+   179→   179→  // Filter expenses client-side by search query
+   180→   180→  const filteredExpenses = searchQuery
+   181→   181→    ? expenses.filter(e =>
+   182→   182→        e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+   183→   183→        CATEGORY_LABELS[e.category]?.toLowerCase().includes(searchQuery.toLowerCase())
+   184→   184→      )
+   185→   185→    : expenses
+   186→   186→
+   187→   187→  function openCreateDialog() {
+   188→   188→    setEditingExpense(null)
+   189→   189→    form.reset({
+   190→   190→      category: '',
+   191→   191→      amount: 0,
+   192→   192→      description: '',
+   193→   193→      expenseDate: new Date().toISOString().split('T')[0],
+   194→   194→      shopId: '',
+   195→   195→      isRecurring: false,
+   196→   196→      recurringPeriod: '',
+   197→   197→    })
+   198→   198→    setDialogOpen(true)
+   199→   199→  }
+   200→   200→
+   201→   201→  function openEditDialog(expense: Expense) {
+   202→   202→    setEditingExpense(expense)
+   203→   203→    form.reset({
+   204→   204→      category: expense.category,
+   205→   205→      amount: expense.amount,
+   206→   206→      description: expense.description || '',
+   207→   207→      expenseDate: new Date(expense.expenseDate).toISOString().split('T')[0],
+   208→   208→      shopId: expense.shopId || '',
+   209→   209→      isRecurring: expense.isRecurring,
+   210→   210→      recurringPeriod: expense.recurringPeriod || '',
+   211→   211→    })
+   212→   212→    setDialogOpen(true)
+   213→   213→  }
+   214→   214→
+   215→   215→  async function onSubmit(formData: ExpenseFormData) {
+   216→   216→    if (!currentOrg) return
+   217→   217→    setIsSaving(true)
+   218→   218→    try {
+   219→   219→      const payload = {
+   220→   220→        organizationId: currentOrg.id,
+   221→   221→        ...formData,
+   222→   222→        shopId: formData.shopId || null,
+   223→   223→        description: formData.description || null,
+   224→   224→        recurringPeriod: formData.isRecurring ? formData.recurringPeriod : null,
+   225→   225→      }
+   226→   226→
+   227→   227→      if (editingExpense) {
+   228→   228→        const res = await fetch(`/api/expenses/${editingExpense.id}?organizationId=${currentOrg.id}`, {
+   229→   229→          method: 'PUT',
+   230→   230→          headers: {
+   231→   231→            'Content-Type': 'application/json',
+   232→   232→            Authorization: `Bearer ${localStorage.getItem('sb_token')}`,
+   233→   233→          },
+   234→   234→          body: JSON.stringify(payload),
+   235→   235→        })
+   236→   236→        if (!res.ok) {
+   237→   237→          const errData = await res.json().catch(() => ({}))
+   238→   238→          throw new Error(errData.error || 'Failed to update expense')
+   239→   239→        }
+   240→   240→        toast.success('Expense updated successfully')
+   241→   241→      } else {
+   242→   242→        const res = await fetch('/api/expenses', {
+   243→   243→          method: 'POST',
+   244→   244→          headers: {
+   245→   245→            'Content-Type': 'application/json',
+   246→   246→            Authorization: `Bearer ${localStorage.getItem('sb_token')}`,
+   247→   247→          },
+   248→   248→          body: JSON.stringify(payload),
+   249→   249→        })
+   250→   250→        if (!res.ok) {
+   251→   251→          const errData = await res.json().catch(() => ({}))
+   252→   252→          throw new Error(errData.error || 'Failed to create expense')
+   253→   253→        }
+   254→   254→        toast.success('Expense created successfully')
+   255→   255→      }
+   256→   256→
+   257→   257→      setDialogOpen(false)
+   258→   258→      fetchExpenses()
+   259→   259→    } catch (err) {
+   260→   260→      toast.error(getNetworkErrorMessage(err))
+   261→   261→    } finally {
+   262→   262→      setIsSaving(false)
+   263→   263→    }
+   264→   264→  }
+   265→   265→
+   266→   266→  async function handleDelete() {
+   267→   267→    if (!currentOrg || !deleteTarget) return
+   268→   268→    setIsDeleting(true)
+   269→   269→    try {
+   270→   270→      const res = await fetch(`/api/expenses/${deleteTarget.id}?organizationId=${currentOrg.id}`, {
+   271→   271→        method: 'DELETE',
+   272→   272→        headers: { Authorization: `Bearer ${localStorage.getItem('sb_token')}` },
+   273→   273→      })
+   274→   274→      if (!res.ok) {
+   275→   275→        const errData = await res.json().catch(() => ({}))
+   276→   276→        throw new Error(errData.error || 'Failed to delete expense')
+   277→   277→      }
+   278→   278→      toast.success('Expense deleted successfully')
+   279→   279→      setDeleteTarget(null)
+   280→   280→      fetchExpenses()
+   281→   281→    } catch (err) {
+   282→   282→      toast.error(getNetworkErrorMessage(err))
+   283→   283→    } finally {
+   284→   284→      setIsDeleting(false)
+   285→   285→    }
+   286→   286→  }
+   287→   287→
+   288→   288→  if (error) {
+   289→   289→    return <ErrorState title="Failed to load Expenses" message={error} onRetry={fetchExpenses} />
+   290→   290→  }
+   291→   291→
+   292→   292→  return (
+   293→   293→    <div className="space-y-6">
+   294→   294→      {/* Header */}
+   295→   295→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+   296→   296→        <div>
+   297→   297→          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Expenses</h1>
+   298→   298→          <p className="text-muted-foreground text-sm mt-1">
+   299→   299→            Track and manage your business expenses
+   300→   300→          </p>
+   301→   301→        </div>
+   302→   302→        <Button onClick={openCreateDialog} className="gap-2">
+   303→   303→          <Plus className="size-4" />
+   304→   304→          Add Expense
+   305→   305→        </Button>
+   306→   306→      </div>
+   307→   307→
+   308→   308→      {/* KPI Card */}
+   309→   309→      <Card>
+   310→   310→        <CardContent className="p-4 sm:p-6">
+   311→   311→          <div className="flex items-center justify-between">
+   312→   312→            <div>
+   313→   313→              <p className="text-sm text-muted-foreground font-medium">Total Expenses</p>
+   314→   314→              <p className="text-xl sm:text-2xl font-bold tracking-tight">
+   315→   315→                {isLoading ? <Skeleton className="h-9 w-32 inline-block" /> : formatETB(totalExpenses)}
+   316→   316→              </p>
+   317→   317→            </div>
+   318→   318→            <div className="size-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+   319→   319→              <TrendingDown className="size-6" />
+   320→   320→            </div>
+   321→   321→          </div>
+   322→   322→        </CardContent>
+   323→   323→      </Card>
+   324→   324→
+   325→   325→      {/* Monthly Chart */}
+   326→   326→      <Card>
+   327→   327→        <CardHeader>
+   328→   328→          <CardTitle className="text-sm font-semibold">Monthly Expense Summary</CardTitle>
+   329→   329→          <CardDescription>Last 6 months expense trend</CardDescription>
+   330→   330→        </CardHeader>
+   331→   331→        <CardContent>
+   332→   332→          {isLoading ? (
+   333→   333→            <Skeleton className="h-[250px] w-full" />
+   334→   334→          ) : monthlySummary.length === 0 ? (
+   335→   335→            <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">
+   336→   336→              No expense data available yet
+   337→   337→            </div>
+   338→   338→          ) : (
+   339→   339→            <ResponsiveContainer width="100%" height={250}>
+   340→   340→              <BarChart data={monthlySummary.map(d => ({ ...d, month: formatMonthLabel(d.month) }))}>
+   341→   341→                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+   342→   342→                <XAxis dataKey="month" className="text-xs" />
+   343→   343→                <YAxis className="text-xs" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+   344→   344→                <Tooltip formatter={(value: number) => formatETB(value)} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+   345→   345→                <Bar dataKey="total" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
+   346→   346→              </BarChart>
+   347→   347→            </ResponsiveContainer>
+   348→   348→          )}
+   349→   349→        </CardContent>
+   350→   350→      </Card>
+   351→   351→
+   352→   352→      {/* Filters */}
+   353→   353→      <div className="flex flex-col sm:flex-row gap-3">
+   354→   354→        <div className="relative flex-1">
+   355→   355→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   356→   356→          <Input
+   357→   357→            placeholder="Search expenses..."
+   358→   358→            aria-label="Search expenses"
+   359→   359→            value={searchQuery}
+   360→   360→            onChange={(e) => setSearchQuery(e.target.value)}
+   361→   361→            className="pl-9"
+   362→   362→          />
+   363→   363→        </div>
+   364→   364→        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+   365→   365→          <SelectTrigger className="w-full sm:w-[160px]">
+   366→   366→            <SelectValue placeholder="All Categories" />
+   367→   367→          </SelectTrigger>
+   368→   368→          <SelectContent>
+   369→   369→            <SelectItem value="all">All Categories</SelectItem>
+   370→   370→            {EXPENSE_CATEGORIES.map(cat => (
+   371→   371→              <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+   372→   372→            ))}
+   373→   373→          </SelectContent>
+   374→   374→        </Select>
+   375→   375→        <Button variant="outline" size="icon" onClick={fetchExpenses} disabled={isLoading} aria-label="Refresh expenses">
+   376→   376→          <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+   377→   377→        </Button>
+   378→   378→      </div>
+   379→   379→
+   380→   380→      {/* Expense List */}
+   381→   381→      <Card>
+   382→   382→        <CardContent className="p-0">
+   383→   383→          {isLoading ? (
+   384→   384→            <div className="p-6 space-y-3">
+   385→   385→              {Array.from({ length: 5 }).map((_, i) => (
+   386→   386→                <Skeleton key={i} className="h-12 w-full" />
+   387→   387→              ))}
+   388→   388→            </div>
+   389→   389→          ) : filteredExpenses.length === 0 ? (
+   390→   390→            <EmptyState
+   391→   391→              title="No expenses found"
+   392→   392→              message={categoryFilter !== 'all' ? 'Try changing the filter or add a new expense' : 'Start by adding your first expense'}
+   393→   393→              action={{ label: 'Add Expense', onClick: openCreateDialog }}
+   394→   394→            />
+   395→   395→          ) : (
+   396→   396→            <>
+   397→   397→              {/* Desktop Table */}
+   398→   398→              <div className="hidden md:block overflow-x-auto -mx-4 md:mx-0">
+   399→   399→                <Table>
+   400→   400→                  <TableHeader>
+   401→   401→                    <TableRow>
+   402→   402→                      <TableHead>Date</TableHead>
+   403→   403→                      <TableHead>Category</TableHead>
+   404→   404→                      <TableHead>Description</TableHead>
+   405→   405→                      <TableHead>Shop</TableHead>
+   406→   406→                      <TableHead className="text-right">Amount</TableHead>
+   407→   407→                      <TableHead>Recurring</TableHead>
+   408→   408→                      <TableHead className="text-right">Actions</TableHead>
+   409→   409→                    </TableRow>
+   410→   410→                  </TableHeader>
+   411→   411→                  <TableBody>
+   412→   412→                    {filteredExpenses.map((expense) => (
+   413→   413→                      <TableRow key={expense.id}>
+   414→   414→                        <TableCell className="text-sm">
+   415→   415→                          {new Date(expense.expenseDate).toLocaleDateString('en-US', {
+   416→   416→                            month: 'short', day: 'numeric', year: 'numeric',
+   417→   417→                          })}
+   418→   418→                        </TableCell>
+   419→   419→                        <TableCell>
+   420→   420→                          <Badge variant="secondary" className={CATEGORY_COLORS[expense.category] || ''}>
+   421→   421→                            {CATEGORY_LABELS[expense.category] || expense.category}
+   422→   422→                          </Badge>
+   423→   423→                        </TableCell>
+   424→   424→                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+   425→   425→                          {expense.description || '—'}
+   426→   426→                        </TableCell>
+   427→   427→                        <TableCell className="text-sm text-muted-foreground">
+   428→   428→                          {expense.shop?.name || '—'}
+   429→   429→                        </TableCell>
+   430→   430→                        <TableCell className="text-right font-semibold">{formatETB(expense.amount)}</TableCell>
+   431→   431→                        <TableCell>
+   432→   432→                          {expense.isRecurring ? (
+   433→   433→                            <Badge variant="outline" className="gap-1 text-xs">
+   434→   434→                              <Repeat className="size-3" />
+   435→   435→                              {expense.recurringPeriod || 'Recurring'}
+   436→   436→                            </Badge>
+   437→   437→                          ) : (
+   438→   438→                            <span className="text-muted-foreground text-xs">One-time</span>
+   439→   439→                          )}
+   440→   440→                        </TableCell>
+   441→   441→                        <TableCell className="text-right">
+   442→   442→                          <div className="flex justify-end gap-1">
+   443→   443→                            <Button
+   444→   444→                              variant="ghost"
+   445→   445→                              size="icon"
+   446→   446→                              className="size-8 h-9 w-9 sm:h-8 sm:w-8"
+   447→   447→                              onClick={() => openEditDialog(expense)}
+   448→   448→                              aria-label={`Edit expense`}
+   449→   449→                            >
+   450→   450→                              <Pencil className="size-3.5" />
+   451→   451→                            </Button>
+   452→   452→                            <Button
+   453→   453→                              variant="ghost"
+   454→   454→                              size="icon"
+   455→   455→                              className="size-8 h-9 w-9 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
+   456→   456→                              onClick={() => setDeleteTarget(expense)}
+   457→   457→                              aria-label={`Delete expense`}
+   458→   458→                            >
+   459→   459→                              <Trash2 className="size-3.5" />
+   460→   460→                            </Button>
+   461→   461→                          </div>
+   462→   462→                        </TableCell>
+   463→   463→                      </TableRow>
+   464→   464→                    ))}
+   465→   465→                  </TableBody>
+   466→   466→                </Table>
+   467→   467→              </div>
+   468→   468→
+   469→   469→              {/* Mobile Cards */}
+   470→   470→              <div className="md:hidden divide-y">
+   471→   471→                {filteredExpenses.map((expense) => (
+   472→   472→                  <div key={expense.id} className="p-4 space-y-2">
+   473→   473→                    <div className="flex items-center justify-between">
+   474→   474→                      <Badge variant="secondary" className={CATEGORY_COLORS[expense.category] || ''}>
+   475→   475→                        {CATEGORY_LABELS[expense.category] || expense.category}
+   476→   476→                      </Badge>
+   477→   477→                      <span className="font-semibold">{formatETB(expense.amount)}</span>
+   478→   478→                    </div>
+   479→   479→                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+   480→   480→                      <span>
+   481→   481→                        {new Date(expense.expenseDate).toLocaleDateString('en-US', {
+   482→   482→                          month: 'short', day: 'numeric',
+   483→   483→                        })}
+   484→   484→                      </span>
+   485→   485→                      {expense.isRecurring && (
+   486→   486→                        <Badge variant="outline" className="gap-1 text-xs">
+   487→   487→                          <Repeat className="size-3" />
+   488→   488→                          {expense.recurringPeriod || 'Recurring'}
+   489→   489→                        </Badge>
+   490→   490→                      )}
+   491→   491→                    </div>
+   492→   492→                    {expense.description && (
+   493→   493→                      <p className="text-xs text-muted-foreground">{expense.description}</p>
+   494→   494→                    )}
+   495→   495→                    <div className="flex gap-2 pt-1">
+   496→   496→                      <Button
+   497→   497→                        variant="outline"
+   498→   498→                        size="sm"
+   499→   499→                        className="flex-1 gap-1"
+   500→   500→                        onClick={() => openEditDialog(expense)}
+   501→   501→                      >
+   502→   502→                        <Pencil className="size-3" />
+   503→   503→                        Edit
+   504→   504→                      </Button>
+   505→   505→                      <Button
+   506→   506→                        variant="outline"
+   507→   507→                        size="sm"
+   508→   508→                        className="flex-1 gap-1 text-destructive hover:text-destructive"
+   509→   509→                        onClick={() => setDeleteTarget(expense)}
+   510→   510→                      >
+   511→   511→                        <Trash2 className="size-3" />
+   512→   512→                        Delete
+   513→   513→                      </Button>
+   514→   514→                    </div>
+   515→   515→                  </div>
+   516→   516→                ))}
+   517→   517→              </div>
+   518→   518→            </>
+   519→   519→          )}
+   520→   520→        </CardContent>
+   521→   521→      </Card>
+   522→   522→
+   523→   523→      {/* Add/Edit Dialog */}
+   524→   524→      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+   525→   525→        <DialogContent className="sm:max-w-[480px]">
+   526→   526→          <DialogHeader>
+   527→   527→            <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add Expense'}</DialogTitle>
+   528→   528→            <DialogDescription>
+   529→   529→              {editingExpense ? 'Update the expense details below' : 'Fill in the details for the new expense'}
+   530→   530→            </DialogDescription>
+   531→   531→          </DialogHeader>
+   532→   532→          <Form {...form}>
+   533→   533→            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+   534→   534→              {/* Category */}
+   535→   535→              <div className="space-y-2">
+   536→   536→                <label className="text-sm font-medium">
+   537→   537→                  Category <span className="text-destructive">*</span>
+   538→   538→                </label>
+   539→   539→                <Select
+   540→   540→                  value={form.watch('category')}
+   541→   541→                  onValueChange={(val) => form.setValue('category', val)}
+   542→   542→                >
+   543→   543→                  <SelectTrigger>
+   544→   544→                    <SelectValue placeholder="Select category" />
+   545→   545→                  </SelectTrigger>
+   546→   546→                  <SelectContent>
+   547→   547→                    {EXPENSE_CATEGORIES.map(cat => (
+   548→   548→                      <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+   549→   549→                    ))}
+   550→   550→                  </SelectContent>
+   551→   551→                </Select>
+   552→   552→                {form.formState.errors.category && (
+   553→   553→                  <p className="text-xs text-destructive">{form.formState.errors.category.message}</p>
+   554→   554→                )}
+   555→   555→              </div>
+   556→   556→
+   557→   557→              {/* Amount */}
+   558→   558→              <div className="space-y-2">
+   559→   559→                <label className="text-sm font-medium">
+   560→   560→                  Amount (ETB) <span className="text-destructive">*</span>
+   561→   561→                </label>
+   562→   562→                <Input
+   563→   563→                  type="number"
+   564→   564→                  step="0.01"
+   565→   565→                  min="0"
+   566→   566→                  placeholder="0.00"
+   567→   567→                  {...form.register('amount', { valueAsNumber: true })}
+   568→   568→                />
+   569→   569→                {form.formState.errors.amount && (
+   570→   570→                  <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
+   571→   571→                )}
+   572→   572→              </div>
+   573→   573→
+   574→   574→              {/* Description */}
+   575→   575→              <div className="space-y-2">
+   576→   576→                <label className="text-sm font-medium">Description</label>
+   577→   577→                <Input
+   578→   578→                  placeholder="Optional description"
+   579→   579→                  {...form.register('description')}
+   580→   580→                />
+   581→   581→              </div>
+   582→   582→
+   583→   583→              {/* Date */}
+   584→   584→              <div className="space-y-2">
+   585→   585→                <label className="text-sm font-medium">
+   586→   586→                  Date <span className="text-destructive">*</span>
+   587→   587→                </label>
+   588→   588→                <Input
+   589→   589→                  type="date"
+   590→   590→                  {...form.register('expenseDate')}
+   591→   591→                />
+   592→   592→                {form.formState.errors.expenseDate && (
+   593→   593→                  <p className="text-xs text-destructive">{form.formState.errors.expenseDate.message}</p>
+   594→   594→                )}
+   595→   595→              </div>
+   596→   596→
+   597→   597→              {/* Shop */}
+   598→   598→              {shops.length > 1 && (
+   599→   599→                <div className="space-y-2">
+   600→   600→                  <label className="text-sm font-medium">Shop</label>
+   601→   601→                  <Select
+   602→   602→                    value={form.watch('shopId') || 'none'}
+   603→   603→                    onValueChange={(val) => form.setValue('shopId', val === 'none' ? '' : val)}
+   604→   604→                  >
+   605→   605→                    <SelectTrigger>
+   606→   606→                      <SelectValue placeholder="All shops" />
+   607→   607→                    </SelectTrigger>
+   608→   608→                    <SelectContent>
+   609→   609→                      <SelectItem value="none">All shops</SelectItem>
+   610→   610→                      {shops.map(shop => (
+   611→   611→                        <SelectItem key={shop.id} value={shop.id}>{shop.name}</SelectItem>
+   612→   612→                      ))}
+   613→   613→                    </SelectContent>
+   614→   614→                  </Select>
+   615→   615→                </div>
+   616→   616→              )}
+   617→   617→
+   618→   618→              {/* Recurring Toggle */}
+   619→   619→              <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+   620→   620→                <div className="space-y-0.5">
+   621→   621→                  <label className="text-sm font-medium">Recurring</label>
+   622→   622→                  <p className="text-xs text-muted-foreground">Set up a recurring expense</p>
+   623→   623→                </div>
+   624→   624→                <Switch
+   625→   625→                  checked={form.watch('isRecurring')}
+   626→   626→                  onCheckedChange={(val) => form.setValue('isRecurring', val)}
+   627→   627→                />
+   628→   628→              </div>
+   629→   629→
+   630→   630→              {/* Recurring Period */}
+   631→   631→              {isRecurring && (
+   632→   632→                <div className="space-y-2">
+   633→   633→                  <label className="text-sm font-medium">Recurring Period</label>
+   634→   634→                  <Select
+   635→   635→                    value={form.watch('recurringPeriod') || ''}
+   636→   636→                    onValueChange={(val) => form.setValue('recurringPeriod', val)}
+   637→   637→                  >
+   638→   638→                    <SelectTrigger>
+   639→   639→                      <SelectValue placeholder="Select frequency" />
+   640→   640→                    </SelectTrigger>
+   641→   641→                    <SelectContent>
+   642→   642→                      <SelectItem value="weekly">Weekly</SelectItem>
+   643→   643→                      <SelectItem value="monthly">Monthly</SelectItem>
+   644→   644→                      <SelectItem value="yearly">Yearly</SelectItem>
+   645→   645→                    </SelectContent>
+   646→   646→                  </Select>
+   647→   647→                </div>
+   648→   648→              )}
+   649→   649→
+   650→   650→              <DialogFooter>
+   651→   651→                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+   652→   652→                  Cancel
+   653→   653→                </Button>
+   654→   654→                <Button type="submit" disabled={isSaving}>
+   655→   655→                  {isSaving ? (
+   656→   656→                    <>
+   657→   657→                      <Loader2 className="size-4 animate-spin" />
+   658→   658→                      <span>Saving...</span>
+   659→   659→                    </>
+   660→   660→                  ) : editingExpense ? 'Update' : 'Create'}
+   661→   661→                </Button>
+   662→   662→              </DialogFooter>
+   663→   663→            </form>
+   664→   664→          </Form>
+   665→   665→        </DialogContent>
+   666→   666→      </Dialog>
+   667→   667→
+   668→   668→      {/* Delete Confirmation */}
+   669→   669→      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+   670→   670→        <AlertDialogContent>
+   671→   671→          <AlertDialogHeader>
+   672→   672→            <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+   673→   673→            <AlertDialogDescription>
+   674→   674→              Are you sure you want to delete this expense of {deleteTarget ? formatETB(deleteTarget.amount) : ''}?
+   675→   675→              This action cannot be undone.
+   676→   676→            </AlertDialogDescription>
+   677→   677→          </AlertDialogHeader>
+   678→   678→          <AlertDialogFooter>
+   679→   679→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   680→   680→            <AlertDialogAction
+   681→   681→              onClick={handleDelete}
+   682→   682→              disabled={isDeleting}
+   683→   683→              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+   684→   684→            >
+   685→   685→              {isDeleting ? (
+   686→   686→                <>
+   687→   687→                  <Loader2 className="size-4 animate-spin" />
+   688→   688→                  Deleting...
+   689→   689→                </>
+   690→   690→              ) : 'Delete'}
+   691→   691→            </AlertDialogAction>
+   692→   692→          </AlertDialogFooter>
+   693→   693→        </AlertDialogContent>
+   694→   694→      </AlertDialog>
+   695→   695→    </div>
+   696→   696→  )
+   697→   697→}
+   698→   698→

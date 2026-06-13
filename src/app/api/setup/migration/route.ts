@@ -1,9 +1,21 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { isDatabaseError } from '@/lib/api-error'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Block in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 404 })
+  }
+
+  // Secret check for non-production
+  const setupSecret = process.env.SETUP_SECRET || 'dev-only'
+  const requestSecret = request.headers.get('x-setup-secret') || new URL(request.url).searchParams.get('secret')
+  if (requestSecret !== setupSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const sqlPath = join(process.cwd(), 'prisma', 'migration.sql')
     const sql = readFileSync(sqlPath, 'utf-8')

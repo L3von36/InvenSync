@@ -1,0 +1,502 @@
+   500→                          <TableHead>Date</TableHead>
+   501→                          <TableHead className="text-right">Revenue</TableHead>
+   502→                          <TableHead className="text-right">Cost</TableHead>
+   503→                          <TableHead className="text-right">Profit</TableHead>
+   504→                          <TableHead className="text-right">Transactions</TableHead>
+   505→                        </TableRow>
+   506→                      </TableHeader>
+   507→                      <TableBody>
+   508→                        {salesByDate.length > 0 ? (
+   509→                          salesByDate.map((row) => (
+   510→                            <TableRow key={row.date}>
+   511→                              <TableCell className="font-medium">
+   512→                                {new Date(row.date).toLocaleDateString('en-US', {
+   513→                                  weekday: 'short', month: 'short', day: 'numeric'
+   514→                                })}
+   515→                              </TableCell>
+   516→                              <TableCell className="text-right">{formatETB(row.revenue)}</TableCell>
+   517→                              <TableCell className="text-right text-muted-foreground">{formatETB(row.cost)}</TableCell>
+   518→                              <TableCell className="text-right">
+   519→                                <span className={row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+   520→                                  {formatETB(row.profit)}
+   521→                                </span>
+   522→                              </TableCell>
+   523→                              <TableCell className="text-right">{row.count}</TableCell>
+   524→                            </TableRow>
+   525→                          ))
+   526→                        ) : (
+   527→                          <TableRow>
+   528→                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+   529→                              No sales data for this period
+   530→                            </TableCell>
+   531→                          </TableRow>
+   532→                        )}
+   533→                      </TableBody>
+   534→                    </Table>
+   535→                  </div>
+   536→                  {/* Mobile card view */}
+   537→                  <div className="md:hidden space-y-3 p-3 max-h-96 overflow-y-auto">
+   538→                    {salesByDate.length > 0 ? (
+   539→                      salesByDate.map((row) => (
+   540→                        <Card key={row.date} className="p-4">
+   541→                          <div className="flex items-center justify-between mb-2">
+   542→                            <p className="font-medium text-sm">
+   543→                              {new Date(row.date).toLocaleDateString('en-US', {
+   544→                                month: 'short', day: 'numeric'
+   545→                              })}
+   546→                            </p>
+   547→                            <span className="text-xs text-muted-foreground">{row.count} txns</span>
+   548→                          </div>
+   549→                          <div className="grid grid-cols-2 gap-2 text-xs">
+   550→                            <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatETB(row.revenue)}</span></div>
+   551→                            <div><span className="text-muted-foreground">Cost:</span> <span className="text-muted-foreground">{formatETB(row.cost)}</span></div>
+   552→                            <div><span className="text-muted-foreground">Profit:</span> <span className={`font-bold ${row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatETB(row.profit)}</span></div>
+   553→                          </div>
+   554→                        </Card>
+   555→                      ))
+   556→                    ) : (
+   557→                      <p className="text-sm text-muted-foreground text-center py-8">No sales data for this period</p>
+   558→                    )}
+   559→                  </div>
+   560→                </CardContent>
+   561→              </Card>
+   562→            </>
+   563→          )}
+   564→        </TabsContent>
+   565→
+   566→        {/* Profit Report */}
+   567→        <TabsContent value="profit" className="space-y-4">
+   568→          {loading ? (
+   569→            <LoadingSkeleton cards={4} />
+   570→          ) : pageError && !reportData ? (
+   571→            <ErrorState title="Failed to load report data" message={pageError} onRetry={fetchReport} />
+   572→          ) : !loading && reportData && salesByDate.length === 0 ? (
+   573→            <Card>
+   574→              <CardContent className="py-12 text-center">
+   575→                <TrendingUp className="size-12 text-muted-foreground mx-auto mb-4" />
+   576→                <h3 className="text-base font-semibold mb-1">No profit data for this period</h3>
+   577→                <p className="text-muted-foreground text-sm mb-4">
+   578→                  Try selecting a different date range, or make your first sale to see profit reports here
+   579→                </p>
+   580→              </CardContent>
+   581→            </Card>
+   582→          ) : (
+   583→            <>
+   584→              {/* Summary Cards */}
+   585→              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+   586→                <Card>
+   587→                  <CardContent className="p-4">
+   588→                    <div className="flex items-center gap-3">
+   589→                      <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+   590→                        <DollarSign className="size-5 text-primary" />
+   591→                      </div>
+   592→                      <div>
+   593→                        <p className="text-sm text-muted-foreground">Gross Revenue</p>
+   594→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalRevenue || 0)}</p>
+   595→                      </div>
+   596→                    </div>
+   597→                  </CardContent>
+   598→                </Card>
+   599→                <Card>
+   600→                  <CardContent className="p-4">
+   601→                    <div className="flex items-center gap-3">
+   602→                      <div className="size-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+   603→                        <ArrowDownRight className="size-5 text-red-600 dark:text-red-400" />
+   604→                      </div>
+   605→                      <div>
+   606→                        <p className="text-sm text-muted-foreground">Total Cost</p>
+   607→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalCost || 0)}</p>
+   608→                      </div>
+   609→                    </div>
+   610→                  </CardContent>
+   611→                </Card>
+   612→                <Card>
+   613→                  <CardContent className="p-4">
+   614→                    <div className="flex items-center gap-3">
+   615→                      <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+   616→                        <ArrowUpRight className="size-5 text-primary" />
+   617→                      </div>
+   618→                      <div>
+   619→                        <p className="text-sm text-muted-foreground">Gross Profit</p>
+   620→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalProfit || 0)}</p>
+   621→                      </div>
+   622→                    </div>
+   623→                  </CardContent>
+   624→                </Card>
+   625→                <Card>
+   626→                  <CardContent className="p-4">
+   627→                    <div className="flex items-center gap-3">
+   628→                      <div className="size-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+   629→                        <TrendingUp className="size-5 text-blue-600 dark:text-blue-400" />
+   630→                      </div>
+   631→                      <div>
+   632→                        <p className="text-sm text-muted-foreground">Profit Margin</p>
+   633→                        <p className="text-xl sm:text-2xl font-bold">
+   634→                          {summary && summary.totalRevenue > 0
+   635→                            ? `${((summary.totalProfit / summary.totalRevenue) * 100).toFixed(1)}%`
+   636→                            : '0%'}
+   637→                        </p>
+   638→                      </div>
+   639→                    </div>
+   640→                  </CardContent>
+   641→                </Card>
+   642→              </div>
+   643→
+   644→              {/* Profit Trend Line Chart */}
+   645→              <Card className="overflow-hidden">
+   646→                <CardHeader className="pb-2">
+   647→                  <CardTitle className="text-sm font-semibold">Profit Trend</CardTitle>
+   648→                </CardHeader>
+   649→                <CardContent>
+   650→                  {salesByDate.length > 0 ? (
+   651→                    <ResponsiveContainer width="100%" height={350}>
+   652→                      <LineChart data={salesByDate}>
+   653→                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   654→                        <XAxis
+   655→                          dataKey="date"
+   656→                          tick={{ fontSize: 11 }}
+   657→                          tickFormatter={(val: string) => {
+   658→                            const d = new Date(val)
+   659→                            return `${d.getMonth() + 1}/${d.getDate()}`
+   660→                          }}
+   661→                        />
+   662→                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(val: number) => formatShortETB(val)} />
+   663→                        <Tooltip
+   664→                          formatter={(value: number) => formatETB(value)}
+   665→                          labelFormatter={(label: string) => {
+   666→                            const d = new Date(label)
+   667→                            return d.toLocaleDateString('en-US', {
+   668→                              weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+   669→                            })
+   670→                          }}
+   671→                        />
+   672→                        <Legend />
+   673→                        <Line
+   674→                          type="monotone"
+   675→                          dataKey="revenue"
+   676→                          name="Revenue"
+   677→                          stroke="oklch(0.637 0.237 25.331)"
+   678→                          strokeWidth={2}
+   679→                          dot={{ r: 3 }}
+   680→                        />
+   681→                        <Line
+   682→                          type="monotone"
+   683→                          dataKey="profit"
+   684→                          name="Profit"
+   685→                          stroke="oklch(0.6 0.118 184.704)"
+   686→                          strokeWidth={2}
+   687→                          dot={{ r: 3 }}
+   688→                        />
+   689→                        <Line
+   690→                          type="monotone"
+   691→                          dataKey="cost"
+   692→                          name="Cost"
+   693→                          stroke="oklch(0.769 0.188 70.08)"
+   694→                          strokeWidth={2}
+   695→                          dot={{ r: 3 }}
+   696→                          strokeDasharray="5 5"
+   697→                        />
+   698→                      </LineChart>
+   699→                    </ResponsiveContainer>
+   700→                  ) : (
+   701→                    <EmptyChart message="No profit data for this period" />
+   702→                  )}
+   703→                </CardContent>
+   704→              </Card>
+   705→
+   706→              {/* Daily Profit Table */}
+   707→              <Card>
+   708→                <CardHeader className="pb-2">
+   709→                  <CardTitle className="text-sm font-semibold">Daily Profit Breakdown</CardTitle>
+   710→                </CardHeader>
+   711→                <CardContent className="p-0">
+   712→                  {/* Desktop table */}
+   713→                  <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto custom-scrollbar">
+   714→                    <Table>
+   715→                      <TableHeader>
+   716→                        <TableRow>
+   717→                          <TableHead>Date</TableHead>
+   718→                          <TableHead className="text-right">Revenue</TableHead>
+   719→                          <TableHead className="text-right">Cost</TableHead>
+   720→                          <TableHead className="text-right">Profit</TableHead>
+   721→                          <TableHead className="text-right">Margin</TableHead>
+   722→                        </TableRow>
+   723→                      </TableHeader>
+   724→                      <TableBody>
+   725→                        {salesByDate.length > 0 ? (
+   726→                          salesByDate.map((row) => (
+   727→                            <TableRow key={row.date}>
+   728→                              <TableCell className="font-medium">
+   729→                                {new Date(row.date).toLocaleDateString('en-US', {
+   730→                                  weekday: 'short', month: 'short', day: 'numeric'
+   731→                                })}
+   732→                              </TableCell>
+   733→                              <TableCell className="text-right">{formatETB(row.revenue)}</TableCell>
+   734→                              <TableCell className="text-right text-muted-foreground">{formatETB(row.cost)}</TableCell>
+   735→                              <TableCell className="text-right font-medium">
+   736→                                <span className={row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+   737→                                  {formatETB(row.profit)}
+   738→                                </span>
+   739→                              </TableCell>
+   740→                              <TableCell className="text-right">
+   741→                                <Badge
+   742→                                  variant="outline"
+   743→                                  className={
+   744→                                    row.revenue > 0 && row.profit >= 0
+   745→                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700'
+   746→                                      : row.profit < 0
+   747→                                        ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700'
+   748→                                        : ''
+   749→                                  }
+   750→                                >
+   751→                                  {row.revenue > 0
+   752→                                    ? `${((row.profit / row.revenue) * 100).toFixed(1)}%`
+   753→                                    : '0%'}
+   754→                                </Badge>
+   755→                              </TableCell>
+   756→                            </TableRow>
+   757→                          ))
+   758→                        ) : (
+   759→                          <TableRow>
+   760→                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+   761→                              No data for this period
+   762→                            </TableCell>
+   763→                          </TableRow>
+   764→                        )}
+   765→                      </TableBody>
+   766→                    </Table>
+   767→                  </div>
+   768→                  {/* Mobile card view */}
+   769→                  <div className="md:hidden space-y-3 p-3 max-h-96 overflow-y-auto">
+   770→                    {salesByDate.length > 0 ? (
+   771→                      salesByDate.map((row) => (
+   772→                        <Card key={row.date} className="p-4">
+   773→                          <div className="flex items-center justify-between mb-2">
+   774→                            <p className="font-medium text-sm">
+   775→                              {new Date(row.date).toLocaleDateString('en-US', {
+   776→                                month: 'short', day: 'numeric'
+   777→                              })}
+   778→                            </p>
+   779→                            <Badge
+   780→                              variant="outline"
+   781→                              className={
+   782→                                row.revenue > 0 && row.profit >= 0
+   783→                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700 text-xs'
+   784→                                  : row.profit < 0
+   785→                                    ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-400 dark:border-red-700 text-xs'
+   786→                                    : 'text-xs'
+   787→                              }
+   788→                            >
+   789→                              {row.revenue > 0 ? `${((row.profit / row.revenue) * 100).toFixed(1)}%` : '0%'}
+   790→                            </Badge>
+   791→                          </div>
+   792→                          <div className="grid grid-cols-2 gap-2 text-xs">
+   793→                            <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatETB(row.revenue)}</span></div>
+   794→                            <div><span className="text-muted-foreground">Cost:</span> <span className="text-muted-foreground">{formatETB(row.cost)}</span></div>
+   795→                            <div><span className="text-muted-foreground">Profit:</span> <span className={`font-bold ${row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatETB(row.profit)}</span></div>
+   796→                          </div>
+   797→                        </Card>
+   798→                      ))
+   799→                    ) : (
+   800→                      <p className="text-sm text-muted-foreground text-center py-8">No data for this period</p>
+   801→                    )}
+   802→                  </div>
+   803→                </CardContent>
+   804→              </Card>
+   805→            </>
+   806→          )}
+   807→        </TabsContent>
+   808→
+   809→        {/* Best Sellers */}
+   810→        <TabsContent value="bestsellers" className="space-y-4">
+   811→          {loading ? (
+   812→            <LoadingSkeleton cards={2} />
+   813→          ) : pageError && !reportData ? (
+   814→            <ErrorState title="Failed to load report data" message={pageError} onRetry={fetchReport} />
+   815→          ) : !loading && reportData && bestSelling.length === 0 ? (
+   816→            <EmptyState
+   817→              title="No product sales data for this period"
+   818→              message="Try selecting a different date range, or sell some products to see best sellers here."
+   819→              icon={<Package className="size-7 text-muted-foreground" />}
+   820→            />
+   821→          ) : (
+   822→            <>
+   823→              {/* Top 10 by Revenue Chart */}
+   824→              <Card className="overflow-hidden">
+   825→                <CardHeader className="pb-2">
+   826→                  <CardTitle className="text-sm font-semibold">Top 10 Products by Revenue</CardTitle>
+   827→                </CardHeader>
+   828→                <CardContent>
+   829→                  {bestSelling.length > 0 ? (
+   830→                    <ResponsiveContainer width="100%" height={350}>
+   831→                      <BarChart data={bestSelling.slice(0, 10)} layout="vertical">
+   832→                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   833→                        <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(val: number) => formatShortETB(val)} />
+   834→                        <YAxis
+   835→                          type="category"
+   836→                          dataKey="name"
+   837→                          tick={{ fontSize: 11 }}
+   838→                          width={isMobile ? 70 : 120}
+   839→                        />
+   840→                        <Tooltip formatter={(value: number) => formatETB(value)} />
+   841→                        <Bar dataKey="totalRevenue" name="Revenue" fill="oklch(0.637 0.237 25.331)" radius={[0, 4, 4, 0]} />
+   842→                      </BarChart>
+   843→                    </ResponsiveContainer>
+   844→                  ) : (
+   845→                    <EmptyChart message="No product sales data for this period" />
+   846→                  )}
+   847→                </CardContent>
+   848→              </Card>
+   849→
+   850→              {/* Top 10 by Quantity Chart */}
+   851→              <Card className="overflow-hidden">
+   852→                <CardHeader className="pb-2">
+   853→                  <CardTitle className="text-sm font-semibold">Top 10 Products by Quantity Sold</CardTitle>
+   854→                </CardHeader>
+   855→                <CardContent>
+   856→                  {bestSelling.length > 0 ? (
+   857→                    <ResponsiveContainer width="100%" height={350}>
+   858→                      <BarChart
+   859→                        data={[...bestSelling].sort((a, b) => b.totalQuantity - a.totalQuantity).slice(0, 10)}
+   860→                        layout="vertical"
+   861→                      >
+   862→                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+   863→                        <XAxis type="number" tick={{ fontSize: 11 }} />
+   864→                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={isMobile ? 70 : 120} />
+   865→                        <Tooltip />
+   866→                        <Bar dataKey="totalQuantity" name="Quantity" fill="oklch(0.6 0.118 184.704)" radius={[0, 4, 4, 0]} />
+   867→                      </BarChart>
+   868→                    </ResponsiveContainer>
+   869→                  ) : (
+   870→                    <EmptyChart message="No product sales data for this period" />
+   871→                  )}
+   872→                </CardContent>
+   873→              </Card>
+   874→
+   875→              {/* Best Sellers Table */}
+   876→              <Card>
+   877→                <CardHeader className="pb-2">
+   878→                  <CardTitle className="text-sm font-semibold">Product Performance</CardTitle>
+   879→                </CardHeader>
+   880→                <CardContent className="p-0">
+   881→                  {/* Desktop table */}
+   882→                  <div className="hidden md:block overflow-x-auto max-h-96 overflow-y-auto custom-scrollbar">
+   883→                    <Table>
+   884→                      <TableHeader>
+   885→                        <TableRow>
+   886→                          <TableHead>#</TableHead>
+   887→                          <TableHead>Product Name</TableHead>
+   888→                          <TableHead>SKU</TableHead>
+   889→                          <TableHead className="text-right">Quantity Sold</TableHead>
+   890→                          <TableHead className="text-right">Revenue</TableHead>
+   891→                          <TableHead className="text-right">Avg Price</TableHead>
+   892→                        </TableRow>
+   893→                      </TableHeader>
+   894→                      <TableBody>
+   895→                        {bestSelling.length > 0 ? (
+   896→                          bestSelling.map((product, i) => (
+   897→                            <TableRow key={product.id}>
+   898→                              <TableCell>
+   899→                                <Badge variant="secondary" className="size-6 p-0 flex items-center justify-center text-xs">
+   900→                                  {i + 1}
+   901→                                </Badge>
+   902→                              </TableCell>
+   903→                              <TableCell className="font-medium">{product.name}</TableCell>
+   904→                              <TableCell className="text-muted-foreground">{product.sku || '—'}</TableCell>
+   905→                              <TableCell className="text-right">{product.totalQuantity}</TableCell>
+   906→                              <TableCell className="text-right">{formatETB(product.totalRevenue)}</TableCell>
+   907→                              <TableCell className="text-right text-muted-foreground">
+   908→                                {formatETB(product.totalQuantity > 0 ? product.totalRevenue / product.totalQuantity : 0)}
+   909→                              </TableCell>
+   910→                            </TableRow>
+   911→                          ))
+   912→                        ) : (
+   913→                          <TableRow>
+   914→                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+   915→                              No product sales data for this period
+   916→                            </TableCell>
+   917→                          </TableRow>
+   918→                        )}
+   919→                      </TableBody>
+   920→                    </Table>
+   921→                  </div>
+   922→                  {/* Mobile card view */}
+   923→                  <div className="md:hidden space-y-3 p-3 max-h-96 overflow-y-auto">
+   924→                    {bestSelling.length > 0 ? (
+   925→                      bestSelling.map((product, i) => (
+   926→                        <Card key={product.id} className="p-4">
+   927→                          <div className="flex items-start gap-3">
+   928→                            <Badge variant="secondary" className="size-6 p-0 flex items-center justify-center text-xs shrink-0 mt-0.5">
+   929→                              {i + 1}
+   930→                            </Badge>
+   931→                            <div className="flex-1 min-w-0">
+   932→                              <p className="font-medium text-sm truncate">{product.name}</p>
+   933→                              <p className="text-xs text-muted-foreground">{product.sku || '—'}</p>
+   934→                              <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+   935→                                <div><span className="text-muted-foreground">Qty:</span> <span className="font-medium">{product.totalQuantity}</span></div>
+   936→                                <div><span className="text-muted-foreground">Revenue:</span> <span className="font-medium">{formatETB(product.totalRevenue)}</span></div>
+   937→                                <div className="col-span-2"><span className="text-muted-foreground">Avg:</span> {formatETB(product.totalQuantity > 0 ? product.totalRevenue / product.totalQuantity : 0)}</div>
+   938→                              </div>
+   939→                            </div>
+   940→                          </div>
+   941→                        </Card>
+   942→                      ))
+   943→                    ) : (
+   944→                      <p className="text-sm text-muted-foreground text-center py-8">No product sales data for this period</p>
+   945→                    )}
+   946→                  </div>
+   947→                </CardContent>
+   948→              </Card>
+   949→            </>
+   950→          )}
+   951→        </TabsContent>
+   952→
+   953→        {/* Inventory Valuation */}
+   954→        <TabsContent value="inventory" className="space-y-4">
+   955→          {loading ? (
+   956→            <LoadingSkeleton cards={3} />
+   957→          ) : pageError && !reportData ? (
+   958→            <ErrorState title="Failed to load report data" message={pageError} onRetry={fetchReport} />
+   959→          ) : !loading && reportData && (inventoryVal?.totalItems || 0) === 0 ? (
+   960→            <Card>
+   961→              <CardContent className="py-12 text-center">
+   962→                <Package className="size-12 text-muted-foreground mx-auto mb-4" />
+   963→                <h3 className="text-base font-semibold mb-1">No inventory data yet</h3>
+   964→                <p className="text-muted-foreground text-sm mb-4">
+   965→                  Add products to your inventory to see valuation reports here
+   966→                </p>
+   967→              </CardContent>
+   968→            </Card>
+   969→          ) : (
+   970→            <>
+   971→              {/* Summary Cards */}
+   972→              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+   973→                <Card>
+   974→                  <CardContent className="p-4">
+   975→                    <div className="flex items-center gap-3">
+   976→                      <div className="size-10 rounded-lg bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center">
+   977→                        <DollarSign className="size-5 text-primary" />
+   978→                      </div>
+   979→                      <div>
+   980→                        <p className="text-sm text-muted-foreground">Cost Value</p>
+   981→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
+   982→                      </div>
+   983→                    </div>
+   984→                  </CardContent>
+   985→                </Card>
+   986→                <Card>
+   987→                  <CardContent className="p-4">
+   988→                    <div className="flex items-center gap-3">
+   989→                      <div className="size-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+   990→                        <ShoppingCart className="size-5 text-blue-600 dark:text-blue-400" />
+   991→                      </div>
+   992→                      <div>
+   993→                        <p className="text-sm text-muted-foreground">Retail Value</p>
+   994→                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
+   995→                      </div>
+   996→                    </div>
+   997→                  </CardContent>
+   998→                </Card>
+   999→                <Card>
+
+[showing lines 500-999 of 1133; use offset=1000 with limit to continue reading]

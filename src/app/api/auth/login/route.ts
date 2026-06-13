@@ -135,7 +135,7 @@ export async function POST(request: Request) {
       // Generate a temporary token for the 2FA verification step
       const tempToken = generateTempToken(user.id)
 
-      console.log('[Login] 2FA required')
+      if (process.env.NODE_ENV !== 'production') console.log('[Login] 2FA required')
 
       return NextResponse.json({
         requires2FA: true,
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
       })
     }
 
-    console.log('[Login] Successful login')
+    if (process.env.NODE_ENV !== 'production') console.log('[Login] Successful login')
 
     const token = generateToken(user.id)
 
@@ -243,6 +243,6 @@ async function trackDevice(request: Request, userId: string) {
     }
   } catch (err) {
     // Don't fail login if device tracking fails
-    console.error('[Login] Device tracking error:', err)
+    if (process.env.NODE_ENV !== 'production') console.error('[Login] Device tracking error:', err)
   }
 }

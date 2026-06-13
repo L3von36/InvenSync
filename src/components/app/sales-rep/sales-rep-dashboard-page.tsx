@@ -32,6 +32,7 @@ import { LocationPicker } from '@/components/app/shared/location-picker'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { registerBusinessSchema, type RegisterBusinessFormData } from '@/lib/validations'
 import { ErrorState } from '@/components/shared/error-states'
+import { formatETB, formatDate } from '@/lib/format'
 import { Form } from '@/components/ui/form'
 import { FormInputField, FormSelectField, FormSubmitButton } from '@/components/shared/form-fields'
 
@@ -103,10 +104,6 @@ interface DashboardResponse {
 // Helpers
 // ============================================
 
-function formatETB(amount: number): string {
-  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-}
-
 function getRelativeTime(dateStr: string): string {
   const now = new Date()
   const date = new Date(dateStr)
@@ -125,14 +122,6 @@ function getRelativeTime(dateStr: string): string {
   if (diffWeeks < 4) return `${diffWeeks} week${diffWeeks !== 1 ? 's' : ''} ago`
   if (diffMonths < 12) return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 function getCurrentDateString(): string {
@@ -711,7 +700,7 @@ export function SalesRepDashboardPage() {
         />
         <StatCard
           title="Pending Commissions"
-          value={formatETB(stats.commissions.pending)}
+          value={formatETB(stats.commissions.pending, { decimals: 0 })}
           subtitle="Awaiting payment"
           icon={<Clock className="size-5" />}
           iconBgClass="bg-amber-100 dark:bg-amber-900/30"
@@ -719,7 +708,7 @@ export function SalesRepDashboardPage() {
         />
         <StatCard
           title="Total Earned"
-          value={formatETB(stats.commissions.paid)}
+          value={formatETB(stats.commissions.paid, { decimals: 0 })}
           subtitle="Paid commissions"
           icon={<Wallet className="size-5" />}
           iconBgClass="bg-violet-100 dark:bg-violet-900/30"
@@ -761,7 +750,7 @@ export function SalesRepDashboardPage() {
                         Goal Achieved!
                       </p>
                       <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                        Congratulations! You&apos;ve met your monthly target and earned a bonus of {formatETB(currentGoal.bonusAmount)}
+                        Congratulations! You&apos;ve met your monthly target and earned a bonus of {formatETB(currentGoal.bonusAmount, { decimals: 0 })}
                       </p>
                     </div>
                     <CheckCircle2 className="size-6 text-emerald-500 shrink-0 ml-auto" />
@@ -808,7 +797,7 @@ export function SalesRepDashboardPage() {
                     </div>
                     <div className="p-3 rounded-lg bg-muted/50">
                       <p className="text-xs text-muted-foreground">Bonus</p>
-                      <p className="text-base font-semibold text-primary">{formatETB(currentGoal.bonusAmount)}</p>
+                      <p className="text-base font-semibold text-primary">{formatETB(currentGoal.bonusAmount, { decimals: 0 })}</p>
                     </div>
                   </div>
                 </div>
@@ -999,7 +988,7 @@ export function SalesRepDashboardPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0 ml-3">
-                    <span className="text-sm font-semibold">{formatETB(commission.amount)}</span>
+                    <span className="text-sm font-semibold">{formatETB(commission.amount, { decimals: 0 })}</span>
                     {commissionStatusBadge(commission.status)}
                   </div>
                 </div>

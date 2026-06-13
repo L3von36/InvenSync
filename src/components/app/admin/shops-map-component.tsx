@@ -2,16 +2,13 @@
 
 import { useEffect, useRef } from 'react'
 import type { ShopData } from '@/lib/api-client'
+import { formatETB } from '@/lib/format'
 
 // ============================================
 // Lazy-loaded Map Component (YouTube Pattern)
 // ============================================
 // This component is dynamically imported to reduce initial bundle size.
 // YouTube does the same with its player components — only loads when needed.
-
-function formatETB(amount: number): string {
-  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-}
 
 export function ShopsMapComponent({ shops }: { shops: ShopData[] }) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -61,7 +58,7 @@ export function ShopsMapComponent({ shops }: { shops: ShopData[] }) {
             <div style="min-width:180px">
               <strong style="font-size:14px">${shop.name}</strong><br/>
               <span style="font-size:12px;color:#666">${shop.businessType || 'Retail'} · ${shop.city || 'N/A'}</span><br/>
-              <span style="font-size:12px">Revenue: <strong>${formatETB(shop.totalRevenue)}</strong></span><br/>
+              <span style="font-size:12px">Revenue: <strong>${formatETB(shop.totalRevenue, { decimals: 0 })}</strong></span><br/>
               <span style="font-size:12px">Shops: ${shop.shopCount || 0} · Members: ${shop.memberCount}</span>
             </div>
           `)

@@ -13,6 +13,7 @@ import { api, type ModuleData } from '@/lib/api-client'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState } from '@/components/shared/error-states'
+import { formatETB } from '@/lib/format'
 import { FormSubmitButton } from '@/components/shared/form-fields'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -51,9 +52,6 @@ interface EnrichedModule {
 // ============================================
 // Helpers
 // ============================================
-function formatETB(amount: number): string {
-  return `ETB ${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-}
 
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null
@@ -215,7 +213,7 @@ function ModuleCard({
             </Badge>
           ) : (
             <span className="text-sm font-semibold">
-              {formatETB(mod.priceETB)}
+              {formatETB(mod.priceETB, { decimals: 0 })}
               <span className="text-xs font-normal text-muted-foreground">/mo</span>
             </span>
           )}
@@ -447,7 +445,7 @@ function RequestDialog({
             {!mod.isFree && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Price</span>
-                <span className="font-semibold">{formatETB(mod.priceETB)}/mo</span>
+                <span className="font-semibold">{formatETB(mod.priceETB, { decimals: 0 })}/mo</span>
               </div>
             )}
             {mod.isFree && (

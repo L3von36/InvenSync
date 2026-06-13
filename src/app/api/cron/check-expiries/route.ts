@@ -8,7 +8,13 @@ import { NextResponse } from 'next/server'
 import { checkAndNotifyExpiringModules } from '@/lib/module-notifications'
 import { isDatabaseError } from '@/lib/api-error'
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Verify cron secret
+  const cronSecret = request.headers.get('x-cron-secret')
+  if (cronSecret !== process.env.CRON_SECRET && process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const notificationsCreated = await checkAndNotifyExpiringModules()
 

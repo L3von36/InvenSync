@@ -336,6 +336,8 @@ export function FormSubmitButton({
       variant={variant}
       size={size}
       className={className}
+      aria-busy={isLoading}
+      aria-live="polite"
     >
       {isLoading ? (
         <>

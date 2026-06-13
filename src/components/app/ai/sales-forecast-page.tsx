@@ -46,6 +46,7 @@ import {
 import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState } from '@/components/shared/error-states'
+import { formatETB } from '@/lib/format'
 
 // ============================================
 // Types
@@ -186,9 +187,6 @@ export function SalesForecastPage() {
     }
   }
 
-  const formatCurrency = (val: number) =>
-    val.toLocaleString(undefined, { maximumFractionDigits: 0 })
-
   const confidenceConfig = {
     high: { label: 'High', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-950/30' },
     medium: { label: 'Medium', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-100 dark:bg-yellow-950/30' },
@@ -313,7 +311,7 @@ export function SalesForecastPage() {
                   <span className="text-[10px] text-muted-foreground">Predicted Revenue</span>
                 </div>
                 <p className="text-xl font-bold">
-                  {formatCurrency(result.predictedTotalRevenue)}
+                  {formatETB(result.predictedTotalRevenue, { decimals: 0 })}
                 </p>
                 <p className="text-[10px] text-muted-foreground">{currency}</p>
               </CardContent>
@@ -556,7 +554,7 @@ export function SalesForecastPage() {
                                 {product.predictedUnits.toLocaleString()}
                               </TableCell>
                               <TableCell className="text-sm text-right">
-                                {formatCurrency(product.predictedRevenue)} {currency}
+                                {formatETB(product.predictedRevenue, { decimals: 0 })} {currency}
                               </TableCell>
                               <TableCell className="text-center">
                                 <div className="flex items-center justify-center gap-1">

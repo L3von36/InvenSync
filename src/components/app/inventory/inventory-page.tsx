@@ -11,7 +11,7 @@ import {
 import { api, type Product, type StockMovement, type InventoryStats, type ProductType } from '@/lib/api-client'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { getNetworkErrorMessage } from '@/lib/validation'
-import { formatETB } from '@/lib/currency'
+import { formatETB, formatDateTime } from '@/lib/format'
 import { stockAdjustmentSchema, type StockAdjustmentFormData } from '@/lib/validations'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { Form } from '@/components/ui/form'
@@ -38,22 +38,16 @@ function getStockStatus(quantity: number, threshold: number): { label: string; v
   return { label: 'In Stock', variant: 'default' }
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-  })
-}
-
 // ============================================
 // Stats Cards
 // ============================================
 function InventoryStatsCards({ stats }: { stats: InventoryStats['overview'] | null }) {
   const cards = [
     { title: 'Total Products', value: stats?.totalProducts ?? 0, icon: Package, color: 'text-primary', bg: 'bg-primary/10' },
-    { title: 'In Stock', value: (stats?.totalProducts ?? 0) - (stats?.outOfStock ?? 0) - (stats?.lowStock ?? 0), icon: TrendingUp, color: 'text-primary', bg: 'bg-brand-50 dark:bg-brand-900/20' },
-    { title: 'Low Stock', value: stats?.lowStock ?? 0, icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
-    { title: 'Out of Stock', value: stats?.outOfStock ?? 0, icon: XCircle, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/30' },
-    { title: 'Total Value', value: formatETB(stats?.totalRetailValue ?? 0), icon: TrendingUp, color: 'text-primary', bg: 'bg-primary/10' },
+    { title: 'In Stock', value: (stats?.totalProducts ?? 0) - (stats?.outOfStock ?? 0) - (stats?.lowStock ?? 0), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    { title: 'Low Stock', value: stats?.lowStock ?? 0, icon: AlertTriangle, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+    { title: 'Out of Stock', value: stats?.outOfStock ?? 0, icon: XCircle, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/30' },
+    { title: 'Total Value', value: formatETB(stats?.totalRetailValue ?? 0), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
   ]
 
   return (
@@ -685,19 +679,13 @@ function StockHistoryTab({ orgId, shopId }: { orgId: string; shopId?: string }) 
 
       {/* Empty state or Table */}
       {!loading && filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <History className="size-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-base font-semibold mb-1">
-              {filterProduct !== 'all' || filterType !== 'all' ? 'No matching stock movements' : 'No stock movements yet'}
-            </h3>
-            <p className="text-muted-foreground text-sm mb-4">
-              {filterProduct !== 'all' || filterType !== 'all'
-                ? 'Try adjusting your filters'
-                : 'Stock movements will appear here when you adjust product quantities'}
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          title={filterProduct !== 'all' || filterType !== 'all' ? 'No matching stock movements' : 'No stock movements yet'}
+          message={filterProduct !== 'all' || filterType !== 'all'
+            ? 'Try adjusting your filters'
+            : 'Stock movements will appear here when you adjust product quantities'}
+          icon={<History className="size-7 text-muted-foreground" />}
+        />
       ) : (
       <div className="rounded-lg border overflow-hidden">
         {/* Desktop table */}
@@ -717,7 +705,7 @@ function StockHistoryTab({ orgId, shopId }: { orgId: string; shopId?: string }) 
             <TableBody>
               {filtered.map((m) => (
                 <TableRow key={m.id}>
-                  <TableCell className="text-sm whitespace-nowrap">{formatDate(m.createdAt)}</TableCell>
+                  <TableCell className="text-sm whitespace-nowrap">{formatDateTime(m.createdAt)}</TableCell>
                   <TableCell className="font-medium text-sm">{m.product?.name || '—'}</TableCell>
                   <TableCell>{typeLabel(m.type)}</TableCell>
                   <TableCell className="text-right font-mono text-sm">
@@ -738,7 +726,7 @@ function StockHistoryTab({ orgId, shopId }: { orgId: string; shopId?: string }) 
               <div className="flex items-start justify-between mb-2">
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-sm truncate">{m.product?.name || '—'}</p>
-                  <p className="text-xs text-muted-foreground">{formatDate(m.createdAt)}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(m.createdAt)}</p>
                 </div>
                 {typeLabel(m.type)}
               </div>
@@ -820,7 +808,7 @@ export function InventoryPage() {
   if (fetchError) {
     return (
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
             <p className="text-muted-foreground text-sm mt-1">Track stock levels, manage movements, and monitor alerts.</p>
@@ -834,7 +822,7 @@ export function InventoryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
           <p className="text-muted-foreground text-sm mt-1">Track stock levels, manage movements, and monitor alerts.</p>

@@ -3,9 +3,16 @@ import { db } from '@/lib/db'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { cache, CacheNamespaces, CacheTTL } from '@/lib/cache'
+import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 
 // GET /api/dashboard?orgId=xxx&shopId=xxx&from=YYYY-MM-DD&to=YYYY-MM-DD
 export async function GET(request: Request) {
+  // Rate limit dashboard endpoint (30 req/min per user/IP)
+  const rateLimitResult = applyRateLimit(request, RateLimitTiers.DASHBOARD)
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
+
   try {
     const user = await getUserFromRequest(request)
     if (!user) {
@@ -155,17 +162,21 @@ async function fetchDashboardData(
     // Low stock - OPTIMIZED: Use aggregate to count in DB instead of fetching all products
     // SQLite doesn't support comparing columns in WHERE, so we fetch only the needed fields
     // and count in memory. This is still much better than fetching ALL product data.
+    // TODO: For production with PostgreSQL, replace with: SELECT COUNT(*) FROM product WHERE quantity <= low_stock_threshold
     db.product.findMany({
       where: { ...productWhere, quantity: { gt: 0 } },
-      select: { quantity: true, lowStockThreshold: true }
+      select: { quantity: true, lowStockThreshold: true },
+      take: 5000, // Safety limit to prevent loading millions of products into memory
     }).then(products => products.filter(p => p.quantity <= p.lowStockThreshold).length),
 
     // Total stock value - OPTIMIZED: Removed redundant aggregate() call that preceded
     // the findMany(). The aggregate can't multiply columns (quantity * price) in SQLite,
     // so findMany with select is required. The aggregate was wasteful.
+    // TODO: For production with PostgreSQL, replace with: SELECT SUM(quantity * cost_price), SUM(quantity * selling_price) FROM product
     db.product.findMany({
-      where: productWhere,
-      select: { quantity: true, costPrice: true, sellingPrice: true }
+      where: { ...productWhere, quantity: { gt: 0 } },
+      select: { quantity: true, costPrice: true, sellingPrice: true },
+      take: 5000, // Safety limit to prevent loading millions of products into memory
     }).then(products => ({
       costValue: products.reduce((sum, p) => sum + (p.quantity * p.costPrice), 0),
       retailValue: products.reduce((sum, p) => sum + (p.quantity * p.sellingPrice), 0),
@@ -231,6 +242,7 @@ async function fetchDashboardData(
     // Period COGS - OPTIMIZED: Single findMany instead of aggregate + findMany
     // Previously: db.saleItem.aggregate() was called first, then db.saleItem.findMany()
     // with the exact same where clause. Now we just do the findMany.
+    // TODO: For production with PostgreSQL, replace with: SELECT SUM(cost_price * quantity) FROM sale_item JOIN sale ...
     db.saleItem.findMany({
       where: {
         sale: {
@@ -239,9 +251,11 @@ async function fetchDashboardData(
         }
       },
       select: { costPrice: true, quantity: true },
+      take: 10000, // Safety limit to prevent loading millions of sale items into memory
     }),
 
     // Previous period COGS
+    // TODO: For production with PostgreSQL, replace with SQL SUM aggregate
     db.saleItem.findMany({
       where: {
         sale: {
@@ -250,6 +264,7 @@ async function fetchDashboardData(
         }
       },
       select: { costPrice: true, quantity: true },
+      take: 10000, // Safety limit
     }),
 
     // Total debts owed by customers
@@ -317,12 +332,14 @@ async function fetchDashboardData(
         take: 5,
       }),
       // Very low stock products (< 20% of threshold)
+      // TODO: For production with PostgreSQL, replace with raw SQL WHERE quantity <= low_stock_threshold * 0.2
       db.product.findMany({
         where: {
           ...productWhere,
           quantity: { gt: 0 },
         },
-        select: { id: true, name: true, sku: true, quantity: true, lowStockThreshold: true }
+        select: { id: true, name: true, sku: true, quantity: true, lowStockThreshold: true },
+        take: 5000, // Safety limit to prevent loading millions of products
       }).then(products =>
         products
           .filter(p => p.quantity > 0 && p.quantity <= p.lowStockThreshold * 0.2)
