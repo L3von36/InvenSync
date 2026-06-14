@@ -966,10 +966,11 @@ export function ProductsPage() {
     try {
       const data = await api.getProductTypes(currentOrg.id, currentShop?.id)
       setProductTypes(data.productTypes)
-    } catch {
-      // Silent fail for types - not critical
+    } catch (error) {
+      // Log error so it's visible in dev tools; don't crash the page
+      console.warn('[ProductsPage] Failed to fetch product types:', error)
     }
-  }, [currentOrg])
+  }, [currentOrg, currentShop?.id])
 
   useEffect(() => {
     fetchProducts()
@@ -986,7 +987,7 @@ export function ProductsPage() {
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product)
-    setDialogOpen(true)
+    handleDialogClose(true)
   }
 
   const handleViewDetail = async (product: Product) => {
@@ -1022,7 +1023,13 @@ export function ProductsPage() {
 
   const handleDialogClose = (open: boolean) => {
     setDialogOpen(open)
-    if (!open) setEditingProduct(null)
+    if (!open) {
+      setEditingProduct(null)
+    } else {
+      // Re-fetch product types when dialog opens to ensure we have the latest
+      // (user may have created types on the Product Types page)
+      fetchProductTypes()
+    }
   }
 
   // If viewing a product detail, show the detail view
@@ -1061,7 +1068,7 @@ export function ProductsPage() {
           <Button
             onClick={() => {
               setEditingProduct(null)
-              setDialogOpen(true)
+              handleDialogClose(true)
             }}
             className="gap-2"
           >
@@ -1114,7 +1121,7 @@ export function ProductsPage() {
             label: 'Add Product',
             onClick: () => {
               setEditingProduct(null)
-              setDialogOpen(true)
+              handleDialogClose(true)
             },
           } : undefined}
         />

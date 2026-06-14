@@ -1055,10 +1055,13 @@ class ApiClient {
     icon?: string
     attributes?: Array<{ name: string; fieldType: string; options?: string; required?: boolean }>
   }): Promise<{ productType: ProductType }> {
-    return this.request('/api/product-types', {
+    const result = await this.request('/api/product-types', {
       method: 'POST',
       body: JSON.stringify({ orgId, ...data }),
     })
+    // Invalidate product types cache so subsequent fetches include the new type
+    this.invalidateCache('GET:/api/product-types')
+    return result
   }
 
   async updateProductType(id: string, orgId: string, data: {
@@ -1066,16 +1069,21 @@ class ApiClient {
     icon?: string
     attributes?: Array<{ name: string; fieldType: string; options?: string; required?: boolean }>
   }): Promise<{ productType: ProductType }> {
-    return this.request(`/api/product-types/${id}`, {
+    const result = await this.request(`/api/product-types/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ orgId, ...data }),
     })
+    // Invalidate product types cache so subsequent fetches reflect the update
+    this.invalidateCache('GET:/api/product-types')
+    return result
   }
 
   async deleteProductType(id: string, orgId: string): Promise<void> {
     await this.request(`/api/product-types/${id}?orgId=${orgId}`, {
       method: 'DELETE',
     })
+    // Invalidate product types cache so subsequent fetches reflect the deletion
+    this.invalidateCache('GET:/api/product-types')
   }
 
   // ============================================

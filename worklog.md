@@ -35,3 +35,30 @@ Stage Summary:
 - Integrated Supabase session refresh in middleware
 - All protected routes now correctly require and validate JWT tokens
 - ESLint passes with no new errors
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix product types not showing after creation and not appearing in Add Product dropdown
+
+Work Log:
+- Investigated product types API route (GET /api/product-types)
+- Found ROOT CAUSE: When shopId is provided, the query uses `products: { some: ... }` filter which excludes product types with zero products — newly created types are invisible
+- Found missing cache invalidation after product type mutations in api-client.ts
+- Found fetchProductTypes in products-page.tsx missing currentShop dependency
+- Found products page never re-fetches product types when Add Product dialog opens
+- Found silent error swallowing hides API failures
+- Fixed API route: Removed shopId filter from ProductType query (types are org-level, not shop-level); product count is now filtered by shopId when provided
+- Fixed api-client.ts: Added invalidateCache('GET:/api/product-types') after create/update/delete
+- Fixed products-page.tsx: Added currentShop?.id to fetchProductTypes dependency array
+- Fixed products-page.tsx: Re-fetch product types when Add Product dialog opens
+- Fixed products-page.tsx: Replaced silent catch with console.warn for debugging
+- Fixed products-page.tsx: All setDialogOpen(true) calls now go through handleDialogClose for consistent re-fetching
+- Verified lint passes clean
+- Verified API endpoint compiles and returns correct responses
+
+Stage Summary:
+- ROOT CAUSE: GET /api/product-types with shopId used `products: { some: ... }` filter, hiding types with zero products
+- 4 bugs fixed across 3 files
+- Product types will now appear immediately after creation
+- Product types will appear in the Add Product dropdown

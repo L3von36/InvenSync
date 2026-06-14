@@ -31,18 +31,26 @@ export async function GET(request: Request) {
 
     const shopId = searchParams.get('shopId')
 
+    // Fetch all product types for the organization.
+    // We do NOT filter by shopId at the ProductType level because:
+    // 1. ProductTypes are org-level entities — they belong to the org, not a specific shop.
+    // 2. A newly created product type has zero products, so a `products: { some: ... }`
+    //    filter would hide it entirely, making it invisible after creation.
+    // 3. The shopId filter is only relevant for Products, not ProductTypes.
+    // If the caller needs to know which products belong to a shop, that's handled
+    // at the product level, not the product-type level.
     const productTypes = await db.productType.findMany({
       where: {
         organizationId: orgId,
-        // Prisma doesn't allow null inside `in` arrays, so use AND + OR instead
-        ...(shopId ? { products: { some: { AND: [{ OR: [{ shopId }, { shopId: null }] }] } } } : {}),
       },
       include: {
         attributes: {
           orderBy: { order: 'asc' }
         },
         _count: {
-          select: { products: true }
+          select: { products: shopId ? {
+            where: { OR: [{ shopId }, { shopId: null }] }
+          } : true }
         }
       },
       orderBy: { createdAt: 'desc' }
