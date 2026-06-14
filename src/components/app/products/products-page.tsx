@@ -207,10 +207,24 @@ function ProductDialog({
     }
   }, [open, product, form])
 
+  // Generate a preview SKU from the product type name + product count
+  const generateSkuPreview = (typeName: string) => {
+    const abbr = (typeName || 'PRD').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4)
+    const rand = Math.floor(Math.random() * 900 + 100) // 3-digit random for preview
+    return `${abbr}-${rand}`
+  }
+
   // Handle product type selection
   const handleSelectType = (typeId: string) => {
     setSelectedTypeId(typeId)
     form.setValue('productTypeId', typeId, { shouldValidate: true, shouldDirty: true, shouldTouch: true })
+    // Auto-generate SKU preview when type is selected (only for new products)
+    if (!isEditing) {
+      const pt = productTypes.find((p) => p.id === typeId)
+      if (pt) {
+        form.setValue('sku', generateSkuPreview(pt.name), { shouldDirty: true })
+      }
+    }
     // Clear attribute values when switching types
     setAttributeValues({})
     setAttrErrors({})
@@ -397,7 +411,8 @@ function ProductDialog({
                   <FormInputField
                     name="sku"
                     label="SKU"
-                    placeholder="e.g., TV-SAM-55"
+                    placeholder="Auto-generated"
+                    description="Auto-generated from product type. Edit to customize."
                   />
 
                   <FormTextareaField

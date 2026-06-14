@@ -254,6 +254,20 @@ export async function POST(request: Request) {
       }
     }
 
+    // Auto-generate SKU if not provided: {TYPE-ABBREV}-{TIMESTAMP}
+    // e.g., "SNK-1718991234" or "SHOES-1718991234"
+    if (!sku || sku.trim() === '') {
+      const typeAbbr = (productType.name || 'PRD')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .slice(0, 4)
+      const count = await db.product.count({
+        where: { organizationId: orgId, productTypeId }
+      })
+      const seq = String(count + 1).padStart(3, '0')
+      sku = `${typeAbbr}-${seq}`
+    }
+
     // Wrap product creation + attribute values + initial stock movement in a transaction
     // to prevent orphaned products if attribute creation fails
     const result = await db.$transaction(async (tx) => {
@@ -263,7 +277,7 @@ export async function POST(request: Request) {
           organizationId: orgId,
           shopId: shopId || null,
           name,
-          sku: sku || null,
+          sku,
           description: description || null,
           imageUrl: imageUrl || null,
           quantity: quantity || 0,
