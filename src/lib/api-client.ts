@@ -19,7 +19,7 @@ export interface Organization {
   country?: string
   subscriptionPlan?: string
   subscriptionStatus?: string
-  businessType?: 'retail' | 'service' | 'mixed' | null
+  businessType?: string | null
   description?: string | null
   address?: string | null
   city?: string | null
@@ -1038,6 +1038,26 @@ class ApiClient {
 
   async getShopMemberInfo(orgId: string): Promise<ShopMemberInfo> {
     return this.request(`/api/shop-members?orgId=${orgId}`)
+  }
+
+  // ============================================
+  // Business Type
+  // ============================================
+
+  async updateBusinessType(orgId: string, businessType: string): Promise<{
+    success: boolean
+    businessType: string
+    seeded: boolean
+    productTypeCount: number
+    attributeCount: number
+  }> {
+    const result = await this.request('/api/organizations/business-type', {
+      method: 'POST',
+      body: JSON.stringify({ orgId, businessType }),
+    })
+    this.invalidateCache('GET:/api/auth/me')
+    this.invalidateCache('GET:/api/product-types')
+    return result
   }
 
   // ============================================

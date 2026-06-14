@@ -16,6 +16,7 @@ import { api, type Organization } from '@/lib/api-client'
 import { LocationPicker } from '@/components/app/shared/location-picker'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { BUSINESS_TYPE_OPTIONS, type BusinessTypeKey } from '@/lib/business-templates'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -295,6 +296,9 @@ function OrganizationTab({ orgId }: { orgId: string }) {
           </form>
         </Form>
       </Card>
+
+      {/* Business Type */}
+      <BusinessTypeCard />
 
       {/* Members */}
       <Card>
@@ -1389,5 +1393,105 @@ function ModulesTab({ orgId }: { orgId: string }) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+// ============================================
+// Business Type Card — change/update business type
+// ============================================
+function BusinessTypeCard() {
+  const { currentOrg, organizations, setCurrentOrg } = useAuthStore()
+  const [selectedType, setSelectedType] = useState<string>(currentOrg?.businessType || '')
+  const [saving, setSaving] = useState(false)
+
+  const currentOption = BUSINESS_TYPE_OPTIONS.find(t => t.value === (currentOrg?.businessType || ''))
+  const selectedOption = BUSINESS_TYPE_OPTIONS.find(t => t.value === selectedType)
+  const hasChanges = selectedType !== currentOrg?.businessType
+
+  const handleSave = async () => {
+    if (!currentOrg || !selectedType || !hasChanges) return
+    setSaving(true)
+    try {
+      const result = await api.updateBusinessType(currentOrg.id, selectedType)
+      // Update the currentOrg in the auth store
+      if (organizations) {
+        setCurrentOrg({ ...currentOrg, businessType: selectedType } as any)
+      }
+      if (result.seeded) {
+        toast.success(`Business type updated! ${result.productTypeCount} product types and ${result.attributeCount} attributes created automatically.`)
+      } else {
+        toast.success('Business type updated successfully')
+      }
+    } catch (err) {
+      toast.error(getNetworkErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Store className="size-5" />
+          Business Type
+        </CardTitle>
+        <CardDescription>
+          Your business type determines the default product types, attributes, and form layouts.
+          You can always customize these after setup.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {currentOption && (
+          <div className="flex items-center gap-2 p-3 rounded-md bg-primary/5 border border-primary/20">
+            <span className="text-xl">{currentOption.icon}</span>
+            <div>
+              <p className="text-sm font-medium">Current: {currentOption.label}</p>
+              <p className="text-xs text-muted-foreground">{currentOption.description}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <Label>Select Business Type</Label>
+          <Select value={selectedType} onValueChange={setSelectedType}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select business type" />
+            </SelectTrigger>
+            <SelectContent>
+              {BUSINESS_TYPE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  <span className="flex items-center gap-2">
+                    <span>{opt.icon}</span>
+                    <span>{opt.label}</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {selectedOption && selectedType !== currentOrg?.businessType && (
+          <div className="flex items-start gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+            <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
+            <div className="text-xs text-amber-800 dark:text-amber-200">
+              <p className="font-medium">Changing business type</p>
+              <p className="mt-1">
+                {selectedOption.description}. If you don&apos;t have any product types yet, the new template will be seeded automatically.
+                Existing product types and data will not be deleted.
+              </p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+      {hasChanges && (
+        <CardFooter>
+          <Button onClick={handleSave} disabled={saving} className="gap-2">
+            {saving && <Loader2 className="size-4 animate-spin" />}
+            {saving ? 'Updating...' : 'Update Business Type'}
+          </Button>
+        </CardFooter>
+      )}
+    </Card>
   )
 }

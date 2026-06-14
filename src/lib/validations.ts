@@ -3,6 +3,7 @@
 // ============================================
 
 import { z } from 'zod'
+import { VALID_BUSINESS_TYPES } from '@/lib/business-templates'
 
 // ============================================
 // Reusable field validators
@@ -102,7 +103,10 @@ export const registerSchema = z.object({
     .string()
     .min(1, 'Business name is required')
     .min(2, 'Business name must be at least 2 characters'),
-  businessType: z.string().optional(),
+  businessType: z.string().min(1, 'Business type is required').refine(
+    (val) => [...VALID_BUSINESS_TYPES, 'retail', 'service', 'mixed'].includes(val),
+    { message: 'Please select a valid business type' }
+  ),
   description: z.string().optional(),
   phone: ethiopianPhone,
   city: z.string().optional(),

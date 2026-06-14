@@ -59,6 +59,16 @@ export function businessTypeBadge(type: string): string {
     retail: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
     service: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300',
     mixed: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+    shoe_store: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300',
+    clothing_store: 'bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300',
+    mobile_phone_shop: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+    grocery_minimart: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+    cosmetics_shop: 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-300',
+    hardware_store: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+    restaurant_cafe: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
+    electronics_store: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300',
+    pharmacy: 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300',
+    general_retail: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
   }
   return colors[type] || 'bg-gray-100 text-gray-800'
 }
@@ -67,12 +77,22 @@ export function businessTypeBadge(type: string): string {
  * Business type dot color (for map markers)
  */
 export function businessTypeColor(type: string): string {
-  switch (type) {
-    case 'retail': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
-    case 'service': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-    case 'mixed': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-    default: return 'bg-gray-100 text-gray-800'
+  const colors: Record<string, string> = {
+    retail: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
+    service: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    mixed: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+    shoe_store: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300',
+    clothing_store: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
+    mobile_phone_shop: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    grocery_minimart: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+    cosmetics_shop: 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/30 dark:text-fuchsia-300',
+    hardware_store: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+    restaurant_cafe: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    electronics_store: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+    pharmacy: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300',
+    general_retail: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
   }
+  return colors[type] || 'bg-gray-100 text-gray-800'
 }
 
 /**

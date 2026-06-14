@@ -100,6 +100,16 @@ const MODULE_KEY_MAP: Record<string, string> = {
   'anomaly-detection': 'ai-inventory',
 }
 
+const retailBusinessTypes = [
+  'retail', 'mixed',
+  'shoe_store', 'clothing_store', 'mobile_phone_shop', 'grocery_minimart',
+  'cosmetics_shop', 'hardware_store', 'electronics_store', 'pharmacy', 'general_retail',
+]
+
+const serviceBusinessTypes = [
+  'service', 'mixed', 'restaurant_cafe',
+]
+
 const mainNavItems: Array<{
   title: string
   page: Page
@@ -109,10 +119,10 @@ const mainNavItems: Array<{
   moduleKey?: string
 }> = [
   { title: 'Dashboard', page: 'dashboard', icon: LayoutDashboard },
-  { title: 'Product Types', page: 'product-types', icon: Tags, businessTypes: ['retail', 'mixed'], roles: ['owner', 'manager'], moduleKey: 'inventory' },
-  { title: 'Products', page: 'products', icon: Package, businessTypes: ['retail', 'mixed'], moduleKey: 'inventory' },
-  { title: 'Inventory', page: 'inventory', icon: Warehouse, businessTypes: ['retail', 'mixed'], roles: ['owner', 'manager'], moduleKey: 'inventory' },
-  { title: 'Services', page: 'services', icon: Wrench, businessTypes: ['service', 'mixed'], moduleKey: 'services' },
+  { title: 'Product Types', page: 'product-types', icon: Tags, businessTypes: retailBusinessTypes, roles: ['owner', 'manager'], moduleKey: 'inventory' },
+  { title: 'Products', page: 'products', icon: Package, businessTypes: retailBusinessTypes, moduleKey: 'inventory' },
+  { title: 'Inventory', page: 'inventory', icon: Warehouse, businessTypes: retailBusinessTypes, roles: ['owner', 'manager'], moduleKey: 'inventory' },
+  { title: 'Services', page: 'services', icon: Wrench, businessTypes: serviceBusinessTypes, moduleKey: 'services' },
   { title: 'Sales', page: 'sales', icon: ShoppingCart, moduleKey: 'sales' },
   { title: 'Customers', page: 'customers', icon: Users, moduleKey: 'customers' },
   { title: 'Suppliers', page: 'suppliers', icon: Truck, roles: ['owner', 'manager'], moduleKey: 'suppliers' },
@@ -563,7 +573,7 @@ export function MobileBottomNav() {
   const morePanelRef = useRef<HTMLDivElement>(null)
   const moreButtonRef = useRef<HTMLButtonElement>(null)
 
-  const isService = currentOrg?.businessType === 'service'
+  const isService = currentOrg?.businessType === 'service' || currentOrg?.businessType === 'restaurant_cafe'
   const isMixed = currentOrg?.businessType === 'mixed'
   const isManager = currentOrgRole === 'owner' || currentOrgRole === 'manager'
   const isAdmin = user?.role === 'admin'

@@ -4,6 +4,8 @@ import { hashPassword, generateToken, validatePasswordStrength } from '@/lib/aut
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
+import { seedBusinessTemplate } from '@/lib/seed-business-template'
+import { VALID_BUSINESS_TYPES, mapLegacyBusinessType } from '@/lib/business-templates'
 
 export async function POST(request: Request) {
   // Rate limiting
@@ -63,8 +65,8 @@ export async function POST(request: Request) {
     // Normalize email to lowercase for case-insensitive uniqueness
     const normalizedEmail = email.toLowerCase().trim()
 
-    const validBusinessTypes = ['retail', 'service', 'mixed']
-    const resolvedBusinessType = validBusinessTypes.includes(businessType) ? businessType : 'retail'
+    const validBusinessTypes = [...VALID_BUSINESS_TYPES, 'retail', 'service', 'mixed']
+    const resolvedBusinessType = validBusinessTypes.includes(businessType) ? businessType : 'general_retail'
 
     // Check if user already exists — block registration for ANY existing user
     const existingUser = await db.user.findUnique({ where: { email: normalizedEmail } })
@@ -182,6 +184,10 @@ export async function POST(request: Request) {
           }
         })
       }
+
+      // Seed business template — create default product types & attributes
+      // based on the selected business type
+      await seedBusinessTemplate(tx, organization.id, resolvedBusinessType)
 
       // Handle sales rep linking if provided
       let salesRepName: string | null = null

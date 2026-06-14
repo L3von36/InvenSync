@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Package, ChevronRight, ChevronDown, MapPin, ArrowLeft } from 'lucide-react'
+import { Package, ChevronRight, ChevronDown, MapPin, ArrowLeft, Store } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form } from '@/components/ui/form'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { LocationPicker } from '@/components/app/shared/location-picker'
 import { registerSchema, type RegisterFormData } from '@/lib/validations'
 import { getNetworkErrorMessage } from '@/lib/validation'
+import { BUSINESS_TYPE_OPTIONS, type BusinessTypeKey } from '@/lib/business-templates'
 import {
   FormInputField,
   FormTextareaField,
@@ -23,11 +24,10 @@ interface RegisterPageProps {
   onBack?: () => void
 }
 
-const businessTypeOptions = [
-  { value: 'retail', label: 'Retail Shop' },
-  { value: 'service', label: 'Service Provider' },
-  { value: 'mixed', label: 'Mixed (Retail + Service)' },
-]
+const businessTypeSelectOptions = BUSINESS_TYPE_OPTIONS.map(t => ({
+  value: t.value,
+  label: `${t.icon} ${t.label}`,
+}))
 
 export function RegisterPage({ onSwitchToLogin, onBack }: RegisterPageProps) {
   const { register } = useAuthStore()
@@ -171,10 +171,22 @@ export function RegisterPage({ onSwitchToLogin, onBack }: RegisterPageProps) {
                 <FormSelectField
                   name="businessType"
                   label="Business Type"
-                  placeholder="Select business type"
-                  options={businessTypeOptions}
+                  placeholder="Select your business type"
+                  options={businessTypeSelectOptions}
+                  required
                   disabled={isLoading}
                 />
+                {form.watch('businessType') && (
+                  <div className="flex items-start gap-2 rounded-md bg-primary/5 border border-primary/20 p-3">
+                    <Store className="size-4 text-primary mt-0.5 shrink-0" />
+                    <div className="text-xs text-muted-foreground">
+                      {BUSINESS_TYPE_OPTIONS.find(t => t.value === form.watch('businessType'))?.description}
+                      <span className="block mt-1 text-primary/80">
+                        Pre-configured product types &amp; attributes will be set up automatically.
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <FormInputField
                   name="referralCode"
                   label="Referral Code"
