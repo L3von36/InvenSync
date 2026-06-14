@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { subscribeWithSelector } from 'zustand/middleware'
 import { api, type User, type Organization, type Shop } from '@/lib/api-client'
 import { authFetch } from '@/lib/auth-fetch'
 
@@ -88,7 +89,7 @@ function newSession(): number {
   return currentSessionId
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>()(subscribeWithSelector((set, get) => ({
   user: null,
   token: null,
   organizations: [],
@@ -119,7 +120,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Check if 2FA is required
     if ('requires2FA' in data && (data as { requires2FA: boolean }).requires2FA) {
-      const data2fa = data as { tempToken: string; user: User }
+      const data2fa = data as unknown as { tempToken: string; user: User }
       // Throw a special error so auth-flow can show the TwoFactorPage
       throw new TwoFactorRequiredError(
         data2fa.tempToken,
@@ -455,7 +456,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       })
     }
   },
-}))
+})))
 
 // Subscribe to currentOrg changes to persist to localStorage
 if (typeof window !== 'undefined') {

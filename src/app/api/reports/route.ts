@@ -187,7 +187,7 @@ async function fetchReportData(
     : new Map<string, { id: string; name: string; sku: string | null; sellingPrice: number }>()
 
   const bestSellingWithDetails = bestSellingProducts.map(item => {
-    const product = bestSellingProductMap.get(item.productId)
+    const product = item.productId ? bestSellingProductMap.get(item.productId) : undefined
     return {
       id: item.productId,
       name: product?.name || 'Unknown',

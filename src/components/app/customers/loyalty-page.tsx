@@ -150,7 +150,7 @@ export function LoyaltyPage() {
     try {
       const searchParams = new URLSearchParams({ organizationId: orgId, page: page.toString(), limit: limit.toString() })
       if (searchQuery) searchParams.set('search', searchQuery)
-      const data = await api.request<{ accounts: LoyaltyAccount[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
+      const data = await api.get<{ accounts: LoyaltyAccount[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
         `/api/loyalty?${searchParams.toString()}`
       )
       setAccounts(data.accounts)
@@ -181,7 +181,7 @@ export function LoyaltyPage() {
     setShowDetail(true)
     setDetailLoading(true)
     try {
-      const data = await api.request<{ account: LoyaltyAccount & { transactions: LoyaltyTransaction[] } }>(
+      const data = await api.get<{ account: LoyaltyAccount & { transactions: LoyaltyTransaction[] } }>(
         `/api/loyalty/${account.id}?organizationId=${orgId}`
       )
       setTransactions(data.account.transactions || [])
@@ -214,14 +214,11 @@ export function LoyaltyPage() {
 
     setAdjusting(true)
     try {
-      await api.request(`/api/loyalty/${adjustAccount.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          organizationId: orgId,
-          action: adjustAction,
-          points,
-          reason: adjustReason.trim(),
-        }),
+      await api.put(`/api/loyalty/${adjustAccount.id}`, {
+        organizationId: orgId,
+        action: adjustAction,
+        points,
+        reason: adjustReason.trim(),
       })
       toast.success(`Successfully ${adjustAction === 'add' ? 'added' : 'deducted'} ${points} points`)
       setShowAdjust(false)

@@ -31,7 +31,7 @@ import {
 
 interface FormInputFieldProps<T extends FieldValues> {
   name: FieldPath<T>
-  label?: string
+  label?: React.ReactNode
   placeholder?: string
   description?: string
   type?: React.InputHTMLAttributes<HTMLInputElement>['type']
@@ -318,6 +318,8 @@ interface FormSubmitButtonProps {
   className?: string
   variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
   size?: 'default' | 'sm' | 'lg' | 'icon'
+  type?: 'submit' | 'button'
+  onClick?: (e?: React.BaseSyntheticEvent) => void | Promise<void>
 }
 
 export function FormSubmitButton({
@@ -328,10 +330,13 @@ export function FormSubmitButton({
   className,
   variant = 'default',
   size = 'default',
+  type = 'submit',
+  onClick,
 }: FormSubmitButtonProps) {
   return (
     <Button
-      type="submit"
+      type={type}
+      onClick={onClick}
       disabled={isLoading || disabled}
       variant={variant}
       size={size}

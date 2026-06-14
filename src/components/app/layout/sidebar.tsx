@@ -28,7 +28,6 @@ import {
   Megaphone,
   Bell,
   UserCog,
-  Office,
   Globe2,
   GitBranch,
   Sun,

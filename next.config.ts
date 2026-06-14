@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Type errors now fail the build — the codebase is type-clean (see `npx tsc --noEmit`).
+  // Keeping this enforced prevents regressions from silently shipping.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   reactStrictMode: false,
 

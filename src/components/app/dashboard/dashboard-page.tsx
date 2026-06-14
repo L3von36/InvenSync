@@ -100,7 +100,7 @@ interface DashboardAnomaly {
   severity: 'high' | 'medium' | 'low'
 }
 
-interface EnhancedDashboardData extends DashboardData {
+interface EnhancedDashboardData extends Omit<DashboardData, 'comparison' | 'period' | 'anomalies'> {
   comparison?: DashboardComparison
   period?: DashboardPeriod
   anomalies?: DashboardAnomaly[]
@@ -1756,7 +1756,7 @@ function SalesDashboard({
     if (!currentOrg) return
     Promise.all([
       api.getCustomers(currentOrg.id, { limit: 5, shopId: currentShop?.id }).catch(() => ({ customers: [] })),
-      api.getDebts(currentOrg.id, { status: 'pending', limit: '5', shopId: currentShop?.id }).catch(() => ({ debts: [], summary: { totalCustomerDebt: 0, totalSupplierDebt: 0, totalOutstanding: 0 } })),
+      api.getDebts(currentOrg.id, { status: 'pending', limit: 5, shopId: currentShop?.id }).catch(() => ({ debts: [], summary: { totalCustomerDebt: 0, totalSupplierDebt: 0, totalOutstanding: 0 } })),
     ]).then(([customersData, debtsData]) => {
       setRecentCustomers(customersData.customers)
       setOutstandingDebts(debtsData.debts)

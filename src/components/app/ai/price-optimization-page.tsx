@@ -277,7 +277,7 @@ export function PriceOptimizationPage() {
     setFetchError(null)
     setDismissedIds(new Set())
     try {
-      const data = await api.optimizePrices(currentOrg.id) as PriceOptimizationResult
+      const data = await api.optimizePrices(currentOrg.id) as unknown as PriceOptimizationResult
       setResult(data)
       toast.success(`Found ${data.suggestions.length} price suggestions`, {
         description: `Analysis powered by ${data.source === 'ai' ? 'AI' : 'rule-based engine'}`,

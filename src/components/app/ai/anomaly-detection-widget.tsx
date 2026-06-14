@@ -179,10 +179,10 @@ export function AnomalyDetectionWidget() {
 
     setIsLoading(true)
     try {
-      const data = await api.detectAnomalies(currentOrg.id)
-      setResult(data as AnomalyDetectionResult)
-      toast.success(`Found ${(data as AnomalyDetectionResult).anomalies.length} anomalies`, {
-        description: `Analysis powered by ${(data as AnomalyDetectionResult).source === 'ai' ? 'AI' : 'rule-based engine'}`,
+      const data = await api.detectAnomalies(currentOrg.id) as unknown as AnomalyDetectionResult
+      setResult(data)
+      toast.success(`Found ${data.anomalies.length} anomalies`, {
+        description: `Analysis powered by ${data.source === 'ai' ? 'AI' : 'rule-based engine'}`,
       })
     } catch (err) {
       const message = getNetworkErrorMessage(err)

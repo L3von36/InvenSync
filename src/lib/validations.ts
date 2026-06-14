@@ -53,12 +53,12 @@ export const optionalEmail = z
 
 export const positiveNumber = z
   .coerce
-  .number({ invalid_type_error: 'Must be a valid number' })
+  .number({ error: 'Must be a valid number' })
   .min(0, 'Must be a positive number')
 
 export const positiveInteger = z
   .coerce
-  .number({ invalid_type_error: 'Must be a valid number' })
+  .number({ error: 'Must be a valid number' })
   .int('Must be a whole number')
   .min(1, 'Must be at least 1')
 
@@ -146,8 +146,8 @@ export type SupplierFormData = z.infer<typeof supplierSchema>
 
 export const saleItemSchema = z.object({
   productId: z.string().min(1, 'Product is required'),
-  quantity: z.coerce.number({ invalid_type_error: 'Quantity is required' }).min(1, 'Quantity must be at least 1'),
-  unitPrice: z.coerce.number({ invalid_type_error: 'Price is required' }).min(0, 'Price must be positive'),
+  quantity: z.coerce.number({ error: 'Quantity is required' }).min(1, 'Quantity must be at least 1'),
+  unitPrice: z.coerce.number({ error: 'Price is required' }).min(0, 'Price must be positive'),
 })
 
 export const saleSchema = z.object({
@@ -174,10 +174,10 @@ export const productSchema = z.object({
   name: requiredName,
   sku: z.string().optional(),
   description: z.string().optional(),
-  costPrice: z.coerce.number({ invalid_type_error: 'Cost price is required' }).positive('Cost price must be greater than 0'),
-  sellingPrice: z.coerce.number({ invalid_type_error: 'Selling price is required' }).positive('Selling price must be greater than 0'),
-  lowStockThreshold: z.coerce.number({ invalid_type_error: 'Threshold is required' }).min(0, 'Threshold must be positive').optional().default(5),
-  quantity: z.coerce.number({ invalid_type_error: 'Quantity is required' }).min(0, 'Quantity must be positive').optional(),
+  costPrice: z.coerce.number({ error: 'Cost price is required' }).positive('Cost price must be greater than 0'),
+  sellingPrice: z.coerce.number({ error: 'Selling price is required' }).positive('Selling price must be greater than 0'),
+  lowStockThreshold: z.coerce.number({ error: 'Threshold is required' }).min(0, 'Threshold must be positive').optional().default(5),
+  quantity: z.coerce.number({ error: 'Quantity is required' }).min(0, 'Quantity must be positive').optional(),
 })
 
 export type ProductFormData = z.infer<typeof productSchema>
@@ -225,7 +225,7 @@ export type ExpenseFormData = z.infer<typeof expenseFormSchema>
 export const debtSchema = z.object({
   type: z.enum(['customer_debt', 'supplier_debt']),
   entityId: z.string().min(1, 'Please select a customer or supplier'),
-  amount: z.coerce.number({ invalid_type_error: 'Amount is required' }).positive('Amount must be greater than 0'),
+  amount: z.coerce.number({ error: 'Amount is required' }).positive('Amount must be greater than 0'),
   dueDate: z.string().optional(),
   description: z.string().optional(),
 })
@@ -233,7 +233,7 @@ export const debtSchema = z.object({
 export type DebtFormData = z.infer<typeof debtSchema>
 
 export const debtPaymentSchema = z.object({
-  amount: z.coerce.number({ invalid_type_error: 'Payment amount is required' }).positive('Payment amount must be greater than 0'),
+  amount: z.coerce.number({ error: 'Payment amount is required' }).positive('Payment amount must be greater than 0'),
   paymentMethod: z.enum(['cash', 'card', 'mobile_money']),
   notes: z.string().optional(),
 })
@@ -259,8 +259,8 @@ export type StockAdjustmentFormData = z.infer<typeof stockAdjustmentSchema>
 export const serviceTypeSchema = z.object({
   name: requiredName,
   description: z.string().optional(),
-  duration: z.coerce.number({ invalid_type_error: 'Duration is required' }).min(1, 'Duration must be at least 1 minute').optional(),
-  price: z.coerce.number({ invalid_type_error: 'Price is required' }).min(0, 'Price must be positive').optional(),
+  duration: z.coerce.number({ error: 'Duration is required' }).min(1, 'Duration must be at least 1 minute').optional(),
+  price: z.coerce.number({ error: 'Price is required' }).min(0, 'Price must be positive').optional(),
   imageUrl: z.string().optional(),
 })
 
@@ -319,7 +319,7 @@ export const adminModuleSchema = z.object({
   description: z.string().optional(),
   icon: z.string().optional(),
   category: z.string().optional(),
-  priceETB: z.coerce.number({ invalid_type_error: 'Price is required' }).min(0, 'Price must be positive'),
+  priceETB: z.coerce.number({ error: 'Price is required' }).min(0, 'Price must be positive'),
   billingCycle: z.string().optional(),
   isFree: z.boolean().optional().default(true),
   freeTrialDays: z.coerce.number().min(0, 'Trial days must be positive').optional().default(30),
@@ -333,7 +333,7 @@ export const salesRepSchema = z.object({
   email: requiredEmail,
   phone: ethiopianPhone,
   targetCity: z.string().optional(),
-  commissionPerReg: z.coerce.number({ invalid_type_error: 'Commission is required' }).min(0, 'Commission must be positive'),
+  commissionPerReg: z.coerce.number({ error: 'Commission is required' }).min(0, 'Commission must be positive'),
   monthlyTarget: z.coerce.number().min(1, 'Target must be at least 1').optional().default(10),
 })
 
@@ -342,7 +342,7 @@ export type SalesRepFormData = z.infer<typeof salesRepSchema>
 export const editSalesRepSchema = z.object({
   phone: ethiopianPhone,
   targetCity: z.string().optional(),
-  commissionPerReg: z.coerce.number({ invalid_type_error: 'Commission is required' }).min(0, 'Commission must be positive'),
+  commissionPerReg: z.coerce.number({ error: 'Commission is required' }).min(0, 'Commission must be positive'),
 })
 
 export type EditSalesRepFormData = z.infer<typeof editSalesRepSchema>
@@ -350,7 +350,7 @@ export type EditSalesRepFormData = z.infer<typeof editSalesRepSchema>
 export const salesGoalSchema = z.object({
   period: periodFormat,
   targetCount: positiveInteger,
-  bonusAmount: z.coerce.number({ invalid_type_error: 'Bonus is required' }).min(0, 'Bonus must be positive'),
+  bonusAmount: z.coerce.number({ error: 'Bonus is required' }).min(0, 'Bonus must be positive'),
 })
 
 export type SalesGoalFormData = z.infer<typeof salesGoalSchema>

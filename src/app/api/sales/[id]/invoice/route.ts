@@ -64,7 +64,7 @@ export async function GET(
           }
         },
         organization: {
-          select: { id: true, name: true, phone: true, address: true, city: true, country: true, email: true, logoUrl: true }
+          select: { id: true, name: true, phone: true, address: true, city: true, country: true, logoUrl: true }
         },
         shop: {
           select: { id: true, name: true, phone: true, address: true, city: true }
@@ -301,7 +301,6 @@ export async function GET(
         <p>
           ${org.address || ''}${org.city ? `, ${org.city}` : ''}${org.country ? `, ${org.country}` : ''}<br>
           ${org.phone ? `Tel: ${org.phone}` : ''}
-          ${org.email ? `<br>Email: ${org.email}` : ''}
         </p>
       </div>
       <div class="invoice-badge">

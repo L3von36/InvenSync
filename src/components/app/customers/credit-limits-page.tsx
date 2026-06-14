@@ -125,7 +125,7 @@ export function CreditLimitsPage() {
     try {
       const searchParams = new URLSearchParams({ organizationId: orgId, page: page.toString(), limit: limit.toString() })
       if (searchQuery) searchParams.set('search', searchQuery)
-      const data = await api.request<{
+      const data = await api.get<{
         creditLimits: CreditLimitData[]
         pagination: { page: number; limit: number; total: number; totalPages: number }
         summary: CreditSummary
@@ -185,13 +185,10 @@ export function CreditLimitsPage() {
     try {
       if (editLimit) {
         // Update existing
-        await api.request(`/api/credit-limits/${editLimit.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            organizationId: orgId,
-            creditLimit: amount,
-            alertThreshold: threshold / 100,
-          }),
+        await api.put(`/api/credit-limits/${editLimit.id}`, {
+          organizationId: orgId,
+          creditLimit: amount,
+          alertThreshold: threshold / 100,
         })
         toast.success('Credit limit updated successfully')
       } else {
@@ -212,12 +209,9 @@ export function CreditLimitsPage() {
     if (!orgId) return
     setTogglingBlock(creditLimit.id)
     try {
-      await api.request(`/api/credit-limits/${creditLimit.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          organizationId: orgId,
-          isBlocked: !creditLimit.isBlocked,
-        }),
+      await api.put(`/api/credit-limits/${creditLimit.id}`, {
+        organizationId: orgId,
+        isBlocked: !creditLimit.isBlocked,
       })
       toast.success(creditLimit.isBlocked ? 'Credit unblocked successfully' : 'Credit blocked successfully')
       fetchCreditLimits()

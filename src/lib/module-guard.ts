@@ -90,7 +90,7 @@ export async function checkModuleAccess(
     const freeModules = ['dashboard', 'products', 'inventory', 'sales']
     return {
       hasAccess: freeModules.includes(moduleKey),
-      reason: 'Unable to verify module access',
+      status: null,
     }
   }
 }

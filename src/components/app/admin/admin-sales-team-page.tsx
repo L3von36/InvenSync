@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@/lib/zod-resolver'
 import {
   Users, Target, DollarSign, Trophy, Plus, Search, Edit,
   Trash2, CheckCircle2, Clock, Medal, TrendingUp, Building2,
@@ -899,7 +899,7 @@ function OverviewLeaderboardTab() {
       const months: Array<{ month: string; registrations: number }> = []
       const now = new Date()
       const currentMonthReg = data.overview.currentMonthRegistrations
-      const totalReg = data.overview.totalRegistrations
+      const totalReg = data.overview.currentMonthRegistrations
       // Distribute remaining registrations across past months with a growth trend
       const remainingReg = Math.max(0, totalReg - currentMonthReg)
       for (let i = 5; i >= 0; i--) {

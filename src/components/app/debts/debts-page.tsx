@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@/lib/zod-resolver'
 import {
   CreditCard, DollarSign, AlertTriangle, ArrowDownLeft,
   Plus, Search, Eye, Wallet, TrendingDown, Users, Truck
@@ -215,7 +215,7 @@ export function DebtsPage() {
           const data2 = await api.getDebts(orgId, {
             status: 'all',
             type: selectedDebt.type,
-            limit: '100',
+            limit: 100,
             shopId,
           })
           const updated = data2.debts.find((d) => d.id === selectedDebt.id)

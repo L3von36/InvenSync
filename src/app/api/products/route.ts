@@ -67,7 +67,7 @@ export async function GET(request: Request) {
         { sku: { contains: search } },
         { description: { contains: search } },
       ]
-      if (where.AND) {
+      if (Array.isArray(where.AND)) {
         where.AND.push({ OR: searchOr })
       } else {
         where.OR = searchOr

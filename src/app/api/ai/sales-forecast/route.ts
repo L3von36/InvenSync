@@ -158,10 +158,11 @@ async function computeSalesForecast(organizationId: string, period: string) {
       _count: true,
     }),
 
-    // Top products last 30 days
+    // Top products last 30 days (exclude orphaned items whose product was deleted)
     db.saleItem.groupBy({
       by: ['productId'],
       where: {
+        productId: { not: null },
         sale: { organizationId, saleDate: { gte: thirtyDaysAgo }, status: 'completed' },
       },
       _sum: { total: true, quantity: true },
@@ -173,6 +174,7 @@ async function computeSalesForecast(organizationId: string, period: string) {
     db.saleItem.groupBy({
       by: ['productId'],
       where: {
+        productId: { not: null },
         sale: { organizationId, saleDate: { gte: sixtyDaysAgo, lt: thirtyDaysAgo }, status: 'completed' },
       },
       _sum: { total: true, quantity: true },
@@ -203,7 +205,9 @@ async function computeSalesForecast(organizationId: string, period: string) {
   dailyData.sort((a, b) => a.date.localeCompare(b.date))
 
   // Get product names for top products
-  const allTopProductIds = [...topProductsLast30, ...topProductsPrev30].map(p => p.productId)
+  const allTopProductIds = [...topProductsLast30, ...topProductsPrev30]
+    .map(p => p.productId)
+    .filter((id): id is string => id !== null)
   const uniqueProductIds = [...new Set(allTopProductIds)]
   const productNames = await db.product.findMany({
     where: { id: { in: uniqueProductIds } },
@@ -212,7 +216,9 @@ async function computeSalesForecast(organizationId: string, period: string) {
   const productNameMap = new Map(productNames.map(p => [p.id, p.name]))
 
   // Build product comparison data
-  const productComparison = topProductsLast30.map(p => {
+  const productComparison = topProductsLast30
+    .filter((p): p is typeof p & { productId: string } => p.productId !== null)
+    .map(p => {
     const prevP = topProductsPrev30.find(pp => pp.productId === p.productId)
     return {
       productId: p.productId,

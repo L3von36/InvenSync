@@ -235,7 +235,7 @@ async function fetchProfitLossData(organizationId: string, fromDate: Date, toDat
     : new Map<string, { id: string; name: string; sku: string | null }>()
 
   const topProducts = topProductGroups.map(item => {
-    const product = topProductMap.get(item.productId)
+    const product = item.productId ? topProductMap.get(item.productId) : undefined
     const revenue = item._sum.total || 0
     const cost = (item._sum.costPrice || 0) * (item._sum.quantity || 0)
     return {

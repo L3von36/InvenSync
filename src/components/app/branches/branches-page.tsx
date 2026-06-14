@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@/lib/zod-resolver'
 import {
   Store, MapPin, Phone, Users, Package, ChevronDown, ChevronUp,
   Pencil, UserPlus, Trash2, Loader2, Plus, Building2,
 } from 'lucide-react'
-import { api } from '@/lib/api-client'
+import { api, type ShopWithDetails } from '@/lib/api-client'
 import { LocationPicker } from '@/components/app/shared/location-picker'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -46,18 +46,7 @@ export function BranchesPage() {
   const { currentOrg, shops, currentShop, setCurrentShop } = useAuthStore()
   const orgId = currentOrg?.id || ''
 
-  const [branchList, setBranchList] = useState<Array<{
-    id: string
-    name: string
-    address: string | null
-    city: string | null
-    phone: string | null
-    latitude: number | null
-    longitude: number | null
-    isActive: boolean
-    members: Array<{ id: string; userId: string; role: string; user: { id: string; name: string; email: string; avatarUrl?: string | null } }>
-    _count: { products: number; sales: number }
-  }>>([])
+  const [branchList, setBranchList] = useState<ShopWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [showDialog, setShowDialog] = useState(false)
@@ -432,8 +421,8 @@ export function BranchesPage() {
               <div className="space-y-2">
                 <Label>Location</Label>
                 <LocationPicker
-                  latitude={shopForm.watch('latitude')}
-                  longitude={shopForm.watch('longitude')}
+                  latitude={shopForm.watch('latitude') ?? null}
+                  longitude={shopForm.watch('longitude') ?? null}
                   onChange={(lat, lng) => {
                     shopForm.setValue('latitude', lat)
                     shopForm.setValue('longitude', lng)

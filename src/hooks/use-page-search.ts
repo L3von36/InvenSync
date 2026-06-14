@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 export function usePageSearch(initialValue = '', debounceMs = 300) {
   const [search, setSearch] = useState(initialValue)
   const [debouncedSearch, setDebouncedSearch] = useState(initialValue)
-  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
     timerRef.current = setTimeout(() => {

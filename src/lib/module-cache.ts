@@ -4,6 +4,8 @@
 // Ensures API performance stays fast regardless of business count.
 // Cache is invalidated when modules are modified.
 
+import type { PrismaClient } from '@prisma/client'
+
 interface CachedOrgModules {
   activeModuleKeys: string[]
   expiresAt: number // cache TTL
@@ -50,8 +52,7 @@ export function setCachedModules(orgId: string, activeModuleKeys: string[]): voi
 
 // Batch auto-expire: expire all trial modules whose time has passed
 // Returns the number of modules expired
-export async function batchExpireTrials(db: Record<string, unknown>): Promise<number> {
-  const prisma = db as { organizationModule: { findMany: (args: unknown) => Promise<Array<{ id: string }>>; updateMany: (args: unknown) => Promise<{ count: number }> } }
+export async function batchExpireTrials(prisma: PrismaClient): Promise<number> {
   const now = new Date()
 
   // Find all trial modules that should be expired

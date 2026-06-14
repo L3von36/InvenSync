@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@/lib/zod-resolver'
 import {
   Truck, Plus, Search, Eye, Pencil, Trash2,
   DollarSign, MapPin, Mail, Phone,
@@ -99,7 +99,7 @@ export function SuppliersPage() {
       // Get total owed to suppliers from debts API
       if (page === 1 && !searchQuery) {
         try {
-          const debtsData = await api.getDebts(orgId, { type: 'supplier_debt', status: 'all', limit: '100', shopId })
+          const debtsData = await api.getDebts(orgId, { type: 'supplier_debt', status: 'all', limit: 100, shopId })
           const outstanding = debtsData.debts
             .filter((d) => d.status !== 'paid')
             .reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
@@ -209,7 +209,7 @@ export function SuppliersPage() {
     setShowDetail(true)
     setDetailLoading(true)
     try {
-      const debtsData = await api.getDebts(orgId, { type: 'supplier_debt', limit: '100', shopId })
+      const debtsData = await api.getDebts(orgId, { type: 'supplier_debt', limit: 100, shopId })
       const filteredDebts = debtsData.debts.filter((d) => d.supplierId === supplier.id)
       setSupplierDebts(filteredDebts)
     } catch (err) {

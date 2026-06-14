@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch } from '@/lib/auth-fetch'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@/lib/zod-resolver'
 import {
   Plus, Trash2, Loader2, RefreshCw, Clock, Send,
   CalendarDays, FileText, Mail, MessageCircle, Phone,

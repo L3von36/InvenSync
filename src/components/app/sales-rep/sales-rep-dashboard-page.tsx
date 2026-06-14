@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getAuthToken } from '@/lib/auth-fetch'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@/lib/zod-resolver'
 import {
   Building2,
   TrendingUp,
@@ -492,8 +492,8 @@ function RegisterBusinessDialog({
                 <span className="text-xs font-normal text-muted-foreground">(auto-detected)</span>
               </Label>
               <LocationPicker
-                latitude={form.watch('latitude')}
-                longitude={form.watch('longitude')}
+                latitude={form.watch('latitude') ?? null}
+                longitude={form.watch('longitude') ?? null}
                 onChange={(lat, lng) => {
                   form.setValue('latitude', lat)
                   form.setValue('longitude', lng)

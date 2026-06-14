@@ -20,6 +20,9 @@ const {
   mockSalesRepFindUnique,
   mockCommissionCreate,
   mockGoalUpsert,
+  mockProductTypeCreate,
+  mockProductTypeCount,
+  mockAttributeDefinitionCreate,
 } = vi.hoisted(() => ({
   mockApplyRateLimit: vi.fn(),
   mockHashPassword: vi.fn(),
@@ -39,6 +42,9 @@ const {
   mockSalesRepFindUnique: vi.fn(),
   mockCommissionCreate: vi.fn(),
   mockGoalUpsert: vi.fn(),
+  mockProductTypeCreate: vi.fn(),
+  mockProductTypeCount: vi.fn(),
+  mockAttributeDefinitionCreate: vi.fn(),
 }))
 
 // Mock rate-limit
@@ -113,6 +119,13 @@ vi.mock('@/lib/db', () => {
     salesGoal: {
       upsert: (...args: any[]) => mockGoalUpsert(...args),
     },
+    productType: {
+      create: (...args: any[]) => mockProductTypeCreate(...args),
+      count: (...args: any[]) => mockProductTypeCount(...args),
+    },
+    attributeDefinition: {
+      create: (...args: any[]) => mockAttributeDefinitionCreate(...args),
+    },
   }
   return {
     db: {
@@ -133,6 +146,10 @@ describe('POST /api/auth/register', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockApplyRateLimit.mockReturnValue({ allowed: true, remaining: 4 })
+    // Business-template seeding runs inside the registration transaction.
+    mockProductTypeCreate.mockResolvedValue({ id: 'pt-1' })
+    mockProductTypeCount.mockResolvedValue(0)
+    mockAttributeDefinitionCreate.mockResolvedValue({ id: 'ad-1' })
   })
 
   it('should return 400 when required fields are missing', async () => {
@@ -227,12 +244,12 @@ describe('POST /api/auth/register', () => {
     expect(mockHashPassword).toHaveBeenCalledWith(STRONG_PASSWORD)
   })
 
-  it('should default business type to retail when invalid type provided', async () => {
+  it('should default business type to general_retail when invalid type provided', async () => {
     mockUserFindUnique.mockResolvedValue(null)
     mockOrgFindUnique.mockResolvedValue(null)
     mockHashPassword.mockResolvedValue('hashedpassword')
     mockUserCreate.mockResolvedValue({ id: 'user-1', email: 'test@test.com', name: 'Test', role: 'owner' })
-    mockOrgCreate.mockResolvedValue({ id: 'org-1', name: 'Test Org', slug: 'test-org-abc', businessType: 'retail', city: null })
+    mockOrgCreate.mockResolvedValue({ id: 'org-1', name: 'Test Org', slug: 'test-org-abc', businessType: 'general_retail', city: null })
     mockMemberCreate.mockResolvedValue({ id: 'mem-1' })
     mockShopCreate.mockResolvedValue({ id: 'shop-1' })
     mockShopMemberCreate.mockResolvedValue({ id: 'sm-1' })
@@ -248,7 +265,7 @@ describe('POST /api/auth/register', () => {
     expect(response.status).toBe(201)
     expect(mockOrgCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ businessType: 'retail' }),
+        data: expect.objectContaining({ businessType: 'general_retail' }),
       })
     )
   })

@@ -157,7 +157,7 @@ export async function POST(request: Request) {
     // Find all admin users and their organizations to create notifications
     try {
       const adminUsers = await db.user.findMany({
-        where: { role: 'admin', isActive: true },
+        where: { role: 'admin' },
         select: { id: true },
       })
 
