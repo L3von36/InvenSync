@@ -1,0 +1,919 @@
+     1→// ============================================
+     2→// Industry-Based Business Templates
+     3→// ============================================
+     4→// When a new organization is created, these templates define the default
+     5→// product types, attributes, and form field configurations that get seeded.
+     6→
+     7→export type BusinessTypeKey =
+     8→  | 'shoe_store'
+     9→  | 'clothing_store'
+    10→  | 'mobile_phone_shop'
+    11→  | 'grocery_minimart'
+    12→  | 'cosmetics_shop'
+    13→  | 'hardware_store'
+    14→  | 'restaurant_cafe'
+    15→  | 'electronics_store'
+    16→  | 'pharmacy'
+    17→  | 'general_retail'
+    18→
+    19→export interface AttributeTemplate {
+    20→  name: string
+    21→  fieldType: 'text' | 'number' | 'select' | 'image'
+    22→  options?: string[] // For select fields
+    23→  required?: boolean
+    24→}
+    25→
+    26→export interface ProductTypeTemplate {
+    27→  name: string
+    28→  icon: string
+    29→  attributes: AttributeTemplate[]
+    30→}
+    31→
+    32→export interface FormFieldConfig {
+    33→  field: string
+    34→  label: string
+    35→  required: boolean
+    36→  order: number
+    37→}
+    38→
+    39→export interface BusinessTemplate {
+    40→  key: BusinessTypeKey
+    41→  label: string
+    42→  description: string
+    43→  icon: string
+    44→  productTypes: ProductTypeTemplate[]
+    45→  addProductFormFields: FormFieldConfig[]
+    46→}
+    47→
+    48→// ============================================
+    49→// Complete Template Definitions
+    50→// ============================================
+    51→
+    52→export const BUSINESS_TEMPLATES: Record<BusinessTypeKey, BusinessTemplate> = {
+    53→  shoe_store: {
+    54→    key: 'shoe_store',
+    55→    label: 'Shoe Store',
+    56→    description: 'Footwear retail — sneakers, formal shoes, boots, sandals and more',
+    57→    icon: '👟',
+    58→    productTypes: [
+    59→      {
+    60→        name: 'Sneakers',
+    61→        icon: '👟',
+    62→        attributes: [
+    63→          { name: 'Brand', fieldType: 'text', required: true },
+    64→          { name: 'Size', fieldType: 'select', options: ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'], required: true },
+    65→          { name: 'Color', fieldType: 'select', options: ['Black', 'White', 'Red', 'Blue', 'Grey', 'Brown', 'Green', 'Beige'], required: true },
+    66→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex', 'Kids'], required: true },
+    67→          { name: 'Material', fieldType: 'select', options: ['Leather', 'Canvas', 'Synthetic', 'Mesh', 'Suede', 'Rubber'], required: false },
+    68→        ],
+    69→      },
+    70→      {
+    71→        name: 'Running Shoes',
+    72→        icon: '🏃',
+    73→        attributes: [
+    74→          { name: 'Brand', fieldType: 'text', required: true },
+    75→          { name: 'Size', fieldType: 'select', options: ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'], required: true },
+    76→          { name: 'Color', fieldType: 'select', options: ['Black', 'White', 'Red', 'Blue', 'Grey', 'Neon'], required: true },
+    77→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex'], required: true },
+    78→          { name: 'Material', fieldType: 'select', options: ['Mesh', 'Synthetic', 'Knit', 'Foam'], required: false },
+    79→        ],
+    80→      },
+    81→      {
+    82→        name: 'Formal Shoes',
+    83→        icon: '👞',
+    84→        attributes: [
+    85→          { name: 'Brand', fieldType: 'text', required: true },
+    86→          { name: 'Size', fieldType: 'select', options: ['38', '39', '40', '41', '42', '43', '44', '45', '46'], required: true },
+    87→          { name: 'Color', fieldType: 'select', options: ['Black', 'Brown', 'Tan', 'Burgundy'], required: true },
+    88→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female'], required: true },
+    89→          { name: 'Material', fieldType: 'select', options: ['Leather', 'Faux Leather', 'Patent Leather'], required: true },
+    90→        ],
+    91→      },
+    92→      {
+    93→        name: 'Boots',
+    94→        icon: '🥾',
+    95→        attributes: [
+    96→          { name: 'Brand', fieldType: 'text', required: true },
+    97→          { name: 'Size', fieldType: 'select', options: ['38', '39', '40', '41', '42', '43', '44', '45', '46'], required: true },
+    98→          { name: 'Color', fieldType: 'select', options: ['Black', 'Brown', 'Tan', 'Grey'], required: true },
+    99→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex'], required: true },
+   100→          { name: 'Material', fieldType: 'select', options: ['Leather', 'Suede', 'Synthetic', 'Rubber'], required: false },
+   101→        ],
+   102→      },
+   103→      {
+   104→        name: 'Sandals',
+   105→        icon: '🩴',
+   106→        attributes: [
+   107→          { name: 'Brand', fieldType: 'text', required: false },
+   108→          { name: 'Size', fieldType: 'select', options: ['36', '37', '38', '39', '40', '41', '42', '43', '44'], required: true },
+   109→          { name: 'Color', fieldType: 'select', options: ['Black', 'Brown', 'Beige', 'White'], required: true },
+   110→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex', 'Kids'], required: true },
+   111→          { name: 'Material', fieldType: 'select', options: ['Leather', 'Rubber', 'Synthetic', 'EVA'], required: false },
+   112→        ],
+   113→      },
+   114→      {
+   115→        name: 'Slippers',
+   116→        icon: '🩴',
+   117→        attributes: [
+   118→          { name: 'Brand', fieldType: 'text', required: false },
+   119→          { name: 'Size', fieldType: 'select', options: ['36', '37', '38', '39', '40', '41', '42', '43', '44'], required: true },
+   120→          { name: 'Color', fieldType: 'select', options: ['Black', 'Blue', 'Pink', 'Grey', 'Brown'], required: false },
+   121→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex', 'Kids'], required: true },
+   122→        ],
+   123→      },
+   124→      {
+   125→        name: 'Sports Shoes',
+   126→        icon: '⚽',
+   127→        attributes: [
+   128→          { name: 'Brand', fieldType: 'text', required: true },
+   129→          { name: 'Size', fieldType: 'select', options: ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'], required: true },
+   130→          { name: 'Color', fieldType: 'select', options: ['Black', 'White', 'Blue', 'Red', 'Multi-color'], required: true },
+   131→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex'], required: true },
+   132→          { name: 'Sport', fieldType: 'select', options: ['Football', 'Basketball', 'Tennis', 'Training', 'Gym'], required: true },
+   133→        ],
+   134→      },
+   135→      {
+   136→        name: 'Kids Shoes',
+   137→        icon: '👧',
+   138→        attributes: [
+   139→          { name: 'Brand', fieldType: 'text', required: false },
+   140→          { name: 'Size', fieldType: 'select', options: ['24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36'], required: true },
+   141→          { name: 'Color', fieldType: 'select', options: ['Pink', 'Blue', 'Red', 'White', 'Black', 'Multi-color'], required: true },
+   142→          { name: 'Gender', fieldType: 'select', options: ['Boys', 'Girls', 'Unisex'], required: true },
+   143→          { name: 'Age Group', fieldType: 'select', options: ['Toddler (1-3)', 'Little Kids (4-7)', 'Big Kids (8-12)'], required: true },
+   144→        ],
+   145→      },
+   146→    ],
+   147→    addProductFormFields: [
+   148→      { field: 'name', label: 'Product Name', required: true, order: 1 },
+   149→      { field: 'Brand', label: 'Brand', required: true, order: 2 },
+   150→      { field: 'costPrice', label: 'Cost Price', required: true, order: 3 },
+   151→      { field: 'sellingPrice', label: 'Selling Price', required: true, order: 4 },
+   152→      { field: 'Size', label: 'Size', required: true, order: 5 },
+   153→      { field: 'Color', label: 'Color', required: true, order: 6 },
+   154→      { field: 'quantity', label: 'Quantity', required: true, order: 7 },
+   155→    ],
+   156→  },
+   157→
+   158→  clothing_store: {
+   159→    key: 'clothing_store',
+   160→    label: 'Clothing Store',
+   161→    description: 'Apparel retail — shirts, pants, dresses, suits and more',
+   162→    icon: '👕',
+   163→    productTypes: [
+   164→      {
+   165→        name: 'Shirts',
+   166→        icon: '👔',
+   167→        attributes: [
+   168→          { name: 'Brand', fieldType: 'text', required: true },
+   169→          { name: 'Size', fieldType: 'select', options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'], required: true },
+   170→          { name: 'Color', fieldType: 'select', options: ['White', 'Black', 'Blue', 'Grey', 'Red', 'Green', 'Pink', 'Beige'], required: true },
+   171→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex'], required: true },
+   172→          { name: 'Material', fieldType: 'select', options: ['Cotton', 'Polyester', 'Linen', 'Silk', 'Wool', 'Blend'], required: false },
+   173→        ],
+   174→      },
+   175→      {
+   176→        name: 'T-Shirts',
+   177→        icon: '👕',
+   178→        attributes: [
+   179→          { name: 'Brand', fieldType: 'text', required: false },
+   180→          { name: 'Size', fieldType: 'select', options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], required: true },
+   181→          { name: 'Color', fieldType: 'select', options: ['White', 'Black', 'Blue', 'Red', 'Grey', 'Green', 'Yellow'], required: true },
+   182→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex'], required: true },
+   183→          { name: 'Material', fieldType: 'select', options: ['Cotton', 'Polyester', 'Tri-blend', 'Organic Cotton'], required: false },
+   184→        ],
+   185→      },
+   186→      {
+   187→        name: 'Pants',
+   188→        icon: '👖',
+   189→        attributes: [
+   190→          { name: 'Brand', fieldType: 'text', required: true },
+   191→          { name: 'Size', fieldType: 'select', options: ['28', '30', '32', '34', '36', '38', '40', '42'], required: true },
+   192→          { name: 'Color', fieldType: 'select', options: ['Black', 'Navy', 'Grey', 'Khaki', 'Brown'], required: true },
+   193→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex'], required: true },
+   194→          { name: 'Material', fieldType: 'select', options: ['Cotton', 'Denim', 'Polyester', 'Chino', 'Wool'], required: false },
+   195→        ],
+   196→      },
+   197→      {
+   198→        name: 'Jeans',
+   199→        icon: '👖',
+   200→        attributes: [
+   201→          { name: 'Brand', fieldType: 'text', required: true },
+   202→          { name: 'Size', fieldType: 'select', options: ['28', '30', '32', '34', '36', '38', '40', '42'], required: true },
+   203→          { name: 'Color', fieldType: 'select', options: ['Blue', 'Black', 'Dark Blue', 'Light Blue', 'Grey'], required: true },
+   204→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female'], required: true },
+   205→          { name: 'Fit', fieldType: 'select', options: ['Slim', 'Regular', 'Relaxed', 'Skinny', 'Bootcut'], required: true },
+   206→        ],
+   207→      },
+   208→      {
+   209→        name: 'Jackets',
+   210→        icon: '🧥',
+   211→        attributes: [
+   212→          { name: 'Brand', fieldType: 'text', required: true },
+   213→          { name: 'Size', fieldType: 'select', options: ['S', 'M', 'L', 'XL', 'XXL'], required: true },
+   214→          { name: 'Color', fieldType: 'select', options: ['Black', 'Brown', 'Navy', 'Grey', 'Green'], required: true },
+   215→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex'], required: true },
+   216→          { name: 'Material', fieldType: 'select', options: ['Leather', 'Denim', 'Polyester', 'Wool', 'Nylon'], required: true },
+   217→        ],
+   218→      },
+   219→      {
+   220→        name: 'Dresses',
+   221→        icon: '👗',
+   222→        attributes: [
+   223→          { name: 'Brand', fieldType: 'text', required: false },
+   224→          { name: 'Size', fieldType: 'select', options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], required: true },
+   225→          { name: 'Color', fieldType: 'select', options: ['Black', 'Red', 'Blue', 'White', 'Pink', 'Green', 'Floral'], required: true },
+   226→          { name: 'Material', fieldType: 'select', options: ['Cotton', 'Silk', 'Chiffon', 'Polyester', 'Lace'], required: false },
+   227→          { name: 'Length', fieldType: 'select', options: ['Mini', 'Midi', 'Maxi'], required: false },
+   228→        ],
+   229→      },
+   230→      {
+   231→        name: 'Suits',
+   232→        icon: '🤵',
+   233→        attributes: [
+   234→          { name: 'Brand', fieldType: 'text', required: true },
+   235→          { name: 'Size', fieldType: 'select', options: ['44', '46', '48', '50', '52', '54', '56'], required: true },
+   236→          { name: 'Color', fieldType: 'select', options: ['Black', 'Navy', 'Grey', 'Charcoal'], required: true },
+   237→          { name: 'Material', fieldType: 'select', options: ['Wool', 'Polyester', 'Wool Blend', 'Linen'], required: true },
+   238→        ],
+   239→      },
+   240→      {
+   241→        name: 'Kids Wear',
+   242→        icon: '👶',
+   243→        attributes: [
+   244→          { name: 'Brand', fieldType: 'text', required: false },
+   245→          { name: 'Size', fieldType: 'select', options: ['2-3Y', '4-5Y', '6-7Y', '8-9Y', '10-11Y', '12-13Y'], required: true },
+   246→          { name: 'Color', fieldType: 'select', options: ['Pink', 'Blue', 'Red', 'Yellow', 'Green', 'White'], required: true },
+   247→          { name: 'Gender', fieldType: 'select', options: ['Boys', 'Girls', 'Unisex'], required: true },
+   248→          { name: 'Age Group', fieldType: 'select', options: ['Toddler (1-3)', 'Little Kids (4-7)', 'Big Kids (8-12)'], required: true },
+   249→        ],
+   250→      },
+   251→    ],
+   252→    addProductFormFields: [
+   253→      { field: 'name', label: 'Product Name', required: true, order: 1 },
+   254→      { field: 'Brand', label: 'Brand', required: true, order: 2 },
+   255→      { field: 'costPrice', label: 'Cost Price', required: true, order: 3 },
+   256→      { field: 'sellingPrice', label: 'Selling Price', required: true, order: 4 },
+   257→      { field: 'Size', label: 'Size', required: true, order: 5 },
+   258→      { field: 'Color', label: 'Color', required: true, order: 6 },
+   259→      { field: 'quantity', label: 'Quantity', required: true, order: 7 },
+   260→    ],
+   261→  },
+   262→
+   263→  mobile_phone_shop: {
+   264→    key: 'mobile_phone_shop',
+   265→    label: 'Mobile Phone Shop',
+   266→    description: 'Smartphones, tablets, accessories and mobile tech',
+   267→    icon: '📱',
+   268→    productTypes: [
+   269→      {
+   270→        name: 'Smartphones',
+   271→        icon: '📱',
+   272→        attributes: [
+   273→          { name: 'Brand', fieldType: 'text', required: true },
+   274→          { name: 'Model', fieldType: 'text', required: true },
+   275→          { name: 'Storage', fieldType: 'select', options: ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'], required: true },
+   276→          { name: 'RAM', fieldType: 'select', options: ['2GB', '3GB', '4GB', '6GB', '8GB', '12GB', '16GB'], required: true },
+   277→          { name: 'Color', fieldType: 'select', options: ['Black', 'White', 'Blue', 'Red', 'Green', 'Gold', 'Silver'], required: true },
+   278→          { name: 'IMEI', fieldType: 'text', required: true },
+   279→        ],
+   280→      },
+   281→      {
+   282→        name: 'Tablets',
+   283→        icon: '📱',
+   284→        attributes: [
+   285→          { name: 'Brand', fieldType: 'text', required: true },
+   286→          { name: 'Model', fieldType: 'text', required: true },
+   287→          { name: 'Storage', fieldType: 'select', options: ['32GB', '64GB', '128GB', '256GB', '512GB', '1TB'], required: true },
+   288→          { name: 'RAM', fieldType: 'select', options: ['3GB', '4GB', '6GB', '8GB', '12GB', '16GB'], required: false },
+   289→          { name: 'Color', fieldType: 'select', options: ['Black', 'White', 'Silver', 'Gold'], required: true },
+   290→          { name: 'Screen Size', fieldType: 'select', options: ['8"', '10"', '11"', '12.9"'], required: false },
+   291→        ],
+   292→      },
+   293→      {
+   294→        name: 'Accessories',
+   295→        icon: '🎧',
+   296→        attributes: [
+   297→          { name: 'Brand', fieldType: 'text', required: false },
+   298→          { name: 'Type', fieldType: 'select', options: ['Case', 'Screen Protector', 'Cable', 'Holder', 'Stylus', 'Other'], required: true },
+   299→          { name: 'Compatible With', fieldType: 'text', required: false },
+   300→          { name: 'Color', fieldType: 'select', options: ['Black', 'White', 'Blue', 'Red', 'Clear', 'Multi-color'], required: false },
+   301→        ],
+   302→      },
+   303→      {
+   304→        name: 'Chargers',
+   305→        icon: '🔌',
+   306→        attributes: [
+   307→          { name: 'Brand', fieldType: 'text', required: false },
+   308→          { name: 'Type', fieldType: 'select', options: ['USB-C', 'Lightning', 'Micro USB', 'Wireless'], required: true },
+   309→          { name: 'Wattage', fieldType: 'select', options: ['5W', '10W', '15W', '18W', '20W', '30W', '45W', '65W'], required: true },
+   310→        ],
+   311→      },
+   312→      {
+   313→        name: 'Earbuds',
+   314→        icon: '🎧',
+   315→        attributes: [
+   316→          { name: 'Brand', fieldType: 'text', required: true },
+   317→          { name: 'Type', fieldType: 'select', options: ['Wireless', 'Wired', 'TWS'], required: true },
+   318→          { name: 'Color', fieldType: 'select', options: ['Black', 'White', 'Blue', 'Red'], required: true },
+   319→        ],
+   320→      },
+   321→      {
+   322→        name: 'Power Banks',
+   323→        icon: '🔋',
+   324→        attributes: [
+   325→          { name: 'Brand', fieldType: 'text', required: true },
+   326→          { name: 'Capacity', fieldType: 'select', options: ['5000mAh', '10000mAh', '20000mAh', '30000mAh'], required: true },
+   327→          { name: 'Ports', fieldType: 'select', options: ['1 USB', '2 USB', 'USB-C + USB', '3+ Ports'], required: false },
+   328→        ],
+   329→      },
+   330→    ],
+   331→    addProductFormFields: [
+   332→      { field: 'name', label: 'Product Name', required: true, order: 1 },
+   333→      { field: 'Brand', label: 'Brand', required: true, order: 2 },
+   334→      { field: 'Model', label: 'Model', required: false, order: 3 },
+   335→      { field: 'costPrice', label: 'Cost Price', required: true, order: 4 },
+   336→      { field: 'sellingPrice', label: 'Selling Price', required: true, order: 5 },
+   337→      { field: 'IMEI', label: 'IMEI', required: false, order: 6 },
+   338→      { field: 'quantity', label: 'Quantity', required: true, order: 7 },
+   339→    ],
+   340→  },
+   341→
+   342→  grocery_minimart: {
+   343→    key: 'grocery_minimart',
+   344→    label: 'Grocery / Mini Market',
+   345→    description: 'Food, beverages, household essentials and daily supplies',
+   346→    icon: '🛒',
+   347→    productTypes: [
+   348→      {
+   349→        name: 'Beverages',
+   350→        icon: '🥤',
+   351→        attributes: [
+   352→          { name: 'Brand', fieldType: 'text', required: true },
+   353→          { name: 'Volume', fieldType: 'select', options: ['250ml', '330ml', '500ml', '1L', '1.5L', '2L', '5L'], required: true },
+   354→          { name: 'Flavor', fieldType: 'select', options: ['Original', 'Orange', 'Mango', 'Apple', 'Cola', 'Lemon', 'Mixed'], required: false },
+   355→          { name: 'Expiry Date', fieldType: 'text', required: false },
+   356→        ],
+   357→      },
+   358→      {
+   359→        name: 'Snacks',
+   360→        icon: '🍿',
+   361→        attributes: [
+   362→          { name: 'Brand', fieldType: 'text', required: true },
+   363→          { name: 'Weight', fieldType: 'select', options: ['50g', '100g', '150g', '200g', '250g', '500g', '1kg'], required: true },
+   364→          { name: 'Flavor', fieldType: 'select', options: ['Original', 'Spicy', 'Salty', 'Sweet', 'BBQ', 'Cheese'], required: false },
+   365→          { name: 'Expiry Date', fieldType: 'text', required: false },
+   366→        ],
+   367→      },
+   368→      {
+   369→        name: 'Dairy Products',
+   370→        icon: '🥛',
+   371→        attributes: [
+   372→          { name: 'Brand', fieldType: 'text', required: true },
+   373→          { name: 'Type', fieldType: 'select', options: ['Milk', 'Yogurt', 'Cheese', 'Butter', 'Cream'], required: true },
+   374→          { name: 'Volume/Weight', fieldType: 'text', required: true },
+   375→          { name: 'Expiry Date', fieldType: 'text', required: true },
+   376→        ],
+   377→      },
+   378→      {
+   379→        name: 'Grains & Cereals',
+   380→        icon: '🌾',
+   381→        attributes: [
+   382→          { name: 'Brand', fieldType: 'text', required: false },
+   383→          { name: 'Type', fieldType: 'select', options: ['Teff', 'Wheat Flour', 'Rice', 'Barley', 'Corn', 'Oats'], required: true },
+   384→          { name: 'Weight', fieldType: 'select', options: ['500g', '1kg', '2kg', '5kg', '10kg', '25kg', '50kg'], required: true },
+   385→        ],
+   386→      },
+   387→      {
+   388→        name: 'Cooking Oil & Spices',
+   389→        icon: '🫒',
+   390→        attributes: [
+   391→          { name: 'Brand', fieldType: 'text', required: true },
+   392→          { name: 'Type', fieldType: 'select', options: ['Olive Oil', 'Sunflower Oil', 'Palm Oil', 'Berbere', 'Turmeric', 'Cumin', 'Salt'], required: true },
+   393→          { name: 'Volume/Weight', fieldType: 'text', required: true },
+   394→        ],
+   395→      },
+   396→      {
+   397→        name: 'Household Items',
+   398→        icon: '🏠',
+   399→        attributes: [
+   400→          { name: 'Brand', fieldType: 'text', required: false },
+   401→          { name: 'Category', fieldType: 'select', options: ['Cleaning', 'Laundry', 'Kitchen', 'Bathroom', 'Paper Products'], required: true },
+   402→          { name: 'Size', fieldType: 'text', required: false },
+   403→        ],
+   404→      },
+   405→      {
+   406→        name: 'Canned & Packaged Food',
+   407→        icon: '🥫',
+   408→        attributes: [
+   409→          { name: 'Brand', fieldType: 'text', required: true },
+   410→          { name: 'Type', fieldType: 'select', options: ['Canned Fish', 'Canned Meat', 'Pasta', 'Sauce', 'Honey', 'Jam'], required: true },
+   411→          { name: 'Weight', fieldType: 'select', options: ['100g', '200g', '400g', '500g', '1kg'], required: true },
+   412→          { name: 'Expiry Date', fieldType: 'text', required: false },
+   413→        ],
+   414→      },
+   415→      {
+   416→        name: 'Personal Care',
+   417→        icon: '🧴',
+   418→        attributes: [
+   419→          { name: 'Brand', fieldType: 'text', required: true },
+   420→          { name: 'Category', fieldType: 'select', options: ['Soap', 'Shampoo', 'Toothpaste', 'Lotion', 'Deodorant', 'Sanitizer'], required: true },
+   421→          { name: 'Size', fieldType: 'text', required: true },
+   422→        ],
+   423→      },
+   424→    ],
+   425→    addProductFormFields: [
+   426→      { field: 'name', label: 'Product Name', required: true, order: 1 },
+   427→      { field: 'Brand', label: 'Brand', required: true, order: 2 },
+   428→      { field: 'costPrice', label: 'Cost Price', required: true, order: 3 },
+   429→      { field: 'sellingPrice', label: 'Selling Price', required: true, order: 4 },
+   430→      { field: 'quantity', label: 'Quantity', required: true, order: 5 },
+   431→      { field: 'Expiry Date', label: 'Expiry Date', required: false, order: 6 },
+   432→    ],
+   433→  },
+   434→
+   435→  cosmetics_shop: {
+   436→    key: 'cosmetics_shop',
+   437→    label: 'Cosmetics Shop',
+   438→    description: 'Beauty products, skincare, makeup and fragrances',
+   439→    icon: '💄',
+   440→    productTypes: [
+   441→      {
+   442→        name: 'Makeup',
+   443→        icon: '💄',
+   444→        attributes: [
+   445→          { name: 'Brand', fieldType: 'text', required: true },
+   446→          { name: 'Category', fieldType: 'select', options: ['Lipstick', 'Foundation', 'Mascara', 'Eyeliner', 'Blush', 'Concealer', 'Powder', 'Eyeshadow'], required: true },
+   447→          { name: 'Shade/Color', fieldType: 'text', required: true },
+   448→          { name: 'Size', fieldType: 'text', required: false },
+   449→        ],
+   450→      },
+   451→      {
+   452→        name: 'Skincare',
+   453→        icon: '🧖',
+   454→        attributes: [
+   455→          { name: 'Brand', fieldType: 'text', required: true },
+   456→          { name: 'Category', fieldType: 'select', options: ['Moisturizer', 'Cleanser', 'Toner', 'Serum', 'Sunscreen', 'Face Mask', 'Scrub'], required: true },
+   457→          { name: 'Skin Type', fieldType: 'select', options: ['All', 'Oily', 'Dry', 'Combination', 'Sensitive'], required: false },
+   458→          { name: 'Volume', fieldType: 'select', options: ['30ml', '50ml', '100ml', '150ml', '200ml', '250ml'], required: true },
+   459→        ],
+   460→      },
+   461→      {
+   462→        name: 'Hair Care',
+   463→        icon: '💇',
+   464→        attributes: [
+   465→          { name: 'Brand', fieldType: 'text', required: true },
+   466→          { name: 'Category', fieldType: 'select', options: ['Shampoo', 'Conditioner', 'Hair Oil', 'Styling Gel', 'Hair Mask', 'Treatment'], required: true },
+   467→          { name: 'Hair Type', fieldType: 'select', options: ['All', 'Curly', 'Straight', 'Oily', 'Dry', 'Colored'], required: false },
+   468→          { name: 'Volume', fieldType: 'select', options: ['100ml', '200ml', '250ml', '300ml', '500ml', '1L'], required: true },
+   469→        ],
+   470→      },
+   471→      {
+   472→        name: 'Fragrances',
+   473→        icon: '🌸',
+   474→        attributes: [
+   475→          { name: 'Brand', fieldType: 'text', required: true },
+   476→          { name: 'Type', fieldType: 'select', options: ['Perfume', 'Eau de Toilette', 'Body Spray', 'Attar'], required: true },
+   477→          { name: 'Scent', fieldType: 'select', options: ['Floral', 'Woody', 'Fresh', 'Oriental', 'Fruity', 'Musky'], required: true },
+   478→          { name: 'Volume', fieldType: 'select', options: ['30ml', '50ml', '75ml', '100ml', '150ml', '200ml'], required: true },
+   479→          { name: 'Gender', fieldType: 'select', options: ['Male', 'Female', 'Unisex'], required: true },
+   480→        ],
+   481→      },
+   482→      {
+   483→        name: 'Nail Care',
+   484→        icon: '💅',
+   485→        attributes: [
+   486→          { name: 'Brand', fieldType: 'text', required: false },
+   487→          { name: 'Category', fieldType: 'select', options: ['Nail Polish', 'Nail Treatment', 'Nail Art', 'Remover', 'Tools'], required: true },
+   488→          { name: 'Color', fieldType: 'text', required: false },
+   489→        ],
+   490→      },
+   491→      {
+   492→        name: 'Body Care',
+   493→        icon: '🧴',
+   494→        attributes: [
+   495→          { name: 'Brand', fieldType: 'text', required: true },
+   496→          { name: 'Category', fieldType: 'select', options: ['Lotion', 'Body Wash', 'Body Scrub', 'Deodorant', 'Body Oil', 'Hand Cream'], required: true },
+   497→          { name: 'Volume', fieldType: 'select', options: ['100ml', '200ml', '250ml', '400ml', '500ml', '750ml', '1L'], required: true },
+   498→        ],
+   499→      },
+   500→    ],
+   501→    addProductFormFields: [
+   502→      { field: 'name', label: 'Product Name', required: true, order: 1 },
+   503→      { field: 'Brand', label: 'Brand', required: true, order: 2 },
+   504→      { field: 'costPrice', label: 'Cost Price', required: true, order: 3 },
+   505→      { field: 'sellingPrice', label: 'Selling Price', required: true, order: 4 },
+   506→      { field: 'quantity', label: 'Quantity', required: true, order: 5 },
+   507→    ],
+   508→  },
+   509→
+   510→  hardware_store: {
+   511→    key: 'hardware_store',
+   512→    label: 'Hardware Store',
+   513→    description: 'Tools, building materials, plumbing, electrical supplies',
+   514→    icon: '🔧',
+   515→    productTypes: [
+   516→      {
+   517→        name: 'Hand Tools',
+   518→        icon: '🔨',
+   519→        attributes: [
+   520→          { name: 'Brand', fieldType: 'text', required: true },
+   521→          { name: 'Type', fieldType: 'select', options: ['Hammer', 'Wrench', 'Screwdriver', 'Pliers', 'Saw', 'Level', 'Tape Measure', 'Utility Knife'], required: true },
+   522→          { name: 'Material', fieldType: 'select', options: ['Steel', 'Chrome Vanadium', 'Stainless Steel', 'Aluminum'], required: false },
+   523→          { name: 'Size', fieldType: 'text', required: false },
+   524→        ],
+   525→      },
+   526→      {
+   527→        name: 'Power Tools',
+   528→        icon: '⚡',
+   529→        attributes: [
+   530→          { name: 'Brand', fieldType: 'text', required: true },
+   531→          { name: 'Type', fieldType: 'select', options: ['Drill', 'Grinder', 'Circular Saw', 'Impact Driver', 'Rotary Hammer', 'Sander'], required: true },
+   532→          { name: 'Power Source', fieldType: 'select', options: ['Corded', 'Battery 12V', 'Battery 18V', 'Battery 20V'], required: true },
+   533→          { name: 'Warranty', fieldType: 'text', required: false },
+   534→        ],
+   535→      },
+   536→      {
+   537→        name: 'Electrical Supplies',
+   538→        icon: '💡',
+   539→        attributes: [
+   540→          { name: 'Brand', fieldType: 'text', required: false },
+   541→          { name: 'Type', fieldType: 'select', options: ['Cable', 'Switch', 'Outlet', 'Circuit Breaker', 'Light Bulb', 'Conduit', 'Connector'], required: true },
+   542→          { name: 'Specification', fieldType: 'text', required: true },
+   543→          { name: 'Unit', fieldType: 'select', options: ['Piece', 'Meter', 'Roll', 'Box', 'Pack'], required: true },
+   544→        ],
+   545→      },
+   546→      {
+   547→        name: 'Plumbing Supplies',
+   548→        icon: '🚿',
+   549→        attributes: [
+   550→          { name: 'Brand', fieldType: 'text', required: false },
+   551→          { name: 'Type', fieldType: 'select', options: ['Pipe', 'Fitting', 'Valve', 'Faucet', 'Hose', 'Sealant', 'Filter'], required: true },
+   552→          { name: 'Material', fieldType: 'select', options: ['PVC', 'Copper', 'Galvanized Steel', 'PEX', 'Brass', 'Chrome'], required: true },
+   553→          { name: 'Size', fieldType: 'text', required: true },
+   554→        ],
+   555→      },
+   556→      {
+   557→        name: 'Paint & Finishes',
+   558→        icon: '🎨',
+   559→        attributes: [
+   560→          { name: 'Brand', fieldType: 'text', required: true },
+   561→          { name: 'Type', fieldType: 'select', options: ['Interior Paint', 'Exterior Paint', 'Primer', 'Varnish', 'Stain', 'Spray Paint'], required: true },
+   562→          { name: 'Color', fieldType: 'text', required: true },
+   563→          { name: 'Volume', fieldType: 'select', options: ['500ml', '1L', '2L', '4L', '5L', '10L', '20L'], required: true },
+   564→        ],
+   565→      },
+   566→      {
+   567→        name: 'Fasteners & Fixings',
+   568→        icon: '🔩',
+   569→        attributes: [
+   570→          { name: 'Type', fieldType: 'select', options: ['Screws', 'Nails', 'Bolts', 'Nuts', 'Washers', 'Anchors', 'Rivets'], required: true },
+   571→          { name: 'Material', fieldType: 'select', options: ['Steel', 'Stainless Steel', 'Brass', 'Zinc-Plated', 'Galvanized'], required: true },
+   572→          { name: 'Size', fieldType: 'text', required: true },
+   573→          { name: 'Quantity per Pack', fieldType: 'number', required: true },
+   574→        ],
+   575→      },
+   576→      {
+   577→        name: 'Building Materials',
+   578→        icon: '🧱',
+   579→        attributes: [
+   580→          { name: 'Type', fieldType: 'select', options: ['Cement', 'Sand', 'Gravel', 'Bricks', 'Blocks', 'Rebar', 'Timber', 'Plywood', 'Roofing'], required: true },
+   581→          { name: 'Specification', fieldType: 'text', required: true },
+   582→          { name: 'Unit', fieldType: 'select', options: ['Piece', 'Bag', 'Kg', 'Quintal', 'Meter', 'Sheet'], required: true },
+   583→        ],
+   584→      },
+   585→    ],
+   586→    addProductFormFields: [
+   587→      { field: 'name', label: 'Product Name', required: true, order: 1 },
+   588→      { field: 'Brand', label: 'Brand', required: false, order: 2 },
+   589→      { field: 'costPrice', label: 'Cost Price', required: true, order: 3 },
+   590→      { field: 'sellingPrice', label: 'Selling Price', required: true, order: 4 },
+   591→      { field: 'quantity', label: 'Quantity', required: true, order: 5 },
+   592→    ],
+   593→  },
+   594→
+   595→  restaurant_cafe: {
+   596→    key: 'restaurant_cafe',
+   597→    label: 'Restaurant / Cafe',
+   598→    description: 'Food service, beverages, kitchen supplies and ingredients',
+   599→    icon: '☕',
+   600→    productTypes: [
+   601→      {
+   602→        name: 'Beverages',
+   603→        icon: '☕',
+   604→        attributes: [
+   605→          { name: 'Category', fieldType: 'select', options: ['Coffee', 'Tea', 'Juice', 'Smoothie', 'Soda', 'Water', 'Milkshake'], required: true },
+   606→          { name: 'Size', fieldType: 'select', options: ['Small', 'Medium', 'Large', 'Extra Large'], required: true },
+   607→          { name: 'Serving Temperature', fieldType: 'select', options: ['Hot', 'Cold', 'Iced'], required: false },
+   608→        ],
+   609→      },
+   610→      {
+   611→        name: 'Main Dishes',
+   612→        icon: '🍽️',
+   613→        attributes: [
+   614→          { name: 'Category', fieldType: 'select', options: ['Ethiopian', 'Italian', 'Chinese', 'Indian', 'Fast Food', 'Grill', 'Other'], required: true },
+   615→          { name: 'Portion', fieldType: 'select', options: ['Small', 'Regular', 'Large', 'Family Size'], required: true },
+   616→          { name: 'Spice Level', fieldType: 'select', options: ['Mild', 'Medium', 'Hot', 'Extra Hot'], required: false },
+   617→        ],
+   618→      },
+   619→      {
+   620→        name: 'Snacks & Sides',
+   621→        icon: '🥐',
+   622→        attributes: [
+   623→          { name: 'Category', fieldType: 'select', options: ['Pastry', 'Sandwich', 'Salad', 'Soup', 'Fries', 'Dessert'], required: true },
+   624→          { name: 'Size', fieldType: 'select', options: ['Small', 'Medium', 'Large'], required: true },
+   625→        ],
+   626→      },
+   627→      {
+   628→        name: 'Ingredients',
+   629→        icon: '🧅',
+   630→        attributes: [
+   631→          { name: 'Category', fieldType: 'select', options: ['Vegetables', 'Meat', 'Spices', 'Dairy', 'Grains', 'Oils', 'Sauces', 'Dry Goods'], required: true },
+   632→          { name: 'Unit', fieldType: 'select', options: ['Kg', 'Gram', 'Liter', 'ml', 'Piece', 'Pack', 'Bag', 'Box'], required: true },
+   633→          { name: 'Supplier', fieldType: 'text', required: false },
+   634→        ],
+   635→      },
+   636→      {
+   637→        name: 'Packaging Supplies',
+   638→        icon: '📦',
+   639→        attributes: [
+   640→          { name: 'Type', fieldType: 'select', options: ['Cups', 'Plates', 'Containers', 'Bags', 'Napkins', 'Straws', 'Cutlery'], required: true },
+   641→          { name: 'Material', fieldType: 'select', options: ['Paper', 'Plastic', 'Biodegradable', 'Foam', 'Glass'], required: false },
+   642→          { name: 'Quantity per Pack', fieldType: 'number', required: true },
+   643→        ],
+   644→      },
+   645→    ],
+   646→    addProductFormFields: [
+   647→      { field: 'name', label: 'Item Name', required: true, order: 1 },
+   648→      { field: 'Category', label: 'Category', required: true, order: 2 },
+   649→      { field: 'costPrice', label: 'Cost Price', required: true, order: 3 },
+   650→      { field: 'sellingPrice', label: 'Selling Price', required: true, order: 4 },
+   651→      { field: 'quantity', label: 'Quantity', required: true, order: 5 },
+   652→    ],
+   653→  },
+   654→
+   655→  electronics_store: {
+   656→    key: 'electronics_store',
+   657→    label: 'Electronics Store',
+   658→    description: 'Consumer electronics, appliances, and tech gadgets',
+   659→    icon: '📺',
+   660→    productTypes: [
+   661→      {
+   662→        name: 'Televisions',
+   663→        icon: '📺',
+   664→        attributes: [
+   665→          { name: 'Brand', fieldType: 'text', required: true },
+   666→          { name: 'Model', fieldType: 'text', required: true },
+   667→          { name: 'Screen Size', fieldType: 'select', options: ['32"', '40"', '43"', '50"', '55"', '65"', '75"', '85"'], required: true },
+   668→          { name: 'Resolution', fieldType: 'select', options: ['HD', 'Full HD', '4K UHD', '8K'], required: true },
+   669→          { name: 'Display Type', fieldType: 'select', options: ['LED', 'OLED', 'QLED', 'LCD'], required: false },
+   670→          { name: 'Warranty', fieldType: 'text', required: false },
+   671→        ],
+   672→      },
+   673→      {
+   674→        name: 'Laptops',
+   675→        icon: '💻',
+   676→        attributes: [
+   677→          { name: 'Brand', fieldType: 'text', required: true },
+   678→          { name: 'Model', fieldType: 'text', required: true },
+   679→          { name: 'Processor', fieldType: 'text', required: true },
+   680→          { name: 'RAM', fieldType: 'select', options: ['4GB', '8GB', '16GB', '32GB', '64GB'], required: true },
+   681→          { name: 'Storage', fieldType: 'select', options: ['128GB SSD', '256GB SSD', '512GB SSD', '1TB SSD', '1TB HDD'], required: true },
+   682→          { name: 'Screen Size', fieldType: 'select', options: ['13"', '14"', '15.6"', '16"', '17"'], required: true },
+   683→          { name: 'Warranty', fieldType: 'text', required: false },
+   684→        ],
+   685→      },
+   686→      {
+   687→        name: 'Audio Equipment',
+   688→        icon: '🔊',
+   689→        attributes: [
+   690→          { name: 'Brand', fieldType: 'text', required: true },
+   691→          { name: 'Type', fieldType: 'select', options: ['Speaker', 'Soundbar', 'Headphones', 'Microphone', 'Amplifier', 'Receiver'], required: true },
+   692→          { name: 'Power Output', fieldType: 'text', required: false },
+   693→          { name: 'Connectivity', fieldType: 'select', options: ['Bluetooth', 'Wired', 'WiFi', 'USB', 'HDMI'], required: false },
+   694→        ],
+   695→      },
+   696→      {
+   697→        name: 'Cameras',
+   698→        icon: '📷',
+   699→        attributes: [
+   700→          { name: 'Brand', fieldType: 'text', required: true },
+   701→          { name: 'Model', fieldType: 'text', required: true },
+   702→          { name: 'Type', fieldType: 'select', options: ['DSLR', 'Mirrorless', 'Point & Shoot', 'Action Camera', 'Security Camera'], required: true },
+   703→          { name: 'Resolution', fieldType: 'text', required: true },
+   704→          { name: 'Warranty', fieldType: 'text', required: false },
+   705→        ],
+   706→      },
+   707→      {
+   708→        name: 'Home Appliances',
+   709→        icon: '🏠',
+   710→        attributes: [
+   711→          { name: 'Brand', fieldType: 'text', required: true },
+   712→          { name: 'Type', fieldType: 'select', options: ['Washing Machine', 'Refrigerator', 'Microwave', 'Air Conditioner', 'Heater', 'Iron', 'Blender'], required: true },
+   713→          { name: 'Capacity/Size', fieldType: 'text', required: true },
+   714→          { name: 'Color', fieldType: 'select', options: ['White', 'Silver', 'Black', 'Grey'], required: false },
+   715→          { name: 'Warranty', fieldType: 'text', required: false },
+   716→        ],
+   717→      },
+   718→      {
+   719→        name: 'Gaming',
+   720→        icon: '🎮',
+   721→        attributes: [
+   722→          { name: 'Brand', fieldType: 'text', required: true },
+   723→          { name: 'Type', fieldType: 'select', options: ['Console', 'Game', 'Controller', 'Headset', 'Keyboard', 'Mouse'], required: true },
+   724→          { name: 'Platform', fieldType: 'select', options: ['PS5', 'Xbox', 'Nintendo', 'PC'], required: false },
+   725→        ],
+   726→      },
+   727→    ],
+   728→    addProductFormFields: [
+   729→      { field: 'name', label: 'Product Name', required: true, order: 1 },
+   730→      { field: 'Brand', label: 'Brand', required: true, order: 2 },
+   731→      { field: 'Model', label: 'Model', required: false, order: 3 },
+   732→      { field: 'costPrice', label: 'Cost Price', required: true, order: 4 },
+   733→      { field: 'sellingPrice', label: 'Selling Price', required: true, order: 5 },
+   734→      { field: 'Warranty', label: 'Warranty', required: false, order: 6 },
+   735→      { field: 'quantity', label: 'Quantity', required: true, order: 7 },
+   736→    ],
+   737→  },
+   738→
+   739→  pharmacy: {
+   740→    key: 'pharmacy',
+   741→    label: 'Pharmacy',
+   742→    description: 'Medicines, health products, medical supplies and supplements',
+   743→    icon: '💊',
+   744→    productTypes: [
+   745→      {
+   746→        name: 'Medicines',
+   747→        icon: '💊',
+   748→        attributes: [
+   749→          { name: 'Generic Name', fieldType: 'text', required: true },
+   750→          { name: 'Brand Name', fieldType: 'text', required: true },
+   751→          { name: 'Dosage Form', fieldType: 'select', options: ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Cream', 'Drops', 'Inhaler', 'Suppository'], required: true },
+   752→          { name: 'Strength', fieldType: 'text', required: true },
+   753→          { name: 'Batch Number', fieldType: 'text', required: false },
+   754→          { name: 'Expiry Date', fieldType: 'text', required: true },
+   755→          { name: 'Prescription Required', fieldType: 'select', options: ['Yes', 'No'], required: true },
+   756→        ],
+   757→      },
+   758→      {
+   759→        name: 'Supplements',
+   760→        icon: '🧬',
+   761→        attributes: [
+   762→          { name: 'Brand', fieldType: 'text', required: true },
+   763→          { name: 'Type', fieldType: 'select', options: ['Vitamin', 'Mineral', 'Protein', 'Herbal', 'Probiotic', 'Omega', 'Multi-vitamin'], required: true },
+   764→          { name: 'Dosage Form', fieldType: 'select', options: ['Tablet', 'Capsule', 'Powder', 'Liquid', 'Gummy'], required: true },
+   765→          { name: 'Quantity per Pack', fieldType: 'number', required: true },
+   766→          { name: 'Expiry Date', fieldType: 'text', required: true },
+   767→        ],
+   768→      },
+   769→      {
+   770→        name: 'Personal Care',
+   771→        icon: '🧴',
+   772→        attributes: [
+   773→          { name: 'Brand', fieldType: 'text', required: true },
+   774→          { name: 'Category', fieldType: 'select', options: ['Oral Care', 'Skin Care', 'Hair Care', 'Feminine Hygiene', 'First Aid', 'Sanitizer'], required: true },
+   775→          { name: 'Size', fieldType: 'text', required: true },
+   776→        ],
+   777→      },
+   778→      {
+   779→        name: 'Medical Devices',
+   780→        icon: '🩺',
+   781→        attributes: [
+   782→          { name: 'Brand', fieldType: 'text', required: true },
+   783→          { name: 'Type', fieldType: 'select', options: ['Blood Pressure Monitor', 'Thermometer', 'Glucometer', 'Nebulizer', 'Pulse Oximeter', 'Scale'], required: true },
+   784→          { name: 'Warranty', fieldType: 'text', required: false },
+   785→        ],
+   786→      },
+   787→      {
+   788→        name: 'Baby & Maternity',
+   789→        icon: '👶',
+   790→        attributes: [
+   791→          { name: 'Brand', fieldType: 'text', required: false },
+   792→          { name: 'Category', fieldType: 'select', options: ['Baby Food', 'Diapers', 'Baby Care', 'Maternity Care', 'Feeding', 'Nursing'], required: true },
+   793→          { name: 'Age/Stage', fieldType: 'select', options: ['0-6 months', '6-12 months', '1-2 years', '2-3 years', 'Maternity'], required: false },
+   794→          { name: 'Size', fieldType: 'text', required: false },
+   795→        ],
+   796→      },
+   797→      {
+   798→        name: 'First Aid Supplies',
+   799→        icon: '🩹',
+   800→        attributes: [
+   801→          { name: 'Type', fieldType: 'select', options: ['Bandage', 'Gauze', 'Antiseptic', 'Tape', 'Cotton', 'Gloves', 'Mask', 'First Aid Kit'], required: true },
+   802→          { name: 'Size/Pack', fieldType: 'text', required: true },
+   803→        ],
+   804→      },
+   805→    ],
+   806→    addProductFormFields: [
+   807→      { field: 'name', label: 'Product Name', required: true, order: 1 },
+   808→      { field: 'Brand Name', label: 'Brand/Generic Name', required: true, order: 2 },
+   809→      { field: 'costPrice', label: 'Cost Price', required: true, order: 3 },
+   810→      { field: 'sellingPrice', label: 'Selling Price', required: true, order: 4 },
+   811→      { field: 'Expiry Date', label: 'Expiry Date', required: false, order: 5 },
+   812→      { field: 'quantity', label: 'Quantity', required: true, order: 6 },
+   813→    ],
+   814→  },
+   815→
+   816→  general_retail: {
+   817→    key: 'general_retail',
+   818→    label: 'General Retail Store',
+   819→    description: 'Mixed retail — variety of products across multiple categories',
+   820→    icon: '🏪',
+   821→    productTypes: [
+   822→      {
+   823→        name: 'Electronics',
+   824→        icon: '📱',
+   825→        attributes: [
+   826→          { name: 'Brand', fieldType: 'text', required: true },
+   827→          { name: 'Model', fieldType: 'text', required: false },
+   828→          { name: 'Warranty', fieldType: 'text', required: false },
+   829→        ],
+   830→      },
+   831→      {
+   832→        name: 'Clothing',
+   833→        icon: '👕',
+   834→        attributes: [
+   835→          { name: 'Brand', fieldType: 'text', required: false },
+   836→          { name: 'Size', fieldType: 'select', options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'], required: true },
+   837→          { name: 'Color', fieldType: 'select', options: ['Black', 'White', 'Blue', 'Red', 'Grey', 'Green', 'Brown'], required: true },
+   838→        ],
+   839→      },
+   840→      {
+   841→        name: 'Food & Beverages',
+   842→        icon: '🛒',
+   843→        attributes: [
+   844→          { name: 'Brand', fieldType: 'text', required: true },
+   845→          { name: 'Weight/Volume', fieldType: 'text', required: true },
+   846→          { name: 'Expiry Date', fieldType: 'text', required: false },
+   847→        ],
+   848→      },
+   849→      {
+   850→        name: 'Household Items',
+   851→        icon: '🏠',
+   852→        attributes: [
+   853→          { name: 'Category', fieldType: 'select', options: ['Kitchen', 'Bathroom', 'Cleaning', 'Decor', 'Storage', 'Lighting'], required: true },
+   854→          { name: 'Material', fieldType: 'select', options: ['Plastic', 'Metal', 'Glass', 'Wood', 'Ceramic', 'Fabric'], required: false },
+   855→          { name: 'Size', fieldType: 'text', required: false },
+   856→        ],
+   857→      },
+   858→      {
+   859→        name: 'Stationery',
+   860→        icon: '✏️',
+   861→        attributes: [
+   862→          { name: 'Brand', fieldType: 'text', required: false },
+   863→          { name: 'Type', fieldType: 'select', options: ['Pen', 'Pencil', 'Notebook', 'Paper', 'Folder', 'Art Supply', 'Office Supply'], required: true },
+   864→          { name: 'Quantity per Pack', fieldType: 'number', required: false },
+   865→        ],
+   866→      },
+   867→      {
+   868→        name: 'Health & Beauty',
+   869→        icon: '💄',
+   870→        attributes: [
+   871→          { name: 'Brand', fieldType: 'text', required: true },
+   872→          { name: 'Category', fieldType: 'select', options: ['Skincare', 'Hair Care', 'Oral Care', 'Cosmetics', 'Personal Hygiene'], required: true },
+   873→          { name: 'Size', fieldType: 'text', required: false },
+   874→        ],
+   875→      },
+   876→    ],
+   877→    addProductFormFields: [
+   878→      { field: 'name', label: 'Product Name', required: true, order: 1 },
+   879→      { field: 'costPrice', label: 'Cost Price', required: true, order: 2 },
+   880→      { field: 'sellingPrice', label: 'Selling Price', required: true, order: 3 },
+   881→      { field: 'quantity', label: 'Quantity', required: true, order: 4 },
+   882→    ],
+   883→  },
+   884→}
+   885→
+   886→// ============================================
+   887→// Lookup Helpers
+   888→// ============================================
+   889→
+   890→export const BUSINESS_TYPE_OPTIONS: Array<{ value: BusinessTypeKey; label: string; icon: string; description: string }> = Object.values(BUSINESS_TEMPLATES).map(t => ({
+   891→  value: t.key,
+   892→  label: t.label,
+   893→  icon: t.icon,
+   894→  description: t.description,
+   895→}))
+   896→
+   897→/** Map legacy businessType values to new keys */
+   898→export function mapLegacyBusinessType(legacy: string): BusinessTypeKey {
+   899→  const mapping: Record<string, BusinessTypeKey> = {
+   900→    retail: 'general_retail',
+   901→    service: 'restaurant_cafe',
+   902→    mixed: 'general_retail',
+   903→  }
+   904→  return mapping[legacy] || 'general_retail'
+   905→}
+   906→
+   907→/** Check if a string is a valid BusinessTypeKey */
+   908→export function isValidBusinessType(value: string): value is BusinessTypeKey {
+   909→  return value in BUSINESS_TEMPLATES
+   910→}
+   911→
+   912→/** Get a business template by key */
+   913→export function getBusinessTemplate(key: string): BusinessTemplate | undefined {
+   914→  return BUSINESS_TEMPLATES[key as BusinessTypeKey]
+   915→}
+   916→
+   917→// All valid business type keys for API validation
+   918→export const VALID_BUSINESS_TYPES = Object.keys(BUSINESS_TEMPLATES) as BusinessTypeKey[]
+   919→
