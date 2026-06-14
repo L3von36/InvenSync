@@ -32,7 +32,7 @@ import { getNetworkErrorMessage } from '@/lib/validation'
 import { formatETB, formatDate } from '@/lib/format'
 import { productSchema, type ProductFormData } from '@/lib/validations'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
-import { FormInputField, FormTextareaField } from '@/components/shared/form-fields'
+import { FormInputField, FormTextareaField, FormSelectField } from '@/components/shared/form-fields'
 import { Form } from '@/components/ui/form'
 
 import { Button } from '@/components/ui/button'
@@ -359,7 +359,6 @@ function ProductDialog({
           <div className="space-y-6">
             {/* Section 1: Product Type Selection */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Product Type *</Label>
               {productTypes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
                   <Package className="size-8 mx-auto mb-2 opacity-50" />
@@ -367,31 +366,18 @@ function ProductDialog({
                   <p className="text-xs mt-1">Create a product type first.</p>
                 </div>
               ) : (
-                <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {productTypes.map((pt) => (
-                      <button
-                        key={pt.id}
-                        type="button"
-                        onClick={() => handleSelectType(pt.id)}
-                        className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all cursor-pointer ${
-                          activeTypeId === pt.id
-                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                            : 'border-border hover:border-primary/50'
-                        }`}
-                      >
-                        <div className="text-2xl mb-1">{pt.icon || '📦'}</div>
-                        <div className="text-sm font-medium">{pt.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {pt.attributes?.length || 0} attributes
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  {form.formState.errors.productTypeId && (
-                    <p className="text-sm text-destructive">{form.formState.errors.productTypeId.message}</p>
-                  )}
-                </>
+                <FormSelectField
+                  name="productTypeId"
+                  label="Product Type"
+                  placeholder="Select a product type"
+                  required
+                  options={productTypes.map((pt) => ({
+                    value: pt.id,
+                    label: pt.name,
+                    icon: pt.icon || '📦',
+                  }))}
+                  onValueChange={(value) => handleSelectType(value)}
+                />
               )}
             </div>
 
