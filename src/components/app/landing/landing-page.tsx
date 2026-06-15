@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import {
   Package,
   ShoppingCart,
@@ -11,8 +11,6 @@ import {
   Menu,
   X,
   Check,
-  Quote,
-  Star,
   Bot,
   CreditCard,
   ShoppingBag,
@@ -24,6 +22,7 @@ import {
 } from 'lucide-react'
 import { RotatingText } from '@/components/app/landing/rotating-text'
 import { ThemeToggle } from '@/components/app/landing/theme-toggle'
+import { TestimonialsColumn } from '@/components/ui/testimonials-columns-1'
 import {
   Accordion,
   AccordionContent,
@@ -315,60 +314,88 @@ function BusinessTypesSection() {
 // ============================================
 // Testimonials Section
 // ============================================
-function TestimonialsSection() {
-  const testimonials = [
-    {
-      quote: 'Before this I used a notebook. Now I know my profit every day without calculating.',
-      name: 'Abebe T.',
-      business: 'Phone Shop',
-      initial: 'A',
-    },
-    {
-      quote: 'The low stock alert saved me twice already. Very useful for 150 birr.',
-      name: 'Tigist M.',
-      business: 'Mini Market',
-      initial: 'T',
-    },
-    {
-      quote: 'The debt tracking feature is a lifesaver. I never forget who owes me anymore.',
-      name: 'Dawit A.',
-      business: 'Electronics',
-      initial: 'D',
-    },
-  ]
+const testimonialsData = [
+  {
+    text: "Before this I used a notebook. Now I know my profit every day without calculating.",
+    image: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=80&h=80&fit=crop&crop=face",
+    name: "Abebe T.",
+    role: "Phone Shop Owner",
+  },
+  {
+    text: "The low stock alert saved me twice already. Very useful for managing my inventory.",
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face",
+    name: "Tigist M.",
+    role: "Mini Market Manager",
+  },
+  {
+    text: "The debt tracking feature is a lifesaver. I never forget who owes me anymore.",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face",
+    name: "Dawit A.",
+    role: "Electronics Store",
+  },
+  {
+    text: "Finally an inventory app that works for Ethiopian businesses. The Amharic support is perfect.",
+    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&crop=face",
+    name: "Hana K.",
+    role: "Pharmacy Owner",
+  },
+  {
+    text: "I can track all my sales and expenses in one place. My accountant loves it too.",
+    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face",
+    name: "Yonas B.",
+    role: "Clothing Retailer",
+  },
+  {
+    text: "The barcode scanning feature makes checkout so fast. Customers notice the difference.",
+    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop&crop=face",
+    name: "Selam G.",
+    role: "Supermarket Manager",
+  },
+  {
+    text: "We switched from spreadsheets and it saved us hours every week. Best decision we made.",
+    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&crop=face",
+    name: "Fikadu S.",
+    role: "Hardware Store Owner",
+  },
+  {
+    text: "The daily profit report gives me peace of mind. I always know where my business stands.",
+    image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop&crop=face",
+    name: "Meron T.",
+    role: "Café Owner",
+  },
+  {
+    text: "Managing multiple product categories used to be a nightmare. Now it takes seconds.",
+    image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80&h=80&fit=crop&crop=face",
+    name: "Biniam R.",
+    role: "General Store",
+  },
+]
 
+const firstColumn = testimonialsData.slice(0, 3)
+const secondColumn = testimonialsData.slice(3, 6)
+const thirdColumn = testimonialsData.slice(6, 9)
+
+function TestimonialsSection() {
   return (
-    <section className="py-16 md:py-20 px-5 bg-background">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-4 px-4">Loved by business owners</h2>
-          <p className="text-base sm:text-lg text-muted-foreground px-6">Join 500+ merchants modernizing with InvenSync.</p>
+    <section className="py-16 md:py-20 bg-background relative">
+      <div className="max-w-6xl mx-auto px-5">
+        <div className="flex flex-col items-center justify-center max-w-[540px] mx-auto mb-10">
+          <div className="inline-flex items-center gap-2 bg-card text-muted-foreground px-4 py-2 rounded-full text-sm mb-6 shadow-sm border border-border/50">
+            <span className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
+            <span className="opacity-90">Testimonials</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight text-center">
+            Loved by business owners
+          </h2>
+          <p className="text-center mt-3 text-muted-foreground">
+            Join 500+ merchants modernizing with InvenSync.
+          </p>
         </div>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {testimonials.map(testimonial => (
-            <div key={testimonial.name} className="bg-muted/50 p-6 rounded-xl relative isolate">
-              <div className="absolute top-6 right-6 opacity-10 text-primary">
-                <Quote className="w-10 h-10" />
-              </div>
-              <div className="flex gap-0.5 mb-4">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <Star key={i} className="w-4 h-4 fill-primary text-primary" />
-                ))}
-              </div>
-              <p className="text-sm text-foreground/80 leading-relaxed mb-5 relative z-10">
-                &ldquo;{testimonial.quote}&rdquo;
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center font-semibold text-muted-foreground text-sm">
-                  {testimonial.initial}
-                </div>
-                <div>
-                  <div className="font-semibold text-foreground text-sm">{testimonial.name}</div>
-                  <div className="text-muted-foreground text-xs">{testimonial.business}</div>
-                </div>
-              </div>
-            </div>
-          ))}
+
+        <div className="flex justify-center gap-6 [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)] max-h-[740px] overflow-hidden">
+          <TestimonialsColumn testimonials={firstColumn} duration={15} />
+          <TestimonialsColumn testimonials={secondColumn} className="hidden md:block" duration={19} />
+          <TestimonialsColumn testimonials={thirdColumn} className="hidden lg:block" duration={17} />
         </div>
       </div>
     </section>
