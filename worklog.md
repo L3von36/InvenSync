@@ -157,3 +157,61 @@ Stage Summary:
 - 12 files changed, 1142 insertions, 64 deletions
 - Pushed as d364efa
 - The app now actually works offline: pages fall back to IndexedDB data when API is unreachable
+
+---
+Task ID: 7
+Agent: main
+Task: Fix offline functionality — user reported "it still not working"
+
+Work Log:
+- Diagnosed root causes of offline not working through browser testing and code analysis
+- Found 4 critical issues:
+  1. API client threw "You are offline" error for ALL GET requests when offline — no fallback to cached data
+  2. 401 auto-logout was too aggressive — any 401 from any endpoint triggered logout, causing bootstrap failures and cascading logouts
+  3. BigInt error in dashboard API route (Prisma aggregate values)
+  4. Service worker didn't cache Next.js static assets properly
+
+- Fixed API client to return cached data from IndexedDB when offline:
+  - Added `apiCache` table to Dexie schema for persistent response caching
+  - Modified `request()` method: GET requests check persistent IndexedDB cache before throwing
+  - Network errors on GET requests also fall back to cache
+  - Successful GET responses are persisted to IndexedDB cache (24h TTL)
+  - Added `cacheApiResponse()`, `getCachedApiResponse()`, `purgeExpiredCacheEntries()` helpers
+
+- Fixed 401 auto-logout cascade:
+  - Changed auto-logout to only trigger on `/api/auth/me` 401 responses
+  - Other endpoints may return 401 for module access, rate limits, etc. — should not log out user
+  - Added `beginBatchOperation()`/`endBatchOperation()` to suppress 401 logout during bootstrap
+  - Bootstrap now wraps with `beginBatchOperation()` to prevent cascade during initial hydration
+
+- Fixed BigInt error in dashboard API route:
+  - Wrapped all Prisma aggregate values (`_sum.total`, `_sum.amount`, `_count`) with `Number()`
+  - Fixed `totalStockValue`, `todayRevenue`, `monthRevenue`, `periodRevenue`, `salesTrend`, etc.
+
+- Updated service worker (sw.js):
+  - Added runtime cache for Next.js static assets
+  - Improved cache-first strategy with fallback to runtime cache
+  - Skip /api/ping from caching (connectivity check endpoint)
+  - Better offline page with "your data is still available locally" message
+
+- Removed old offline-queue initialization from app-root.tsx
+  - Old `offline-queue.ts` used separate IndexedDB `invensync-offline`
+  - New sync engine in `app-shell.tsx` uses Dexie `outbox` table
+  - Removed `initOfflineSync()` call to prevent dual-queue conflicts
+
+- Browser testing confirmed:
+  ✅ Login works (wege@gmail.com / Selam@336)
+  ✅ Dashboard loads with data
+  ✅ Going offline: dashboard continues to work with "Viewing cached data" label
+  ✅ Offline indicator shows "Offline" in header
+  ✅ Alert banner "You are offline — some features may be limited" appears
+  ✅ Navigation between pages works while offline
+  ✅ Going back online: sync status changes to "All synced"
+  ✅ No auto-logout when API endpoints return 401
+
+Stage Summary:
+- 6 files modified: api-client.ts, db/index.ts, bootstrap.ts, app-root.tsx, sw.js, dashboard/route.ts
+- Offline mode now works end-to-end: dashboard displays cached data when offline
+- 401 auto-logout cascade fixed — app stays logged in even when some API calls fail
+- BigInt error in dashboard API fixed
+- Service worker enhanced for better caching

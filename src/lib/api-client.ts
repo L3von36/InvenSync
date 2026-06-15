@@ -839,11 +839,13 @@ class ApiClient {
           throw dbError
         }
 
-        // Handle auth errors — clear token and trigger logout if 401 from a non-auth endpoint
-        // Auth endpoints (login, register, me) legitimately return 401 for wrong credentials
-        // Also suppress auto-logout during active login to prevent race conditions
-        const isAuthEndpoint = endpoint.startsWith('/api/auth/login') || endpoint.startsWith('/api/auth/register') || endpoint.startsWith('/api/auth/me')
-        if (response.status === 401 && token && !isAuthEndpoint && !this._isLoggingIn && !this._suppressAuthLogout) {
+        // Handle auth errors — only auto-logout when the session-check endpoint
+        // returns 401, not every API endpoint. Other endpoints may return 401
+        // for reasons other than expired sessions (e.g., module access, rate limits,
+        // race conditions during bootstrap). The /api/auth/me endpoint is the
+        // authoritative source for session validity.
+        const isSessionCheckEndpoint = endpoint.startsWith('/api/auth/me')
+        if (response.status === 401 && token && isSessionCheckEndpoint && !this._isLoggingIn) {
           // Only clear token and trigger logout if the token we sent is STILL the current token.
           // This prevents a stale background request from clearing a freshly-set token
           // after the user logged out and logged back in.
