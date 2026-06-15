@@ -1,11 +1,14 @@
-// InvenSync Service Worker v2
-// Cache-first for static assets, Network-first for API calls, Offline fallback
-// Enhanced: caches Next.js static bundles on first load for true offline support
+// InvenSync Service Worker v3
+// Enhanced offline-first caching for PWA support
+// - Cache-first for static assets (JS, CSS, fonts, images)
+// - Network-first for API calls with cache fallback
+// - Stale-while-revalidate for HTML pages
+// - Runtime caching of Next.js static bundles on first load
 
-const CACHE_NAME = 'invensync-v2';
-const STATIC_CACHE = 'invensync-static-v2';
-const API_CACHE = 'invensync-api-v2';
-const RUNTIME_CACHE = 'invensync-runtime-v2';
+const CACHE_NAME = 'invensync-v3';
+const STATIC_CACHE = 'invensync-static-v3';
+const API_CACHE = 'invensync-api-v3';
+const RUNTIME_CACHE = 'invensync-runtime-v3';
 
 // Core static assets to pre-cache on install
 const PRE_CACHE_ASSETS = [
@@ -61,13 +64,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip /api/ping - used for connectivity checks, don't cache
+  if (url.pathname === '/api/ping') {
+    return;
+  }
+
   // Strategy: Network-first for API calls (but return cached when offline)
   if (url.pathname.startsWith('/api/')) {
-    // Skip /api/ping - used for connectivity checks, don't cache
-    if (url.pathname === '/api/ping') {
-      return;
-    }
     event.respondWith(networkFirstWithCache(request));
+    return;
+  }
+
+  // Strategy: Cache-first for Next.js static bundles (_next/static/*)
+  // These are hashed and immutable — safe to cache aggressively
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(cacheFirstWithRuntime(request));
     return;
   }
 
@@ -84,24 +95,33 @@ self.addEventListener('fetch', (event) => {
 // Cache-first strategy with runtime caching
 // Try cache first, fallback to network, cache the response for next time
 async function cacheFirstWithRuntime(request) {
-  const cached = await caches.match(request);
-  if (cached) {
-    return cached;
+  // Check static cache first
+  const staticCached = await caches.match(request, { cacheName: STATIC_CACHE });
+  if (staticCached) {
+    return staticCached;
+  }
+
+  // Check runtime cache next
+  const runtimeCached = await caches.match(request, { cacheName: RUNTIME_CACHE });
+  if (runtimeCached) {
+    // Revalidate in background for next time
+    fetchAndCacheRuntime(request);
+    return runtimeCached;
   }
 
   try {
     const response = await fetch(request);
     if (response.ok) {
-      // Cache static assets in the runtime cache for offline use
+      // Cache in the runtime cache for offline use
       const cache = await caches.open(RUNTIME_CACHE);
       cache.put(request, response.clone());
     }
     return response;
   } catch (error) {
-    // Check runtime cache as last resort
-    const runtimeCached = await caches.match(request, { cacheName: RUNTIME_CACHE });
-    if (runtimeCached) {
-      return runtimeCached;
+    // Last resort: check all caches
+    const anyCached = await caches.match(request);
+    if (anyCached) {
+      return anyCached;
     }
     return new Response('', { status: 503, statusText: 'Service Unavailable' });
   }
@@ -118,9 +138,14 @@ async function networkFirstWithCache(request) {
     return response;
   } catch (error) {
     // Try API cache first
-    const cached = await caches.match(request);
+    const cached = await caches.match(request, { cacheName: API_CACHE });
     if (cached) {
       return cached;
+    }
+    // Try any cache
+    const anyCached = await caches.match(request);
+    if (anyCached) {
+      return anyCached;
     }
     // Return offline JSON response
     return new Response(JSON.stringify({ error: 'You are offline', offline: true }), {
@@ -156,6 +181,19 @@ async function staleWhileRevalidate(request) {
 
   // Return cache immediately if available, otherwise wait for network
   return cached || fetchPromise;
+}
+
+// Background fetch and cache — doesn't block the response
+async function fetchAndCacheRuntime(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(RUNTIME_CACHE);
+      cache.put(request, response.clone());
+    }
+  } catch {
+    // Silently ignore — background revalidation
+  }
 }
 
 // Check if a pathname is a static asset
