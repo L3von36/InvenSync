@@ -24,6 +24,7 @@ import {
   Scissors,
   Wrench,
 } from 'lucide-react'
+import { RotatingText } from '@/components/app/landing/rotating-text'
 import { useTheme } from 'next-themes'
 import {
   Accordion,
@@ -135,8 +136,18 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
         <h1 className="text-3xl sm:text-4xl font-bold leading-[1.15] text-foreground tracking-tight mb-6 px-2">
           Everything you need <br className="hidden sm:block" />
           to{' '}
-          <span className="text-primary relative inline-block">
-            grow your business.
+          <span className="text-primary relative inline-flex items-center">
+            <RotatingText
+              phrases={[
+                'grow your business.',
+                'track inventory smarter.',
+                'increase your profits.',
+                'manage sales effortlessly.',
+                'make better decisions.',
+              ]}
+              interval={2500}
+              className="text-primary"
+            />
             <svg className="absolute w-full h-2 sm:h-3 -bottom-1 left-0 text-primary/30 -z-10" viewBox="0 0 100 10" preserveAspectRatio="none">
               <path d="M0 5 Q 50 10 100 5" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
             </svg>
