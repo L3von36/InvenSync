@@ -93,3 +93,41 @@ Stage Summary:
 - Uses existing shadcn/ui components (button, label, switch) - no overwrites
 - Annual/monthly toggle with confetti animation and NumberFlow price transitions
 - Professional plan marked as "Popular" with elevated styling
+---
+Task ID: 2
+Agent: main
+Task: Add full offline-first support to the Shop Dashboard
+
+Work Log:
+- Explored existing codebase: 30 Prisma models, 100+ API routes, monolithic dashboard component
+- Found existing partial offline support: basic SW, offline queue, PWA manifest, auth resilience
+- Installed Dexie.js v4 for IndexedDB client-side database
+- Created Dexie schema with 17 typed tables (products, sales, customers, suppliers, debts, expenses, stockMovements, purchaseOrders, serviceBookings, serviceTypes, shops, outbox, syncMeta, userProfile, etc.)
+- Created LocalRepository<T> generic class with optimistic writes + outbox pattern
+- Created 13 concrete repository instances (productRepo, customerRepo, saleRepo, etc.)
+- Created SyncEngine class with push/pull/delta sync, exponential backoff, auto-sync, conflict detection
+- Created ConnectivityService with heartbeat verification and useConnectivity() hook
+- Created BootstrapService for one-time full data hydration after login
+- Created ConflictResolution module with last-write-wins + delta-merge for stock/quantity fields
+- Created SyncPanel component with 7 sections and SyncStatusChip for header
+- Enhanced offline indicator with pending count and sync now button
+- Added offline auth resilience: preserve session on network errors, cache profile in IndexedDB
+- Added updatedSince delta query support to 8 API routes (products, customers, sales, suppliers, debts, expenses, purchase-orders, service-bookings)
+- Created /api/ping heartbeat endpoint
+- Renamed db.ts to prisma.ts to resolve module shadowing with db/index.ts (Dexie)
+- Updated 104 server-side imports from @/lib/db to @/lib/prisma
+- Added Sync & Offline navigation item to sidebar
+- Added Bootstrap overlay with progress UI in app-shell
+- Browser verification confirmed: landing page loads, ping endpoint works, sync engine initializes
+- Lint passes cleanly, dev server compiles without errors
+- Pushed to GitHub: 2dce487
+
+Stage Summary:
+- 130 files changed, 4521 insertions, 156 deletions
+- Full offline-first architecture implemented with Dexie.js local database
+- Sync engine with push/pull/delta sync and exponential backoff retry
+- Repository layer with optimistic writes and outbox pattern
+- Conflict resolution with delta-merge for stock/quantity fields
+- SyncPanel UI with 7 sections + SyncStatusChip in header
+- Bootstrap hydration with progress overlay on first login
+- Enhanced offline auth with session preservation and profile caching
