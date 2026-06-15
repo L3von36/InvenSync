@@ -374,6 +374,7 @@ const ENTITY_CONFIGS: EntitySyncConfig[] = [
         longitude: s.longitude ?? null,
         phone: s.phone ?? null,
         isActive: s.isActive,
+        createdAt: s.createdAt ?? new Date().toISOString(),
       } satisfies LocalShop
     },
   },
@@ -542,6 +543,7 @@ export async function bootstrapLocalData(
             unitPrice: si.unitPrice,
             costPrice: si.costPrice,
             total: si.total,
+            createdAt: si.createdAt,
           })
         }
       }

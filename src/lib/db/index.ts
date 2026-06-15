@@ -96,6 +96,7 @@ export interface LocalSaleItem {
   unitPrice: number
   costPrice: number
   total: number
+  createdAt?: string
 }
 
 /** Stock movement log — mirrors StockMovement from api-client */
@@ -210,6 +211,7 @@ export interface LocalShop {
   longitude?: number | null
   phone?: string | null
   isActive: boolean
+  createdAt?: string
 }
 
 /** Sync outbox entry — queue of pending mutations to send to the server */

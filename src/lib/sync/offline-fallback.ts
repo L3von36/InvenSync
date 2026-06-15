@@ -75,6 +75,16 @@ function extractStatus(url: string): string | null {
   }
 }
 
+function extractParam(url: string, param: string): string | null {
+  try {
+    const urlObj = new URL(url, 'http://localhost')
+    return urlObj.searchParams.get(param)
+  } catch {
+    const match = url.match(new RegExp(`${param}=([^&]+)`))
+    return match ? match[1] : null
+  }
+}
+
 // ============================================
 // Helper: Filter by shopId
 // ============================================
@@ -152,6 +162,60 @@ async function handleDashboard(endpoint: string): Promise<unknown> {
     .filter(e => e.date >= monthStart)
     .reduce((sum, e) => sum + e.amount, 0)
 
+  // Resolve customer names and sale items for recentSales
+  const recentSalesRaw = filteredSales
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 10)
+
+  const recentCustomerIds = [...new Set(recentSalesRaw.map(s => s.customerId).filter(Boolean) as string[])]
+  const recentSaleIds = recentSalesRaw.map(s => s.id)
+
+  const [recentCustomers, recentItems] = await Promise.all([
+    recentCustomerIds.length > 0 ? db.customers.where('id').anyOf(recentCustomerIds).toArray() : [],
+    recentSaleIds.length > 0 ? db.saleItems.where('saleId').anyOf(recentSaleIds).toArray() : [],
+  ])
+  const recentCustomerMap = new Map(recentCustomers.map(c => [c.id, c]))
+  const recentItemsBySale = new Map<string, typeof recentItems>()
+  for (const si of recentItems) {
+    const items = recentItemsBySale.get(si.saleId) || []
+    items.push(si)
+    recentItemsBySale.set(si.saleId, items)
+  }
+
+  // Resolve product names for sale items
+  const recentProductIds = [...new Set(recentItems.map(si => si.productId))]
+  const recentProducts = recentProductIds.length > 0
+    ? await db.products.where('id').anyOf(recentProductIds).toArray()
+    : []
+  const recentProductMap = new Map(recentProducts.map(p => [p.id, p]))
+
+  // Resolve top products from sale items (last 30 days)
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const recent30DaysSales = filteredSales.filter(s => s.status === 'completed' && s.saleDate >= thirtyDaysAgo)
+  const recent30SaleIds = recent30DaysSales.map(s => s.id)
+  const recent30Items = recent30SaleIds.length > 0
+    ? await db.saleItems.where('saleId').anyOf(recent30SaleIds).toArray()
+    : []
+  const topProductMap = new Map<string, { totalRevenue: number; totalQuantity: number }>()
+  for (const si of recent30Items) {
+    const existing = topProductMap.get(si.productId) || { totalRevenue: 0, totalQuantity: 0 }
+    existing.totalRevenue += si.total
+    existing.totalQuantity += si.quantity
+    topProductMap.set(si.productId, existing)
+  }
+  const topProductIds = [...topProductMap.keys()]
+  const topProductDetails = topProductIds.length > 0
+    ? await db.products.where('id').anyOf(topProductIds).toArray()
+    : []
+  const topProductDetailMap = new Map(topProductDetails.map(p => [p.id, p]))
+
+  // Build sales trend from last 30 days
+  const salesTrendMap = new Map<string, number>()
+  for (const s of recent30DaysSales) {
+    const dateKey = s.saleDate.split('T')[0]
+    salesTrendMap.set(dateKey, (salesTrendMap.get(dateKey) || 0) + s.total)
+  }
+
   // Match DashboardData interface exactly
   return {
     stats: {
@@ -164,8 +228,6 @@ async function handleDashboard(endpoint: string): Promise<unknown> {
       todaySalesCount: todaySales.length,
       monthRevenue,
       totalCustomerDebt,
-      totalSupplierDebt,
-      totalOutstanding: totalCustomerDebt + totalSupplierDebt,
       periodRevenue: monthRevenue,
       periodExpenses,
       periodCogs: 0,
@@ -183,8 +245,8 @@ async function handleDashboard(endpoint: string): Promise<unknown> {
       prevSalesCount: 0,
     },
     period: {
-      from: monthStart.split('T')[0],
-      to: todayStart.split('T')[0],
+      from: monthStart,
+      to: todayStart,
       prevFrom: '',
       prevTo: '',
     },
@@ -202,37 +264,46 @@ async function handleDashboard(endpoint: string): Promise<unknown> {
         severity: 'medium' as const,
       })),
     ],
-    recentSales: filteredSales
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 10)
-      .map(s => ({
+    recentSales: recentSalesRaw.map(s => {
+      const cust = s.customerId ? recentCustomerMap.get(s.customerId) : undefined
+      const saleItems = recentItemsBySale.get(s.id) || []
+      return {
         id: s.id,
-        organizationId: s.organizationId,
-        customerId: s.customerId,
         invoiceNumber: s.invoiceNumber,
         status: s.status,
-        paymentMethod: s.paymentMethod,
-        subtotal: s.subtotal,
-        discount: s.discount,
-        tax: s.tax,
         total: s.total,
         amountPaid: s.amountPaid,
-        notes: s.notes,
         saleDate: s.saleDate,
-        createdAt: s.createdAt,
-        updatedAt: s.updatedAt,
-        customer: null as { id: string; name: string; phone?: string | null } | null,
-        items: [] as Array<{
-          id: string; saleId: string; productId: string; quantity: number;
-          unitPrice: number; costPrice: number; total: number;
-          product?: { id: string; name: string; sku?: string | null } | null;
-        }>,
-      })),
-    topProducts: [] as Array<{
-      id: string; name: string; sku?: string | null;
-      imageUrl?: string | null; totalRevenue: number; totalQuantity: number;
-    }>,
-    salesTrend: [] as Array<{ date: string; revenue: number }>,
+        customer: cust ? { id: cust.id, name: cust.name } : null,
+        items: saleItems.map(si => {
+          const prod = recentProductMap.get(si.productId)
+          return {
+            id: si.id,
+            quantity: si.quantity,
+            unitPrice: si.unitPrice,
+            total: si.total,
+            product: prod ? { id: prod.id, name: prod.name } : null,
+          }
+        }),
+      }
+    }),
+    topProducts: [...topProductMap.entries()]
+      .sort(([, a], [, b]) => b.totalRevenue - a.totalRevenue)
+      .slice(0, 5)
+      .map(([productId, data]) => {
+        const prod = topProductDetailMap.get(productId)
+        return {
+          id: productId,
+          name: prod?.name || 'Unknown',
+          sku: prod?.sku ?? null,
+          imageUrl: prod?.imageUrl ?? null,
+          totalRevenue: data.totalRevenue,
+          totalQuantity: data.totalQuantity,
+        }
+      }),
+    salesTrend: [...salesTrendMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, revenue]) => ({ date, revenue })),
   }
 }
 
@@ -473,6 +544,13 @@ async function handleSales(endpoint: string): Promise<unknown> {
     itemsBySale.set(si.saleId, items)
   }
 
+  // Resolve product names for sale items
+  const allItemProductIds = [...new Set(allSaleItems.map(si => si.productId))]
+  const itemProducts = allItemProductIds.length > 0
+    ? await db.products.where('id').anyOf(allItemProductIds).toArray()
+    : []
+  const itemProductMap = new Map(itemProducts.map(p => [p.id, p]))
+
   return {
     sales: paged.map(s => ({
       id: s.id,
@@ -499,16 +577,20 @@ async function handleSales(endpoint: string): Promise<unknown> {
           })()
         : null,
       // Match Sale interface: items with nested product
-      items: (itemsBySale.get(s.id) || []).map(si => ({
-        id: si.id,
-        saleId: si.saleId,
-        productId: si.productId,
-        quantity: si.quantity,
-        unitPrice: si.unitPrice,
-        costPrice: si.costPrice,
-        total: si.total,
-        product: null as { id: string; name: string; sku?: string | null } | null,
-      })),
+      items: (itemsBySale.get(s.id) || []).map(si => {
+        const prod = itemProductMap.get(si.productId)
+        return {
+          id: si.id,
+          saleId: si.saleId,
+          productId: si.productId,
+          quantity: si.quantity,
+          unitPrice: si.unitPrice,
+          costPrice: si.costPrice,
+          total: si.total,
+          createdAt: si.createdAt,
+          product: prod ? { id: prod.id, name: prod.name, sku: prod.sku ?? null } : null,
+        }
+      }),
     })),
     pagination: makePagination(page, limit, total),
   }
@@ -711,6 +793,7 @@ async function handleExpenses(endpoint: string): Promise<unknown> {
         shop: shop ? { id: shop.id, name: shop.name } : null,
       }
     }),
+    total,
     summary: { totalExpenses },
     monthlySummary: [] as Array<{ month: string; total: number }>,
     pagination: makePagination(page, limit, total),
@@ -738,6 +821,8 @@ async function handleShops(endpoint: string): Promise<unknown> {
     if (s.shopId) salesByShop.set(s.shopId, (salesByShop.get(s.shopId) || 0) + 1)
   }
 
+  const totalShops = shops.length
+
   return {
     shops: shops.map(s => ({
       id: s.id,
@@ -749,7 +834,7 @@ async function handleShops(endpoint: string): Promise<unknown> {
       longitude: s.longitude ?? null,
       phone: s.phone ?? null,
       isActive: s.isActive,
-      memberCount: 0,
+      createdAt: s.createdAt,
       // branches-page.tsx reads shop._count.products and shop._count.sales
       _count: {
         products: productsByShop.get(s.id) || 0,
@@ -761,6 +846,7 @@ async function handleShops(endpoint: string): Promise<unknown> {
         user: { id: string; name: string; email: string; avatarUrl?: string | null };
       }>,
     })),
+    pagination: makePagination(1, 100, totalShops),
   }
 }
 
@@ -873,6 +959,15 @@ async function handleReports(endpoint: string): Promise<unknown> {
 
   const shopId = extractShopId(endpoint)
 
+  // Parse period params from URL
+  const startDate = extractParam(endpoint, 'startDate')
+  const endDate = extractParam(endpoint, 'endDate')
+  const type = extractParam(endpoint, 'period') || extractParam(endpoint, 'type') || 'daily'
+
+  const now = new Date()
+  const periodStart = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), 1)
+  const periodEnd = endDate ? new Date(endDate) : now
+
   const [products, sales, expenses] = await Promise.all([
     db.products.where('organizationId').equals(orgId).toArray(),
     db.sales.where('organizationId').equals(orgId).toArray(),
@@ -881,69 +976,133 @@ async function handleReports(endpoint: string): Promise<unknown> {
 
   const filteredProducts = filterByShop(products, shopId)
   const filteredSales = filterByShop(sales, shopId)
+  const filteredExpenses = filterByShop(expenses, shopId)
 
-  // Aggregate sales by date for salesByPeriod
-  const salesByDate = new Map<string, { revenue: number; cost: number; count: number }>()
-  for (const s of filteredSales) {
-    if (s.status !== 'completed') continue
+  // Filter sales to the requested period
+  const periodSales = filteredSales.filter(s => {
+    if (s.status !== 'completed') return false
+    const saleDate = new Date(s.saleDate)
+    return saleDate >= periodStart && saleDate <= periodEnd
+  })
+
+  // Aggregate sales by date for salesByPeriod and salesByDate
+  const salesByDateMap = new Map<string, { revenue: number; cost: number; profit: number; count: number }>()
+  for (const s of periodSales) {
     const dateKey = s.saleDate.split('T')[0]
-    const existing = salesByDate.get(dateKey) || { revenue: 0, cost: 0, count: 0 }
+    const existing = salesByDateMap.get(dateKey) || { revenue: 0, cost: 0, profit: 0, count: 0 }
     existing.revenue += s.total
-    existing.cost += s.subtotal - s.discount // approximate
+    existing.cost += s.subtotal - s.discount // approximate COGS
+    existing.profit += s.total - (s.subtotal - s.discount)
     existing.count += 1
-    salesByDate.set(dateKey, existing)
+    salesByDateMap.set(dateKey, existing)
   }
 
   // Top products by quantity from sale items
-  const saleIds = filteredSales.map(s => s.id)
+  const saleIds = periodSales.map(s => s.id)
   const allSaleItems = saleIds.length > 0
     ? await db.saleItems.where('saleId').anyOf(saleIds).toArray()
     : []
-  const productRevenueMap = new Map<string, { name: string; quantity: number; revenue: number }>()
+  const productRevenueMap = new Map<string, { name: string; sku: string | null; sellingPrice: number; quantity: number; revenue: number; salesCount: number }>()
   for (const si of allSaleItems) {
-    const existing = productRevenueMap.get(si.productId) || { name: '', quantity: 0, revenue: 0 }
+    const existing = productRevenueMap.get(si.productId) || { name: '', sku: null, sellingPrice: 0, quantity: 0, revenue: 0, salesCount: 0 }
     existing.quantity += si.quantity
     existing.revenue += si.total
+    existing.salesCount += 1
     productRevenueMap.set(si.productId, existing)
   }
-  // Resolve product names
+  // Resolve product names, skus, sellingPrices
   const productIds = [...productRevenueMap.keys()]
   const prods = productIds.length > 0
     ? await db.products.where('id').anyOf(productIds).toArray()
     : []
   for (const p of prods) {
     const entry = productRevenueMap.get(p.id)
-    if (entry) entry.name = p.name
+    if (entry) {
+      entry.name = p.name
+      entry.sku = p.sku ?? null
+      entry.sellingPrice = p.sellingPrice
+    }
   }
 
+  // Payment method breakdown from sales
+  const paymentMethodMap = new Map<string, { count: number; revenue: number }>()
+  for (const s of periodSales) {
+    const method = s.paymentMethod || 'cash'
+    const existing = paymentMethodMap.get(method) || { count: 0, revenue: 0 }
+    existing.count += 1
+    existing.revenue += s.total
+    paymentMethodMap.set(method, existing)
+  }
+
+  // Summary calculations
+  const totalRevenue = periodSales.reduce((sum, s) => sum + s.total, 0)
+  const totalCost = allSaleItems.reduce((sum, si) => sum + (si.costPrice * si.quantity), 0)
+  const totalProfit = totalRevenue - totalCost
+  const totalSales = periodSales.length
+  const averageSaleValue = totalSales > 0 ? totalRevenue / totalSales : 0
+
+  // Inventory valuation — match real API shape
   const totalCostValue = filteredProducts.reduce((sum, p) => sum + (p.costPrice * p.quantity), 0)
   const totalRetailValue = filteredProducts.reduce((sum, p) => sum + (p.sellingPrice * p.quantity), 0)
+  const totalItems = filteredProducts.reduce((sum, p) => sum + p.quantity, 0)
+  const potentialProfit = filteredProducts.reduce((sum, p) => sum + (p.quantity * (p.sellingPrice - p.costPrice)), 0)
 
-  // Match the real reports API shape exactly:
-  // { salesByPeriod, bestSellingProducts, inventoryValuation }
+  // Match the real reports API shape EXACTLY:
+  // { period, summary, salesByPeriod, salesByDate, bestSellingProducts, paymentMethodBreakdown, inventoryValuation }
   return {
-    salesByPeriod: [...salesByDate.entries()]
+    period: {
+      start: periodStart.toISOString(),
+      end: periodEnd.toISOString(),
+      type,
+    },
+    summary: {
+      totalRevenue,
+      totalCost,
+      totalProfit,
+      totalSales,
+      averageSaleValue,
+    },
+    salesByPeriod: [...salesByDateMap.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([period, data]) => ({
         period,
         revenue: data.revenue,
         cost: data.cost,
-        profit: data.revenue - data.cost,
+        profit: data.profit,
+        count: data.count,
+      })),
+    salesByDate: [...salesByDateMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, data]) => ({
+        date,
+        revenue: data.revenue,
+        cost: data.cost,
+        profit: data.profit,
         count: data.count,
       })),
     bestSellingProducts: [...productRevenueMap.entries()]
       .sort(([, a], [, b]) => b.revenue - a.revenue)
       .slice(0, 10)
-      .map(([productId, data]) => ({
-        productId,
-        productName: data.name,
-        totalQuantity: data.quantity,
+      .map(([id, data]) => ({
+        id,
+        name: data.name,
+        sku: data.sku,
+        sellingPrice: data.sellingPrice,
         totalRevenue: data.revenue,
+        totalQuantity: data.quantity,
+        salesCount: data.salesCount,
+      })),
+    paymentMethodBreakdown: [...paymentMethodMap.entries()]
+      .map(([method, data]) => ({
+        method,
+        count: data.count,
+        revenue: data.revenue,
       })),
     inventoryValuation: {
+      totalItems,
       totalCostValue,
       totalRetailValue,
-      totalProducts: filteredProducts.length,
+      potentialProfit,
     },
   }
 }
