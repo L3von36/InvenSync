@@ -1,240 +1,120 @@
 // ============================================
-// Offline Queue — IndexedDB-based operation queue
+// Offline Queue — Queue mutating API requests for later sync
 // ============================================
-// Queues POST/PUT/DELETE operations when offline.
-// Stores pending operations in IndexedDB.
-// Syncs when back online.
-
-export interface QueuedOperation {
-  id: string
-  url: string
-  method: string
-  headers: Record<string, string>
-  body: string | null
-  timestamp: number
-  retries: number
-}
-
-const DB_NAME = 'invensync-offline'
-const DB_VERSION = 1
-const STORE_NAME = 'pending-operations'
-
-// ============================================
-// IndexedDB Helpers
+// When the user is offline and makes a mutating request (POST, PUT, PATCH, DELETE),
+// this module stores it in the Dexie outbox table so the sync engine can
+// push it to the backend when connectivity is restored.
 // ============================================
 
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
+import { db } from '@/lib/db'
 
-    request.onupgradeneeded = () => {
-      const db = request.result
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
-        store.createIndex('timestamp', 'timestamp', { unique: false })
-      }
-    }
-
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-  })
+function generateLocalId(): string {
+  return 'local_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9)
 }
-
-async function getAllOperations(): Promise<QueuedOperation[]> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly')
-    const store = tx.objectStore(STORE_NAME)
-    const request = store.getAll()
-    request.onsuccess = () => resolve(request.result as QueuedOperation[])
-    request.onerror = () => reject(request.error)
-  })
-}
-
-async function addOperation(op: QueuedOperation): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite')
-    const store = tx.objectStore(STORE_NAME)
-    const request = store.add(op)
-    request.onsuccess = () => resolve()
-    request.onerror = () => reject(request.error)
-  })
-}
-
-async function removeOperation(id: string): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite')
-    const store = tx.objectStore(STORE_NAME)
-    const request = store.delete(id)
-    request.onsuccess = () => resolve()
-    request.onerror = () => reject(request.error)
-  })
-}
-
-async function updateOperation(op: QueuedOperation): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite')
-    const store = tx.objectStore(STORE_NAME)
-    const request = store.put(op)
-    request.onsuccess = () => resolve()
-    request.onerror = () => reject(request.error)
-  })
-}
-
-// ============================================
-// Public API
-// ============================================
 
 /**
- * Queue an operation for later execution when back online.
- * Only POST, PUT, PATCH, DELETE methods are queued.
+ * Queues an API operation for later execution when connectivity is restored.
+ *
+ * @param endpoint - The API endpoint URL (e.g., '/api/products')
+ * @param method - HTTP method (POST, PUT, PATCH, DELETE)
+ * @param headers - Request headers (including auth)
+ * @param body - Request body as string
+ * @returns The generated outbox entry ID
  */
 export async function queueOperation(
-  url: string,
+  endpoint: string,
   method: string,
   headers: Record<string, string>,
   body: string | null
-): Promise<QueuedOperation> {
-  const op: QueuedOperation = {
-    id: `op_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    url,
-    method: method.toUpperCase(),
-    headers,
-    body,
-    timestamp: Date.now(),
-    retries: 0,
+): Promise<string> {
+  // Determine entity name from endpoint
+  const entity = extractEntity(endpoint)
+
+  // Determine operation type
+  const operation = methodToOperation(method)
+
+  // Parse body for the payload
+  let payload: string
+  try {
+    payload = body ? JSON.stringify({
+      ...(body ? JSON.parse(body) : {}),
+      _endpoint: endpoint,
+      _method: method,
+    }) : JSON.stringify({ _endpoint: endpoint, _method: method })
+  } catch {
+    payload = JSON.stringify({ _endpoint: endpoint, _method: method, _rawBody: body })
   }
 
-  await addOperation(op)
-  return op
+  const id = generateLocalId()
+
+  await db.outbox.add({
+    id,
+    entity,
+    operation,
+    payload,
+    localId: id,
+    createdAt: new Date().toISOString(),
+    retryCount: 0,
+    status: 'pending',
+  })
+
+  console.log(`[OfflineQueue] Queued ${method} ${endpoint} as ${entity}/${operation}`)
+
+  return id
 }
 
 /**
- * Get the number of pending operations in the queue.
+ * Extracts the entity name from an API endpoint.
+ * e.g., '/api/products' → 'products', '/api/auth/me' → 'auth'
+ */
+function extractEntity(endpoint: string): string {
+  const path = endpoint.replace(/^https?:\/\/[^/]+/, '')
+  const parts = path.split('/').filter(Boolean)
+
+  // /api/products → products
+  // /api/products/123 → products
+  // /api/auth/login → auth
+  if (parts.length >= 2 && parts[0] === 'api') {
+    return parts[1]
+  }
+
+  return 'unknown'
+}
+
+/**
+ * Maps HTTP method to outbox operation type.
+ */
+function methodToOperation(method: string): 'create' | 'update' | 'delete' {
+  switch (method.toUpperCase()) {
+    case 'POST':
+      return 'create'
+    case 'PUT':
+    case 'PATCH':
+      return 'update'
+    case 'DELETE':
+      return 'delete'
+    default:
+      return 'create'
+  }
+}
+
+/**
+ * Returns the count of pending operations in the outbox.
  */
 export async function getPendingCount(): Promise<number> {
-  const operations = await getAllOperations()
-  return operations.length
+  return db.outbox.where('status').equals('pending').count()
 }
 
 /**
- * Sync all pending operations when back online.
- * Processes operations in order (by timestamp).
- * Removes successful operations from the queue.
- * Retries failed operations up to MAX_RETRIES times.
+ * Returns all pending operations in the outbox.
  */
-export async function syncPendingOperations(): Promise<{
-  synced: number
-  failed: number
-  remaining: number
-}> {
-  const operations = await getAllOperations()
-
-  if (operations.length === 0) {
-    return { synced: 0, failed: 0, remaining: 0 }
-  }
-
-  // Sort by timestamp (FIFO)
-  operations.sort((a, b) => a.timestamp - b.timestamp)
-
-  const MAX_RETRIES = 3
-  let synced = 0
-  let failed = 0
-
-  for (const op of operations) {
-    try {
-      const response = await fetch(op.url, {
-        method: op.method,
-        headers: op.headers,
-        body: op.body,
-      })
-
-      if (response.ok) {
-        // Operation succeeded — remove from queue
-        await removeOperation(op.id)
-        synced++
-      } else if (response.status >= 500 || response.status === 429) {
-        // Server error or rate limit — retry later
-        op.retries++
-        if (op.retries >= MAX_RETRIES) {
-          // Max retries reached — remove from queue
-          await removeOperation(op.id)
-          failed++
-        } else {
-          await updateOperation(op)
-        }
-      } else {
-        // Client error (4xx) — don't retry, remove from queue
-        await removeOperation(op.id)
-        failed++
-      }
-    } catch {
-      // Network error during sync — retry later
-      op.retries++
-      if (op.retries >= MAX_RETRIES) {
-        await removeOperation(op.id)
-        failed++
-      } else {
-        await updateOperation(op)
-      }
-    }
-  }
-
-  const remaining = await getPendingCount()
-  return { synced, failed, remaining }
+export async function getPendingOperations() {
+  return db.outbox.where('status').equals('pending').toArray()
 }
 
 /**
- * Clear all pending operations from the queue.
+ * Clears all pending operations from the outbox.
  */
 export async function clearPendingOperations(): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite')
-    const store = tx.objectStore(STORE_NAME)
-    const request = store.clear()
-    request.onsuccess = () => resolve()
-    request.onerror = () => reject(request.error)
-  })
-}
-
-/**
- * Initialize offline sync: listen for online events and
- * automatically sync pending operations.
- */
-export function initOfflineSync(): () => void {
-  let syncing = false
-
-  const handleOnline = async () => {
-    if (syncing) return
-    syncing = true
-    try {
-      const result = await syncPendingOperations()
-      if (result.synced > 0) {
-        console.log(`[Offline] Synced ${result.synced} pending operations`)
-      }
-      if (result.failed > 0) {
-        console.warn(`[Offline] ${result.failed} operations failed permanently`)
-      }
-    } catch (err) {
-      console.error('[Offline] Sync error:', err)
-    } finally {
-      syncing = false
-    }
-  }
-
-  window.addEventListener('online', handleOnline)
-
-  // If already online, try to sync immediately
-  if (typeof navigator !== 'undefined' && navigator.onLine) {
-    handleOnline()
-  }
-
-  // Return cleanup function
-  return () => {
-    window.removeEventListener('online', handleOnline)
-  }
+  await db.outbox.where('status').equals('pending').delete()
 }

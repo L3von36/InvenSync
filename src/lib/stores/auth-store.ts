@@ -500,7 +500,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         err.message.includes('Failed to fetch') ||
         err.message.includes('NetworkError') ||
         err.message.includes('offline') ||
-        err.message.includes('Network error')
+        err.message.includes('Network error') ||
+        err.message.includes('no cached data') ||
+        err.message.includes('check your internet') ||
+        err.message.includes('server took too long')
       )
 
       // If the database is unreachable or there's a network error, and the user
