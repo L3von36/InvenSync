@@ -131,3 +131,29 @@ Stage Summary:
 - SyncPanel UI with 7 sections + SyncStatusChip in header
 - Bootstrap hydration with progress overlay on first login
 - Enhanced offline auth with session preservation and profile caching
+---
+Task ID: 3
+Agent: main
+Task: Fix offline-first support — wire infrastructure to actual pages
+
+Work Log:
+- Browser testing revealed the entire offline infrastructure was disconnected from the UI
+- All pages (dashboard, products, sales) still called api.* directly with no local fallback
+- Service worker wasn't registering due to HTTPS-only guard on localhost
+- Sync engine had 3 critical bugs: syncMeta key→id mismatch, payload type mismatch (object vs string), createdAt type mismatch (number vs string)
+- Auto-sync was never started after bootstrap
+
+Fixes applied:
+- Dashboard: Falls back to computing stats from IndexedDB when API fails, shows "Viewing cached data" badge
+- Products page: Falls back to productRepo/categoryRepo on API failure, queues writes in outbox when offline
+- Sales page: Falls back to local DB for reads, queues offline sale creates in outbox
+- Service worker: Added localhost/127.0.0.1 exception to HTTPS registration guard
+- Sync engine: Fixed syncMeta key→id (2 occurrences), fixed OutboxItem payload/createdAt/lastAttemptAt types
+- Auto-sync: Starts after bootstrap in app-shell, stops on logout
+- Created useLocalData hooks for 6 entities (products, customers, sales, suppliers, debts, expenses)
+- Browser verification: SW registered ✓, sync engine initializes ✓, no errors ✓, ping endpoint works ✓
+
+Stage Summary:
+- 12 files changed, 1142 insertions, 64 deletions
+- Pushed as d364efa
+- The app now actually works offline: pages fall back to IndexedDB data when API is unreachable
