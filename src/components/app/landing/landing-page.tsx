@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Package,
   ShoppingCart,
@@ -121,6 +121,15 @@ function LandingNavbar({ onLogin, onRegister }: { onLogin: () => void; onRegiste
 // ============================================
 // Hero Section
 // ============================================
+const heroPhrases = [
+  'Grow your business',
+  'Track inventory smarter',
+  'Increase your profits',
+  'Manage sales effortlessly',
+  'Control your stock',
+  'Make better decisions',
+]
+
 function HeroSection({ onRegister }: { onRegister: () => void }) {
   return (
     <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-20 px-5 bg-gradient-to-b from-muted/50 to-background overflow-hidden">
@@ -134,24 +143,14 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
         </div>
 
         <h1 className="text-3xl sm:text-4xl font-bold leading-[1.15] text-foreground tracking-tight mb-6 px-2">
-          Everything you need <br className="hidden sm:block" />
-          to{' '}
-          <span className="text-primary relative inline-flex items-center">
+          Everything you need to
+          <div className="text-primary mt-1">
             <RotatingText
-              phrases={[
-                'grow your business.',
-                'track inventory smarter.',
-                'increase your profits.',
-                'manage sales effortlessly.',
-                'make better decisions.',
-              ]}
-              interval={2500}
-              className="text-primary"
+              phrases={heroPhrases}
+              interval={3000}
+              className="text-primary font-bold"
             />
-            <svg className="absolute w-full h-2 sm:h-3 -bottom-1 left-0 text-primary/30 -z-10" viewBox="0 0 100 10" preserveAspectRatio="none">
-              <path d="M0 5 Q 50 10 100 5" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-            </svg>
-          </span>
+          </div>
         </h1>
 
         <p className="text-base sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-4 leading-relaxed px-4">

@@ -1,13 +1,7 @@
 'use client'
 
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useLayoutEffect,
-} from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface RotatingTextProps {
   phrases: string[]
@@ -16,86 +10,126 @@ interface RotatingTextProps {
 }
 
 /**
- * Premium rotating text with swap-up animation.
+ * Premium rotating text with vertical swap-up animation.
  *
- * - Current phrase slides up and fades out
- * - Next phrase slides up from below and fades in
- * - Container width is locked to the widest phrase → no layout shifts
- * - Hardware-accelerated transforms only (translateY + opacity)
+ * Architecture:
+ * - Measures the widest phrase on mount → locks container to that width
+ * - Uses only <span> elements (valid inside any inline parent)
+ * - AnimatePresence mode="wait" for clean enter/exit
+ * - All motion uses translateY + opacity only (GPU-accelerated)
  * - Respects prefers-reduced-motion
  */
 export function RotatingText({
   phrases,
-  interval = 2500,
+  interval = 3000,
   className,
 }: RotatingTextProps) {
   const [index, setIndex] = useState(0)
-  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null)
+  const [containerWidth, setContainerWidth] = useState<number | null>(null)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const measureRef = useRef<HTMLSpanElement>(null)
-  const shouldReduceMotion = useReducedMotion()
 
   const advance = useCallback(() => {
     setIndex((prev) => (prev + 1) % phrases.length)
   }, [phrases.length])
 
+  // Cycle through phrases
   useEffect(() => {
     if (phrases.length <= 1) return
     const timer = setInterval(advance, interval)
     return () => clearInterval(timer)
   }, [advance, interval, phrases.length])
 
-  // Measure the widest phrase on mount so the container never changes size
+  // Listen for prefers-reduced-motion changes
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  // Measure all phrases on mount and lock to the widest width
   useLayoutEffect(() => {
-    if (!measureRef.current) return
-    const spans = measureRef.current.children
+    const container = measureRef.current
+    if (!container) return
+
+    const spans = container.querySelectorAll('[data-measure]')
     let maxW = 0
-    for (let i = 0; i < spans.length; i++) {
-      const w = (spans[i] as HTMLElement).offsetWidth
+    spans.forEach((span) => {
+      const w = (span as HTMLElement).offsetWidth
       if (w > maxW) maxW = w
+    })
+
+    if (maxW > 0) {
+      // Use startTransition to avoid cascading render warning
+      React.startTransition(() => {
+        setContainerWidth(maxW + 4)
+      })
     }
-    setMeasuredWidth(maxW)
   }, [phrases, className])
 
-  // Reduced motion: static text, no animation
-  if (shouldReduceMotion) {
+  // Reduced motion: static text with fixed width
+  if (prefersReducedMotion) {
     return (
-      <span
-        className={className}
-        style={measuredWidth ? { minWidth: measuredWidth } : undefined}
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        {phrases[index]}
-      </span>
+      <>
+        <span
+          ref={measureRef}
+          aria-hidden="true"
+          style={{ position: 'absolute', visibility: 'hidden', whiteSpace: 'nowrap', pointerEvents: 'none' }}
+        >
+          {phrases.map((p) => (
+            <span key={p} data-measure className={className}>{p}</span>
+          ))}
+        </span>
+        <span
+          className={className}
+          style={
+            containerWidth
+              ? { minWidth: containerWidth, display: 'inline-block', textAlign: 'center' as const }
+              : undefined
+          }
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {phrases[index]}
+        </span>
+      </>
     )
   }
 
   return (
     <>
-      {/* Hidden measurer — renders all phrases to find the widest one */}
+      {/* Hidden measurer — always in DOM for useLayoutEffect measurement */}
       <span
         ref={measureRef}
+        data-rotating-measurer
         aria-hidden="true"
         style={{
-          position: 'absolute',
+          position: 'fixed',
+          left: '-9999px',
+          top: '-9999px',
           visibility: 'hidden',
           whiteSpace: 'nowrap',
+          display: 'inline',
           pointerEvents: 'none',
         }}
       >
         {phrases.map((p) => (
-          <span key={p} className={className}>
+          <span key={p} data-measure className={className}>
             {p}
           </span>
         ))}
       </span>
 
-      {/* Visible rotating text */}
+      {/* Visible rotating text — fixed width, centered, zero reflow */}
       <span
-        className="relative inline-block overflow-hidden align-bottom"
         style={{
-          height: '1em',
-          width: measuredWidth ? `${measuredWidth}px` : 'auto',
+          display: 'inline-block',
+          width: containerWidth ?? 'auto',
+          height: '1.15em',
+          position: 'relative',
+          overflow: 'hidden',
+          verticalAlign: 'bottom',
         }}
         aria-live="polite"
         aria-atomic="true"
@@ -110,22 +144,24 @@ export function RotatingText({
             transition={{
               y: {
                 type: 'tween',
-                ease: [0.22, 1, 0.36, 1],
-                duration: 0.45,
+                ease: [0.25, 0.46, 0.45, 0.94],
+                duration: 0.6,
               },
               opacity: {
                 type: 'tween',
                 ease: 'easeInOut',
-                duration: 0.35,
+                duration: 0.5,
               },
             }}
             style={{
-              display: 'inline-block',
+              display: 'block',
               whiteSpace: 'nowrap',
               willChange: 'transform, opacity',
               position: 'absolute',
               left: 0,
+              right: 0,
               top: 0,
+              textAlign: 'center',
             }}
           >
             {phrases[index]}
