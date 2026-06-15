@@ -370,6 +370,8 @@ const ENTITY_CONFIGS: EntitySyncConfig[] = [
         name: s.name,
         address: s.address ?? null,
         city: s.city ?? null,
+        latitude: s.latitude ?? null,
+        longitude: s.longitude ?? null,
         phone: s.phone ?? null,
         isActive: s.isActive,
       } satisfies LocalShop

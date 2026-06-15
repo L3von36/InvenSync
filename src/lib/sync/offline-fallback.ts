@@ -5,12 +5,18 @@
 // getOfflineFallback() to reconstruct API responses from
 // the local Dexie entity tables. This allows the app to
 // function fully offline after the initial bootstrap.
+//
+// CRITICAL: Every fallback response MUST match the exact
+// shape that the real API returns, as defined in api-client.ts
+// interfaces. Components access nested fields like shop.members,
+// customer._count.sales, sale.customer.name — if these are
+// missing, the app crashes with TypeError.
 // ============================================
 
 import { db } from '@/lib/db'
 
 // ============================================
-// Helper: Parse orgId from endpoint URL
+// Helper: Parse query params from endpoint URL
 // ============================================
 
 function extractOrgId(url: string): string | null {
@@ -18,7 +24,6 @@ function extractOrgId(url: string): string | null {
     const urlObj = new URL(url, 'http://localhost')
     return urlObj.searchParams.get('orgId') || urlObj.searchParams.get('organizationId')
   } catch {
-    // Try regex as fallback
     const match = url.match(/orgId=([^&]+)/) || url.match(/organizationId=([^&]+)/)
     return match ? match[1] : null
   }
@@ -80,6 +85,25 @@ function filterByShop<T extends { shopId?: string | null }>(items: T[], shopId: 
 }
 
 // ============================================
+// Pagination shape — MUST match api-client Pagination interface
+// { page, limit, total, totalPages }
+// ============================================
+
+function makePagination(page: number, limit: number, total: number): {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+} {
+  return {
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit),
+  }
+}
+
+// ============================================
 // Route Handlers
 // ============================================
 
@@ -128,6 +152,7 @@ async function handleDashboard(endpoint: string): Promise<unknown> {
     .filter(e => e.date >= monthStart)
     .reduce((sum, e) => sum + e.amount, 0)
 
+  // Match DashboardData interface exactly
   return {
     stats: {
       totalProducts: filteredProducts.length,
@@ -147,6 +172,36 @@ async function handleDashboard(endpoint: string): Promise<unknown> {
       periodNetProfit: monthRevenue - periodExpenses,
       periodSalesCount: monthSales.length,
     },
+    comparison: {
+      revenueChange: 0,
+      expenseChange: 0,
+      netProfitChange: 0,
+      salesCountChange: 0,
+      prevRevenue: 0,
+      prevExpenses: 0,
+      prevNetProfit: 0,
+      prevSalesCount: 0,
+    },
+    period: {
+      from: monthStart.split('T')[0],
+      to: todayStart.split('T')[0],
+      prevFrom: '',
+      prevTo: '',
+    },
+    anomalies: [
+      ...outOfStock.slice(0, 3).map(p => ({
+        id: p.id,
+        type: 'out_of_stock' as const,
+        message: `${p.name} is out of stock`,
+        severity: 'high' as const,
+      })),
+      ...lowStock.slice(0, 3).map(p => ({
+        id: p.id,
+        type: 'low_stock' as const,
+        message: `${p.name} is low on stock (${p.quantity} left)`,
+        severity: 'medium' as const,
+      })),
+    ],
     recentSales: filteredSales
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 10)
@@ -166,11 +221,18 @@ async function handleDashboard(endpoint: string): Promise<unknown> {
         saleDate: s.saleDate,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
-        customer: null,
-        items: undefined,
+        customer: null as { id: string; name: string; phone?: string | null } | null,
+        items: [] as Array<{
+          id: string; saleId: string; productId: string; quantity: number;
+          unitPrice: number; costPrice: number; total: number;
+          product?: { id: string; name: string; sku?: string | null } | null;
+        }>,
       })),
-    topProducts: [],
-    salesTrend: [],
+    topProducts: [] as Array<{
+      id: string; name: string; sku?: string | null;
+      imageUrl?: string | null; totalRevenue: number; totalQuantity: number;
+    }>,
+    salesTrend: [] as Array<{ date: string; revenue: number }>,
   }
 }
 
@@ -197,42 +259,55 @@ async function handleProducts(endpoint: string): Promise<unknown> {
   // Sort by name
   products.sort((a, b) => a.name.localeCompare(b.name))
 
-  const totalProducts = products.length
-  const totalPages = Math.ceil(totalProducts / limit)
+  const total = products.length
   const start = (page - 1) * limit
   const pagedProducts = products.slice(start, start + limit)
 
+  // Load categories for nested productType
+  const categories = await db.categories.where('organizationId').equals(orgId).toArray()
+  const categoryMap = new Map(categories.map(c => [c.id, c]))
+
   return {
-    products: pagedProducts.map(p => ({
-      id: p.id,
-      productTypeId: p.productTypeId,
-      organizationId: p.organizationId,
-      shopId: p.shopId,
-      sku: p.sku,
-      name: p.name,
-      description: p.description,
-      imageUrl: p.imageUrl,
-      quantity: p.quantity,
-      costPrice: p.costPrice,
-      sellingPrice: p.sellingPrice,
-      lowStockThreshold: p.lowStockThreshold,
-      isActive: p.isActive,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-      productType: null,
-    })),
-    pagination: {
-      page,
-      limit,
-      totalProducts,
-      totalPages,
-    },
+    products: pagedProducts.map(p => {
+      const cat = categoryMap.get(p.productTypeId)
+      return {
+        id: p.id,
+        productTypeId: p.productTypeId,
+        organizationId: p.organizationId,
+        sku: p.sku,
+        name: p.name,
+        description: p.description,
+        imageUrl: p.imageUrl,
+        quantity: p.quantity,
+        costPrice: p.costPrice,
+        sellingPrice: p.sellingPrice,
+        lowStockThreshold: p.lowStockThreshold,
+        isActive: p.isActive,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        // Match Product interface: productType is { id, name, icon? }
+        productType: cat ? { id: cat.id, name: cat.name, icon: cat.icon ?? null } : null,
+        attributeValues: [] as Array<{
+          id: string; productId: string; attributeDefinitionId: string;
+          value: string; attributeDefinition?: { id: string; name: string; fieldType: string };
+        }>,
+      }
+    }),
+    // Match Pagination interface: { page, limit, total, totalPages }
+    pagination: makePagination(page, limit, total),
   }
 }
 
 async function handleProductTypes(endpoint: string): Promise<unknown> {
   const orgId = extractOrgId(endpoint)
   if (!orgId) return null
+
+  // Count products per type
+  const products = await db.products.where('organizationId').equals(orgId).toArray()
+  const productCountByType = new Map<string, number>()
+  for (const p of products) {
+    productCountByType.set(p.productTypeId, (productCountByType.get(p.productTypeId) || 0) + 1)
+  }
 
   const categories = await db.categories.where('organizationId').equals(orgId).toArray()
 
@@ -244,7 +319,11 @@ async function handleProductTypes(endpoint: string): Promise<unknown> {
       icon: c.icon,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
-      _count: { products: 0 },
+      attributes: [] as Array<{
+        id: string; productTypeId: string; name: string; fieldType: string;
+        options?: string | null; required: boolean; order: number;
+      }>,
+      _count: { products: productCountByType.get(c.id) || 0 },
     })),
   }
 }
@@ -272,10 +351,23 @@ async function handleCustomers(endpoint: string): Promise<unknown> {
 
   customers.sort((a, b) => a.name.localeCompare(b.name))
 
-  const totalCustomers = customers.length
-  const totalPages = Math.ceil(totalCustomers / limit)
+  const total = customers.length
   const start = (page - 1) * limit
   const paged = customers.slice(start, start + limit)
+
+  // Count sales and debts per customer for _count
+  const [sales, debts] = await Promise.all([
+    db.sales.where('organizationId').equals(orgId).toArray(),
+    db.debts.where('organizationId').equals(orgId).toArray(),
+  ])
+  const salesByCustomer = new Map<string, number>()
+  for (const s of sales) {
+    if (s.customerId) salesByCustomer.set(s.customerId, (salesByCustomer.get(s.customerId) || 0) + 1)
+  }
+  const debtsByCustomer = new Map<string, number>()
+  for (const d of debts) {
+    if (d.customerId) debtsByCustomer.set(d.customerId, (debtsByCustomer.get(d.customerId) || 0) + 1)
+  }
 
   return {
     customers: paged.map(c => ({
@@ -288,8 +380,12 @@ async function handleCustomers(endpoint: string): Promise<unknown> {
       address: c.address,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
+      _count: {
+        sales: salesByCustomer.get(c.id) || 0,
+        debts: debtsByCustomer.get(c.id) || 0,
+      },
     })),
-    pagination: { page, limit, totalCustomers, totalPages },
+    pagination: makePagination(page, limit, total),
   }
 }
 
@@ -316,8 +412,7 @@ async function handleSuppliers(endpoint: string): Promise<unknown> {
 
   suppliers.sort((a, b) => a.name.localeCompare(b.name))
 
-  const totalSuppliers = suppliers.length
-  const totalPages = Math.ceil(totalSuppliers / limit)
+  const total = suppliers.length
   const start = (page - 1) * limit
   const paged = suppliers.slice(start, start + limit)
 
@@ -333,7 +428,7 @@ async function handleSuppliers(endpoint: string): Promise<unknown> {
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
     })),
-    pagination: { page, limit, totalSuppliers, totalPages },
+    pagination: makePagination(page, limit, total),
   }
 }
 
@@ -355,10 +450,28 @@ async function handleSales(endpoint: string): Promise<unknown> {
 
   sales.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  const totalSales = sales.length
-  const totalPages = Math.ceil(totalSales / limit)
+  const total = sales.length
   const start = (page - 1) * limit
   const paged = sales.slice(start, start + limit)
+
+  // Load customer names for nested customer field
+  const customerIds = [...new Set(paged.map(s => s.customerId).filter(Boolean) as string[])]
+  const customers = customerIds.length > 0
+    ? await db.customers.where('id').anyOf(customerIds).toArray()
+    : []
+  const customerMap = new Map(customers.map(c => [c.id, c]))
+
+  // Load sale items
+  const saleIds = paged.map(s => s.id)
+  const allSaleItems = saleIds.length > 0
+    ? await db.saleItems.where('saleId').anyOf(saleIds).toArray()
+    : []
+  const itemsBySale = new Map<string, typeof allSaleItems>()
+  for (const si of allSaleItems) {
+    const items = itemsBySale.get(si.saleId) || []
+    items.push(si)
+    itemsBySale.set(si.saleId, items)
+  }
 
   return {
     sales: paged.map(s => ({
@@ -378,10 +491,26 @@ async function handleSales(endpoint: string): Promise<unknown> {
       saleDate: s.saleDate,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
-      customer: null,
-      items: [],
+      // Match Sale interface: customer is { id, name, phone? } | null
+      customer: s.customerId
+        ? (() => {
+            const c = customerMap.get(s.customerId!)
+            return c ? { id: c.id, name: c.name, phone: c.phone ?? null } : null
+          })()
+        : null,
+      // Match Sale interface: items with nested product
+      items: (itemsBySale.get(s.id) || []).map(si => ({
+        id: si.id,
+        saleId: si.saleId,
+        productId: si.productId,
+        quantity: si.quantity,
+        unitPrice: si.unitPrice,
+        costPrice: si.costPrice,
+        total: si.total,
+        product: null as { id: string; name: string; sku?: string | null } | null,
+      })),
     })),
-    pagination: { page, limit, totalSales, totalPages },
+    pagination: makePagination(page, limit, total),
   }
 }
 
@@ -401,9 +530,21 @@ async function handleInventory(endpoint: string): Promise<unknown> {
   const totalCostValue = products.reduce((sum, p) => sum + (p.costPrice * p.quantity), 0)
   const totalRetailValue = products.reduce((sum, p) => sum + (p.sellingPrice * p.quantity), 0)
 
+  // Load categories for productType in lowStockProducts
+  const categories = await db.categories.where('organizationId').equals(orgId).toArray()
+  const categoryMap = new Map(categories.map(c => [c.id, c]))
+
   const movements = await db.stockMovements.where('organizationId').equals(orgId).toArray()
 
+  // Load product names for movement.product
+  const productIds = [...new Set(movements.map(m => m.productId))]
+  const movementProducts = productIds.length > 0
+    ? await db.products.where('id').anyOf(productIds).toArray()
+    : []
+  const productMap = new Map(movementProducts.map(p => [p.id, p]))
+
   return {
+    // Match InventoryStats interface exactly
     overview: {
       totalProducts: products.length,
       outOfStock: outOfStock.length,
@@ -411,31 +552,38 @@ async function handleInventory(endpoint: string): Promise<unknown> {
       totalCostValue,
       totalRetailValue,
     },
-    lowStockProducts: lowStock.slice(0, 10).map(p => ({
-      id: p.id,
-      name: p.name,
-      quantity: p.quantity,
-      lowStockThreshold: p.lowStockThreshold,
-      costPrice: p.costPrice,
-      sellingPrice: p.sellingPrice,
-      productType: { id: p.productTypeId, name: '—' },
-    })),
+    lowStockProducts: lowStock.slice(0, 10).map(p => {
+      const cat = categoryMap.get(p.productTypeId)
+      return {
+        id: p.id,
+        name: p.name,
+        quantity: p.quantity,
+        lowStockThreshold: p.lowStockThreshold,
+        costPrice: p.costPrice,
+        sellingPrice: p.sellingPrice,
+        productType: cat ? { id: cat.id, name: cat.name } : { id: p.productTypeId, name: '—' },
+      }
+    }),
     recentMovements: movements
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 20)
-      .map(m => ({
-        id: m.id,
-        organizationId: m.organizationId,
-        productId: m.productId,
-        type: m.type,
-        quantity: m.quantity,
-        previousStock: m.previousStock,
-        newStock: m.newStock,
-        reason: m.reason,
-        reference: m.reference,
-        createdAt: m.createdAt,
-        product: null,
-      })),
+      .map(m => {
+        const prod = productMap.get(m.productId)
+        return {
+          id: m.id,
+          organizationId: m.organizationId,
+          productId: m.productId,
+          type: m.type,
+          quantity: m.quantity,
+          previousStock: m.previousStock,
+          newStock: m.newStock,
+          reason: m.reason,
+          reference: m.reference,
+          createdAt: m.createdAt,
+          // Match StockMovement interface: product is { id, name, sku? }
+          product: prod ? { id: prod.id, name: prod.name, sku: prod.sku ?? null } : null,
+        }
+      }),
   }
 }
 
@@ -457,43 +605,63 @@ async function handleDebts(endpoint: string): Promise<unknown> {
 
   debts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  const totalDebts = debts.length
-  const totalPages = Math.ceil(totalDebts / limit)
+  const total = debts.length
   const start = (page - 1) * limit
   const paged = debts.slice(start, start + limit)
+
+  // Load customer/supplier names for nested fields
+  const customerIds = [...new Set(paged.map(d => d.customerId).filter(Boolean) as string[])]
+  const supplierIds = [...new Set(paged.map(d => d.supplierId).filter(Boolean) as string[])]
+
+  const [customers, suppliers] = await Promise.all([
+    customerIds.length > 0 ? db.customers.where('id').anyOf(customerIds).toArray() : [],
+    supplierIds.length > 0 ? db.suppliers.where('id').anyOf(supplierIds).toArray() : [],
+  ])
+  const customerMap = new Map(customers.map(c => [c.id, c]))
+  const supplierMap = new Map(suppliers.map(s => [s.id, s]))
 
   const totalCustomerDebt = debts
     .filter(d => d.type === 'customer_debt' && d.status !== 'paid')
     .reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
-
   const totalSupplierDebt = debts
     .filter(d => d.type === 'supplier_debt' && d.status !== 'paid')
     .reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
 
   return {
-    debts: paged.map(d => ({
-      id: d.id,
-      organizationId: d.organizationId,
-      shopId: d.shopId,
-      customerId: d.customerId,
-      supplierId: d.supplierId,
-      type: d.type,
-      amount: d.amount,
-      paidAmount: d.paidAmount,
-      dueDate: d.dueDate,
-      status: d.status,
-      description: d.description,
-      createdAt: d.createdAt,
-      updatedAt: d.updatedAt,
-      customer: null,
-      supplier: null,
-    })),
+    debts: paged.map(d => {
+      const cust = d.customerId ? customerMap.get(d.customerId) : undefined
+      const supp = d.supplierId ? supplierMap.get(d.supplierId) : undefined
+      return {
+        id: d.id,
+        organizationId: d.organizationId,
+        shopId: d.shopId,
+        customerId: d.customerId,
+        supplierId: d.supplierId,
+        type: d.type,
+        amount: d.amount,
+        paidAmount: d.paidAmount,
+        dueDate: d.dueDate,
+        status: d.status,
+        description: d.description,
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
+        // Match Debt interface: customer is { id, name, phone? } | null
+        customer: cust ? { id: cust.id, name: cust.name, phone: cust.phone ?? null } : null,
+        // Match Debt interface: supplier is { id, name, phone? } | null
+        supplier: supp ? { id: supp.id, name: supp.name, phone: supp.phone ?? null } : null,
+        // Match Debt interface: payments array
+        payments: [] as Array<{
+          id: string; debtId: string; amount: number;
+          paymentMethod: string; notes?: string | null; paidAt: string;
+        }>,
+      }
+    }),
     summary: {
       totalCustomerDebt,
       totalSupplierDebt,
       totalOutstanding: totalCustomerDebt + totalSupplierDebt,
     },
-    pagination: { page, limit, totalDebts, totalPages },
+    pagination: makePagination(page, limit, total),
   }
 }
 
@@ -510,25 +678,42 @@ async function handleExpenses(endpoint: string): Promise<unknown> {
 
   expenses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  const totalExpenses = expenses.length
-  const totalPages = Math.ceil(totalExpenses / limit)
+  const total = expenses.length
   const start = (page - 1) * limit
   const paged = expenses.slice(start, start + limit)
 
+  // Load shop names for nested shop field
+  const shopIds = [...new Set(paged.map(e => e.shopId).filter(Boolean) as string[])]
+  const shops = shopIds.length > 0
+    ? await db.shops.where('id').anyOf(shopIds).toArray()
+    : []
+  const shopMap = new Map(shops.map(s => [s.id, s]))
+
+  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
+
   return {
-    expenses: paged.map(e => ({
-      id: e.id,
-      organizationId: e.organizationId,
-      shopId: e.shopId,
-      category: e.category,
-      amount: e.amount,
-      description: e.description,
-      expenseDate: e.date,
-      isRecurring: e.isRecurring,
-      createdAt: e.createdAt,
-      updatedAt: e.updatedAt,
-    })),
-    pagination: { page, limit, totalExpenses, totalPages },
+    expenses: paged.map(e => {
+      const shop = e.shopId ? shopMap.get(e.shopId) : undefined
+      return {
+        id: e.id,
+        organizationId: e.organizationId,
+        shopId: e.shopId,
+        category: e.category,
+        amount: e.amount,
+        description: e.description,
+        // Match Expense interface: expenseDate (not "date")
+        expenseDate: e.date,
+        isRecurring: e.isRecurring ?? false,
+        recurringPeriod: null as string | null,
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+        // Match Expense interface: shop is { id, name } | null
+        shop: shop ? { id: shop.id, name: shop.name } : null,
+      }
+    }),
+    summary: { totalExpenses },
+    monthlySummary: [] as Array<{ month: string; total: number }>,
+    pagination: makePagination(page, limit, total),
   }
 }
 
@@ -538,15 +723,43 @@ async function handleShops(endpoint: string): Promise<unknown> {
 
   const shops = await db.shops.where('organizationId').equals(orgId).toArray()
 
+  // Count products and sales per shop for _count
+  const [products, sales] = await Promise.all([
+    db.products.where('organizationId').equals(orgId).toArray(),
+    db.sales.where('organizationId').equals(orgId).toArray(),
+  ])
+
+  const productsByShop = new Map<string, number>()
+  for (const p of products) {
+    if (p.shopId) productsByShop.set(p.shopId, (productsByShop.get(p.shopId) || 0) + 1)
+  }
+  const salesByShop = new Map<string, number>()
+  for (const s of sales) {
+    if (s.shopId) salesByShop.set(s.shopId, (salesByShop.get(s.shopId) || 0) + 1)
+  }
+
   return {
     shops: shops.map(s => ({
       id: s.id,
       organizationId: s.organizationId,
       name: s.name,
-      address: s.address,
-      city: s.city,
-      phone: s.phone,
+      address: s.address ?? null,
+      city: s.city ?? null,
+      latitude: s.latitude ?? null,
+      longitude: s.longitude ?? null,
+      phone: s.phone ?? null,
       isActive: s.isActive,
+      memberCount: 0,
+      // branches-page.tsx reads shop._count.products and shop._count.sales
+      _count: {
+        products: productsByShop.get(s.id) || 0,
+        sales: salesByShop.get(s.id) || 0,
+      },
+      // branches-page.tsx reads shop.members.length and iterates members
+      members: [] as Array<{
+        id: string; userId: string; role: string;
+        user: { id: string; name: string; email: string; avatarUrl?: string | null };
+      }>,
     })),
   }
 }
@@ -586,29 +799,50 @@ async function handleServiceBookings(endpoint: string): Promise<unknown> {
 
   bookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  const totalBookings = bookings.length
-  const totalPages = Math.ceil(totalBookings / limit)
+  const total = bookings.length
   const start = (page - 1) * limit
   const paged = bookings.slice(start, start + limit)
 
+  // Load service type names for nested serviceType field
+  const serviceTypeIds = [...new Set(paged.map(b => b.serviceTypeId).filter(Boolean) as string[])]
+  const serviceTypes = serviceTypeIds.length > 0
+    ? await db.serviceTypes.where('id').anyOf(serviceTypeIds).toArray()
+    : []
+  const serviceTypeMap = new Map(serviceTypes.map(st => [st.id, st]))
+
+  // Load customer names for nested customer field
+  const customerIds = [...new Set(paged.map(b => b.customerId).filter(Boolean) as string[])]
+  const customers = customerIds.length > 0
+    ? await db.customers.where('id').anyOf(customerIds).toArray()
+    : []
+  const customerMap = new Map(customers.map(c => [c.id, c]))
+
   return {
-    bookings: paged.map(b => ({
-      id: b.id,
-      organizationId: b.organizationId,
-      shopId: b.shopId,
-      serviceTypeId: b.serviceTypeId,
-      customerId: b.customerId,
-      customerName: b.customerName,
-      customerPhone: b.customerPhone,
-      status: b.status,
-      bookingDate: b.bookingDate,
-      startTime: b.startTime,
-      endTime: b.endTime,
-      notes: b.notes,
-      createdAt: b.createdAt,
-      updatedAt: b.updatedAt,
-    })),
-    pagination: { page, limit, totalBookings, totalPages },
+    bookings: paged.map(b => {
+      const st = b.serviceTypeId ? serviceTypeMap.get(b.serviceTypeId) : undefined
+      const cust = b.customerId ? customerMap.get(b.customerId) : undefined
+      return {
+        id: b.id,
+        organizationId: b.organizationId,
+        shopId: b.shopId,
+        serviceTypeId: b.serviceTypeId,
+        customerId: b.customerId,
+        customerName: b.customerName,
+        customerPhone: b.customerPhone,
+        status: b.status,
+        bookingDate: b.bookingDate,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        notes: b.notes,
+        createdAt: b.createdAt,
+        updatedAt: b.updatedAt,
+        // Match ServiceBooking interface: serviceType is { id, name, duration, price }
+        serviceType: st ? { id: st.id, name: st.name, duration: st.duration, price: st.price } : null,
+        // Match ServiceBooking interface: customer is { id, name, phone? } | null
+        customer: cust ? { id: cust.id, name: cust.name, phone: cust.phone ?? null } : null,
+      }
+    }),
+    pagination: makePagination(page, limit, total),
   }
 }
 
@@ -633,36 +867,88 @@ async function handlePurchaseOrders(endpoint: string): Promise<unknown> {
   }
 }
 
-async function handleModules(_endpoint: string): Promise<unknown> {
-  // Modules are org-level configuration — we can't fully reconstruct them
-  // from local data. Return an empty modules list so the UI doesn't crash.
-  // The fetchModules catch block in auth-store handles this gracefully.
-  return {
-    modules: [],
-  }
-}
-
 async function handleReports(endpoint: string): Promise<unknown> {
   const orgId = extractOrgId(endpoint)
   if (!orgId) return null
 
-  // Reports require complex aggregation — return empty structure
-  // The dashboard already computes its own stats from local data
+  const shopId = extractShopId(endpoint)
+
+  const [products, sales, expenses] = await Promise.all([
+    db.products.where('organizationId').equals(orgId).toArray(),
+    db.sales.where('organizationId').equals(orgId).toArray(),
+    db.expenses.where('organizationId').equals(orgId).toArray(),
+  ])
+
+  const filteredProducts = filterByShop(products, shopId)
+  const filteredSales = filterByShop(sales, shopId)
+
+  // Aggregate sales by date for salesByPeriod
+  const salesByDate = new Map<string, { revenue: number; cost: number; count: number }>()
+  for (const s of filteredSales) {
+    if (s.status !== 'completed') continue
+    const dateKey = s.saleDate.split('T')[0]
+    const existing = salesByDate.get(dateKey) || { revenue: 0, cost: 0, count: 0 }
+    existing.revenue += s.total
+    existing.cost += s.subtotal - s.discount // approximate
+    existing.count += 1
+    salesByDate.set(dateKey, existing)
+  }
+
+  // Top products by quantity from sale items
+  const saleIds = filteredSales.map(s => s.id)
+  const allSaleItems = saleIds.length > 0
+    ? await db.saleItems.where('saleId').anyOf(saleIds).toArray()
+    : []
+  const productRevenueMap = new Map<string, { name: string; quantity: number; revenue: number }>()
+  for (const si of allSaleItems) {
+    const existing = productRevenueMap.get(si.productId) || { name: '', quantity: 0, revenue: 0 }
+    existing.quantity += si.quantity
+    existing.revenue += si.total
+    productRevenueMap.set(si.productId, existing)
+  }
+  // Resolve product names
+  const productIds = [...productRevenueMap.keys()]
+  const prods = productIds.length > 0
+    ? await db.products.where('id').anyOf(productIds).toArray()
+    : []
+  for (const p of prods) {
+    const entry = productRevenueMap.get(p.id)
+    if (entry) entry.name = p.name
+  }
+
+  const totalCostValue = filteredProducts.reduce((sum, p) => sum + (p.costPrice * p.quantity), 0)
+  const totalRetailValue = filteredProducts.reduce((sum, p) => sum + (p.sellingPrice * p.quantity), 0)
+
+  // Match the real reports API shape exactly:
+  // { salesByPeriod, bestSellingProducts, inventoryValuation }
   return {
-    salesByPeriod: [],
-    topProducts: [],
-    expensesByCategory: [],
-    inventorySummary: {
-      totalProducts: 0,
-      outOfStock: 0,
-      lowStock: 0,
-      totalValue: 0,
+    salesByPeriod: [...salesByDate.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([period, data]) => ({
+        period,
+        revenue: data.revenue,
+        cost: data.cost,
+        profit: data.revenue - data.cost,
+        count: data.count,
+      })),
+    bestSellingProducts: [...productRevenueMap.entries()]
+      .sort(([, a], [, b]) => b.revenue - a.revenue)
+      .slice(0, 10)
+      .map(([productId, data]) => ({
+        productId,
+        productName: data.name,
+        totalQuantity: data.quantity,
+        totalRevenue: data.revenue,
+      })),
+    inventoryValuation: {
+      totalCostValue,
+      totalRetailValue,
+      totalProducts: filteredProducts.length,
     },
   }
 }
 
 async function handleAuthMe(): Promise<unknown> {
-  // Try to get the cached user profile
   try {
     const profiles = await db.userProfile.toArray()
     if (profiles.length === 0) return null
@@ -685,6 +971,15 @@ async function handleAuthMe(): Promise<unknown> {
   }
 }
 
+async function handleModules(_endpoint: string): Promise<unknown> {
+  // Modules are org-level configuration — we can't fully reconstruct them
+  // from local data. Return an empty modules list so the UI doesn't crash.
+  // The fetchModules catch block in auth-store handles this gracefully.
+  return {
+    modules: [],
+  }
+}
+
 // ============================================
 // Route Matching
 // ============================================
@@ -697,18 +992,18 @@ interface RouteHandler {
 const ROUTE_HANDLERS: RouteHandler[] = [
   { pattern: /\/api\/auth\/me/, handler: handleAuthMe },
   { pattern: /\/api\/dashboard/, handler: handleDashboard },
-  { pattern: /\/api\/products[/?]/, handler: handleProducts },  // /api/products?... or /api/products/
-  { pattern: /\/api\/products$/, handler: handleProducts },  // /api/products (no query)
+  { pattern: /\/api\/products[/?]/, handler: handleProducts },
+  { pattern: /\/api\/products$/, handler: handleProducts },
   { pattern: /\/api\/product-types/, handler: handleProductTypes },
   { pattern: /\/api\/customers/, handler: handleCustomers },
   { pattern: /\/api\/suppliers/, handler: handleSuppliers },
-  { pattern: /\/api\/sales[/?]/, handler: handleSales },      // /api/sales?... or /api/sales/
-  { pattern: /\/api\/sales$/, handler: handleSales },        // /api/sales (no query)
+  { pattern: /\/api\/sales[/?]/, handler: handleSales },
+  { pattern: /\/api\/sales$/, handler: handleSales },
   { pattern: /\/api\/inventory/, handler: handleInventory },
   { pattern: /\/api\/debts/, handler: handleDebts },
   { pattern: /\/api\/expenses/, handler: handleExpenses },
-  { pattern: /\/api\/shops[/?]/, handler: handleShops },     // /api/shops?... or /api/shops/
-  { pattern: /\/api\/shops$/, handler: handleShops },       // /api/shops (no query)
+  { pattern: /\/api\/shops[/?]/, handler: handleShops },
+  { pattern: /\/api\/shops$/, handler: handleShops },
   { pattern: /\/api\/service-types/, handler: handleServiceTypes },
   { pattern: /\/api\/service-bookings/, handler: handleServiceBookings },
   { pattern: /\/api\/purchase-orders/, handler: handlePurchaseOrders },
@@ -723,6 +1018,11 @@ const ROUTE_HANDLERS: RouteHandler[] = [
 /**
  * Attempts to reconstruct an API response from local IndexedDB data.
  * Called by the API client when the network is unavailable.
+ *
+ * Every response MUST match the exact shape that the real API returns,
+ * as defined in the api-client.ts interfaces. Components access nested
+ * fields (shop.members, customer._count.sales, sale.customer.name) —
+ * if these are missing, the app crashes with TypeError.
  *
  * @param endpoint - The API endpoint URL (e.g., '/api/products?orgId=xxx')
  * @returns The reconstructed response data, or null if no fallback is available

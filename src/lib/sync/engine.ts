@@ -407,8 +407,33 @@ class SyncEngine {
     await dexieDb.outbox.put(item)
 
     try {
-      const endpoint = ENTITY_ENDPOINTS[item.entity]
-      if (!endpoint) {
+      // Try to use the original endpoint/method stored by offline-queue.ts
+      // when the mutation was queued while offline. Falls back to entity
+      // mapping when not present (e.g., writes from LocalRepository).
+      let payloadObj: Record<string, unknown> | null = null
+      try {
+        payloadObj = typeof item.payload === 'string'
+          ? JSON.parse(item.payload)
+          : (item.payload as Record<string, unknown>)
+      } catch {
+        // Payload isn't valid JSON — use as-is
+      }
+
+      const originalEndpoint = payloadObj?._endpoint as string | undefined
+      const originalMethod = payloadObj?._method as string | undefined
+
+      // Strip _endpoint/_method from payload before sending to server
+      let cleanPayload: string
+      if (payloadObj && (payloadObj._endpoint || payloadObj._method)) {
+        const { _endpoint, _method, _rawBody, ...rest } = payloadObj
+        cleanPayload = JSON.stringify(rest)
+      } else {
+        cleanPayload = typeof item.payload === 'string' ? item.payload : JSON.stringify(item.payload)
+      }
+
+      const entityEndpoint = ENTITY_ENDPOINTS[item.entity]
+      let url = originalEndpoint || entityEndpoint
+      if (!url) {
         console.error(`[Sync] Unknown entity: ${item.entity}`)
         item.status = 'failed'
         item.error = `Unknown entity: ${item.entity}`
@@ -417,14 +442,14 @@ class SyncEngine {
         return 'failed'
       }
 
-      const method = getMethodForOperation(item.operation)
-      let url = endpoint
+      const method = originalMethod || getMethodForOperation(item.operation)
 
       // For updates and deletes, append the ID to the URL
-      if (item.operation === 'update' || item.operation === 'delete') {
+      // (but only if the URL doesn't already contain an ID path segment)
+      if ((item.operation === 'update' || item.operation === 'delete') && !originalEndpoint) {
         const id = item.serverId || item.localId
         if (id) {
-          url = `${endpoint}/${id}`
+          url = `${entityEndpoint}/${id}`
         } else {
           console.error(`[Sync] No ID for ${item.operation} on ${item.entity}`)
           item.status = 'failed'
@@ -441,9 +466,7 @@ class SyncEngine {
 
       // Add body for create and update
       if (item.operation === 'create' || item.operation === 'update') {
-        // Payload is stored as JSON string in the outbox
-        const payloadObj = typeof item.payload === 'string' ? item.payload : JSON.stringify(item.payload)
-        fetchOptions.body = payloadObj
+        fetchOptions.body = cleanPayload
       }
 
       const signal = this.abortController?.signal
