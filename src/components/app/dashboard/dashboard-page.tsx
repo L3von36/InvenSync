@@ -46,6 +46,7 @@ import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useAppStore } from '@/lib/stores/app-store'
+import { SyncPanel } from '@/components/app/dashboard/sync-panel'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -2079,62 +2080,83 @@ export function DashboardPage() {
     onCustomToChange: setCustomTo,
   }
 
+  // Render the Sync & Offline panel at the bottom of the dashboard
+  const syncPanel = <SyncPanel defaultOpen={false} />
+
   // Render appropriate dashboard based on role
   switch (dashboardType) {
     case 'owner':
       return (
-        <OwnerDashboard
-          dashboardData={dashboardData}
-          inventoryData={inventoryData}
-          revenueChartData={revenueChartData}
-          isRefreshing={isRefreshing}
-          onRefresh={fetchDashboardData}
-          {...dateRangeProps}
-        />
+        <>
+          <OwnerDashboard
+            dashboardData={dashboardData}
+            inventoryData={inventoryData}
+            revenueChartData={revenueChartData}
+            isRefreshing={isRefreshing}
+            onRefresh={fetchDashboardData}
+            {...dateRangeProps}
+          />
+          {syncPanel}
+        </>
       )
     case 'manager':
       return (
-        <ManagerDashboard
-          dashboardData={dashboardData}
-          inventoryData={inventoryData}
-          revenueChartData={revenueChartData}
-          isRefreshing={isRefreshing}
-          onRefresh={fetchDashboardData}
-          {...dateRangeProps}
-        />
+        <>
+          <ManagerDashboard
+            dashboardData={dashboardData}
+            inventoryData={inventoryData}
+            revenueChartData={revenueChartData}
+            isRefreshing={isRefreshing}
+            onRefresh={fetchDashboardData}
+            {...dateRangeProps}
+          />
+          {syncPanel}
+        </>
       )
     case 'cashier':
       return (
-        <CashierDashboard
-          dashboardData={dashboardData}
-          isRefreshing={isRefreshing}
-          onRefresh={fetchDashboardData}
-        />
+        <>
+          <CashierDashboard
+            dashboardData={dashboardData}
+            isRefreshing={isRefreshing}
+            onRefresh={fetchDashboardData}
+          />
+          {syncPanel}
+        </>
       )
     case 'warehouse':
       return (
-        <WarehouseDashboard
-          dashboardData={dashboardData}
-          inventoryData={inventoryData}
-          isRefreshing={isRefreshing}
-          onRefresh={fetchDashboardData}
-        />
+        <>
+          <WarehouseDashboard
+            dashboardData={dashboardData}
+            inventoryData={inventoryData}
+            isRefreshing={isRefreshing}
+            onRefresh={fetchDashboardData}
+          />
+          {syncPanel}
+        </>
       )
     case 'sales':
       return (
-        <SalesDashboard
-          dashboardData={dashboardData}
-          isRefreshing={isRefreshing}
-          onRefresh={fetchDashboardData}
-        />
+        <>
+          <SalesDashboard
+            dashboardData={dashboardData}
+            isRefreshing={isRefreshing}
+            onRefresh={fetchDashboardData}
+          />
+          {syncPanel}
+        </>
       )
     default:
       return (
-        <CashierDashboard
-          dashboardData={dashboardData}
-          isRefreshing={isRefreshing}
-          onRefresh={fetchDashboardData}
-        />
+        <>
+          <CashierDashboard
+            dashboardData={dashboardData}
+            isRefreshing={isRefreshing}
+            onRefresh={fetchDashboardData}
+          />
+          {syncPanel}
+        </>
       )
   }
 }

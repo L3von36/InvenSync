@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { isDatabaseError } from '@/lib/api-error'
 
 // Detect database provider from DATABASE_URL

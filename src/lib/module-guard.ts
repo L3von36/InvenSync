@@ -4,7 +4,7 @@
 // Use this in API routes to check if an organization has access
 // to a specific module before allowing the request.
 
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getCachedModules, setCachedModules, batchExpireTrials } from '@/lib/module-cache'
 import { NextResponse } from 'next/server'
 

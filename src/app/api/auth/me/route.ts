@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getUserFromRequest } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { isDatabaseError } from '@/lib/api-error'
 
 export async function GET(request: Request) {

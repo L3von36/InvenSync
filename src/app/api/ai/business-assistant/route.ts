@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { createAI, isAIAvailable } from '@/lib/ai'

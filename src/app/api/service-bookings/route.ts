@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
@@ -49,6 +49,15 @@ export async function GET(request: Request) {
       where.bookingDate = { gte: dayStart, lt: dayEnd }
     } else if (startDate && endDate) {
       where.bookingDate = { gte: new Date(startDate), lte: new Date(endDate) }
+    }
+
+    // Delta sync: filter records updated since the given timestamp
+    const updatedSince = searchParams.get('updatedSince')
+    if (updatedSince) {
+      const updatedSinceDate = new Date(updatedSince)
+      if (!isNaN(updatedSinceDate.getTime())) {
+        where.updatedAt = { gte: updatedSinceDate }
+      }
     }
 
     const [bookings, total] = await Promise.all([

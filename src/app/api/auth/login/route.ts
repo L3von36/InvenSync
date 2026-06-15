@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { comparePassword, generateToken, hashPassword, DatabaseUnavailableError } from '@/lib/auth'
 import { generateTempToken, parseUserAgent } from '@/lib/two-factor'
 import { isDatabaseError } from '@/lib/api-error'

@@ -39,6 +39,7 @@ export type Page =
   | 'price-optimization'
   | 'sales-forecast'
   | 'anomaly-detection'
+  | 'sync-offline'
 
 interface AppState {
   currentPage: Page
@@ -120,4 +121,5 @@ export const pageTitles: Record<Page, string> = {
   'price-optimization': 'Price Optimization',
   'sales-forecast': 'Sales Forecast',
   'anomaly-detection': 'Anomaly Detection',
+  'sync-offline': 'Sync & Offline',
 }

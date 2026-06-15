@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { cache, CacheNamespaces, CacheTTL } from '@/lib/cache'

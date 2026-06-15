@@ -26,7 +26,13 @@ export function SessionExpiryHandler() {
 
     const handleStorageChange = (e: StorageEvent) => {
       // If the token was removed from another tab, log out here too
+      // But NOT if we're offline — the other tab may have just failed its
+      // session check and we don't want to cascade a false logout.
       if (e.key === 'sb_token' && !e.newValue) {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          console.warn('[SessionExpiry] Token removed while offline — skipping logout to preserve session')
+          return
+        }
         logoutRef.current()
       }
     }

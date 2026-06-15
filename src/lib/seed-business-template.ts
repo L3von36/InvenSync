@@ -4,7 +4,7 @@
 // Seeds default product types, attributes, and inventory structures
 // for a newly registered organization based on their business type.
 
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getBusinessTemplate, mapLegacyBusinessType, type BusinessTypeKey } from '@/lib/business-templates'
 
 /**

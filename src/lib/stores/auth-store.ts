@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { api, type User, type Organization, type Shop } from '@/lib/api-client'
 import { authFetch } from '@/lib/auth-fetch'
+import { db } from '@/lib/db'
 
 /**
  * Thrown when login succeeds but 2FA is required.
@@ -66,6 +67,7 @@ interface AuthState {
   isOwner: () => boolean
   isManager: () => boolean
   isEmployee: () => boolean
+  isTokenValid: () => boolean
 }
 
 // ============================================
@@ -145,6 +147,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: true,
       isLoading: false,
     })
+    // Cache user profile to IndexedDB for offline access
+    db.userProfile.put({
+      id: (data as { user: User }).user.id,
+      email: (data as { user: User }).user.email,
+      name: (data as { user: User }).user.name,
+      avatarUrl: (data as { user: User }).user.avatarUrl || null,
+      role: (data as { user: User }).user.role || null,
+      organizations: JSON.stringify(orgs),
+      currentOrgId: currentOrg?.id || null,
+      currentShopId: null,
+      cachedAt: new Date().toISOString(),
+    }).catch(err => console.warn('[Auth] Failed to cache profile:', err))
     // Fetch shops and modules for the current org (with current abort signal)
     if (currentOrg) {
       get().fetchShops()
@@ -175,6 +189,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: true,
       isLoading: false,
     })
+    // Cache user profile to IndexedDB for offline access
+    db.userProfile.put({
+      id: data.user.id,
+      email: data.user.email,
+      name: data.user.name,
+      avatarUrl: data.user.avatarUrl || null,
+      role: data.user.role || null,
+      organizations: JSON.stringify(orgs),
+      currentOrgId: currentOrg?.id || null,
+      currentShopId: null,
+      cachedAt: new Date().toISOString(),
+    }).catch(err => console.warn('[Auth] Failed to cache profile:', err))
     if (currentOrg) {
       get().fetchShops()
       get().fetchModules()
@@ -235,6 +261,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: true,
       isLoading: false,
     })
+    // Cache user profile to IndexedDB for offline access
+    db.userProfile.put({
+      id: data.user.id,
+      email: data.user.email,
+      name: data.user.name,
+      avatarUrl: data.user.avatarUrl || null,
+      role: data.user.role || null,
+      organizations: JSON.stringify([org]),
+      currentOrgId: org.id,
+      currentShopId: null,
+      cachedAt: new Date().toISOString(),
+    }).catch(err => console.warn('[Auth] Failed to cache profile:', err))
   },
 
   logout: () => {
@@ -270,6 +308,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
     // 4. Fire-and-forget server-side logout (after state is cleared so it doesn't interfere)
     authFetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+    // 5. Clear offline data from IndexedDB
+    import('@/lib/db/index').then(({ clearLocalDatabase }) => {
+      clearLocalDatabase().catch(err => console.error('[Auth] Failed to clear local DB:', err))
+    }).catch(() => {})
+    // 6. Clear bootstrap flags for all orgs
+    if (typeof window !== 'undefined') {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('invensync_bootstrapped_'))
+      keys.forEach(k => localStorage.removeItem(k))
+    }
   },
 
   setCurrentOrg: (org: Organization) => {
@@ -357,6 +404,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return currentOrgRole === 'employee'
   },
 
+  isTokenValid: () => {
+    const token = get().token || (typeof window !== 'undefined' ? localStorage.getItem('sb_token') : null)
+    if (!token) return false
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      return payload.exp * 1000 > Date.now()
+    } catch {
+      return false
+    }
+  },
+
   fetchShopRole: async () => {
     const { currentOrg, isAuthenticated } = get()
     if (!currentOrg || !isAuthenticated) return
@@ -410,6 +468,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       })
 
+      // Cache user profile to IndexedDB for offline access
+      db.userProfile.put({
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        avatarUrl: data.user.avatarUrl || null,
+        role: data.user.role || null,
+        organizations: JSON.stringify(orgs),
+        currentOrgId: currentOrg?.id || null,
+        currentShopId: null,
+        cachedAt: new Date().toISOString(),
+      }).catch(err => console.warn('[Auth] Failed to cache profile:', err))
+
       // Fetch shops, modules, and shop role in the background
       if (currentOrg) {
         get().fetchShops()
@@ -420,12 +491,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Check if the error is a database unreachable error
       const isDbUnreachable = err instanceof Error && (err as Error & { code?: string }).code === 'DB_UNREACHABLE'
       
-      // If the database is unreachable and the user was previously authenticated,
-      // DON'T clear their auth state. This prevents the user from being logged out
-      // when the database is temporarily unavailable. They'll see the app in a
-      // degraded state but won't lose their session.
-      if (isDbUnreachable && get().isAuthenticated) {
-        console.warn('[Auth] Database unreachable during checkAuth — preserving session')
+      // Detect network errors (fetch failures) in addition to DB_UNREACHABLE
+      const isNetworkError = err instanceof Error && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))
+
+      // If the database is unreachable or there's a network error, and the user
+      // was previously authenticated, DON'T clear their auth state. This prevents
+      // the user from being logged out when the database is temporarily unavailable
+      // or when they're offline. They'll see the app in a degraded state but won't
+      // lose their session.
+      if ((isNetworkError || isDbUnreachable) && get().isAuthenticated) {
+        console.warn('[Auth] Network error during checkAuth — preserving session for offline use')
         set({ isLoading: false, dbUnreachable: true })
         return
       }

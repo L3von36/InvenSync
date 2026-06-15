@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getUserFromRequest } from '@/lib/auth'
 import { cache, CacheNamespaces, CacheTTL } from '@/lib/cache'
 import { applyRateLimit, RateLimitTiers, getRateLimitHeaders } from '@/lib/rate-limit'

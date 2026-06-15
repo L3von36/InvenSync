@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { seedBusinessTemplateStandalone } from '@/lib/seed-business-template'
