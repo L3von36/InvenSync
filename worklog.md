@@ -70,3 +70,26 @@ Stage Summary:
 - Templates are fully customizable (edit/delete/add after seeding)
 - Legacy businessType values (retail/service/mixed) are mapped to new equivalents
 - All changes pushed to origin/main
+---
+Task ID: 1
+Agent: main
+Task: Integrate pricing component into InvenSync landing page
+
+Work Log:
+- Checked existing project structure: shadcn/ui components in /components/ui/, hooks in /hooks/
+- Verified existing dependencies: framer-motion, motion, lucide-react, @radix-ui/react-switch, @radix-ui/react-label, @radix-ui/react-slot, class-variance-authority already installed
+- Installed new dependencies: canvas-confetti, @number-flow/react
+- Created useMediaQuery hook at /src/hooks/use-media-query.ts using useSyncExternalStore pattern (lint-safe)
+- Created pricing component at /src/components/ui/pricing.tsx adapted for InvenSync with ETB pricing
+- Replaced old simple PricingSection in landing-page.tsx with new 3-tier Pricing component
+- Pricing plans: STARTER (150 ETB/mo), PROFESSIONAL (200 ETB/mo), ENTERPRISE (300 ETB/mo)
+- Annual billing toggle with 20% discount (120/160/240 ETB/mo) and confetti animation
+- Removed onRegister prop from PricingSection since component uses Link href
+- Lint passes cleanly, dev server compiles without errors
+- Browser verification confirms all 3 plans render correctly, toggle works, confetti fires, NumberFlow animates prices
+
+Stage Summary:
+- Pricing component successfully integrated with 3 tiers at 150/200/300 ETB
+- Uses existing shadcn/ui components (button, label, switch) - no overwrites
+- Annual/monthly toggle with confetti animation and NumberFlow price transitions
+- Professional plan marked as "Popular" with elevated styling

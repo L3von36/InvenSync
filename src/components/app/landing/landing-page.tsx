@@ -23,6 +23,7 @@ import {
 import { RotatingText } from '@/components/app/landing/rotating-text'
 import { ThemeToggle } from '@/components/app/landing/theme-toggle'
 import { TestimonialsColumn } from '@/components/ui/testimonials-columns-1'
+import { Pricing } from '@/components/ui/pricing'
 import {
   Accordion,
   AccordionContent,
@@ -452,50 +453,74 @@ function FAQSection() {
 // ============================================
 // Pricing Section
 // ============================================
-function PricingSection({ onRegister }: { onRegister: () => void }) {
-  return (
-    <section id="pricing" className="py-16 md:py-20 px-4 sm:px-5 bg-foreground relative isolate overflow-hidden">
-      <div className="absolute inset-0 bg-primary blur-[200px] opacity-20 -z-10 rounded-full w-[120%] h-full max-w-4xl mx-auto" />
+const pricingPlans = [
+  {
+    name: 'STARTER',
+    price: '150',
+    yearlyPrice: '120',
+    period: 'month',
+    features: [
+      'Up to 500 products',
+      'Basic inventory tracking',
+      'Sales recording',
+      'Daily reports',
+      'Low stock alerts',
+      'Community support',
+    ],
+    description: 'Perfect for small shops getting started',
+    buttonText: 'Start Free Trial',
+    href: '#register',
+    isPopular: false,
+  },
+  {
+    name: 'PROFESSIONAL',
+    price: '200',
+    yearlyPrice: '160',
+    period: 'month',
+    features: [
+      'Unlimited products',
+      'AI-powered insights & assistant',
+      'Debt & credit tracking',
+      'Advanced reports & analytics',
+      'Multi-user access',
+      'Priority support',
+      'Barcode scanning',
+    ],
+    description: 'Ideal for growing businesses',
+    buttonText: 'Get Started',
+    href: '#register',
+    isPopular: true,
+  },
+  {
+    name: 'ENTERPRISE',
+    price: '300',
+    yearlyPrice: '240',
+    period: 'month',
+    features: [
+      'Everything in Professional',
+      'Multiple business locations',
+      'Dedicated account manager',
+      'Custom integrations & API',
+      'Advanced security & backups',
+      'Custom reports',
+      'SLA agreement',
+      'Telebirr & bank integration',
+    ],
+    description: 'For large organizations with multiple locations',
+    buttonText: 'Contact Sales',
+    href: '#register',
+    isPopular: false,
+  },
+]
 
-      <div className="max-w-sm mx-auto bg-card rounded-xl p-6 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.4)] border border-border">
-        <div className="text-center mb-5">
-          <h2 className="text-xl font-bold text-card-foreground mb-2">Simple, flat pricing</h2>
-          <p className="text-muted-foreground font-medium text-sm">No hidden fees, cancel anytime.</p>
-        </div>
-        <div className="flex flex-col items-center justify-center mb-6">
-          <div className="flex items-start gap-1">
-            <span className="text-2xl sm:text-3xl font-bold text-card-foreground tracking-tighter">150</span>
-            <div className="flex flex-col text-left mt-1 sm:mt-2">
-              <span className="text-base sm:text-lg font-semibold text-primary">ETB</span>
-            </div>
-          </div>
-          <span className="font-semibold text-muted-foreground mt-1 text-xs sm:text-sm">per month, per business</span>
-        </div>
-        <ul className="space-y-3 mb-6">
-          {[
-            'Unlimited products & records',
-            'AI-powered insights & assistant',
-            'Debt & credit tracking',
-            'Daily automated reports',
-            'Low stock alerts',
-            'No transaction fees',
-          ].map(feature => (
-            <li key={feature} className="flex items-center gap-2.5 text-foreground text-sm">
-              <div className="w-5 h-5 bg-brand-50 dark:bg-brand-900/20 rounded-full flex flex-shrink-0 items-center justify-center">
-                <Check className="w-3.5 h-3.5 text-primary" />
-              </div>
-              {feature}
-            </li>
-          ))}
-        </ul>
-        <button
-          onClick={onRegister}
-          className="block w-full bg-primary dark:bg-primary text-primary-foreground font-semibold text-sm py-3 rounded-full shadow-[0_10px_20px_rgba(0,0,0,0.1)] hover:shadow-[0_15px_30px_rgba(0,0,0,0.15)] hover:-translate-y-1 transition-all text-center"
-        >
-          Start Free Trial
-        </button>
-        <div className="mt-4 text-center font-medium text-muted-foreground text-[13px]">Pay safely via Telebirr · No card required</div>
-      </div>
+function PricingSection() {
+  return (
+    <section id="pricing" className="py-16 md:py-20 bg-background">
+      <Pricing
+        plans={pricingPlans}
+        title="Simple, Transparent Pricing"
+        description="Choose the plan that works for you\nAll plans include access to our platform, inventory tools, and dedicated support."
+      />
     </section>
   )
 }
@@ -587,7 +612,7 @@ export function LandingPage({ onLogin, onRegister }: { onLogin: () => void; onRe
         <BusinessTypesSection />
         <TestimonialsSection />
         <FAQSection />
-        <PricingSection onRegister={onRegister} />
+        <PricingSection />
       </div>
       <LandingFooter onLogin={onLogin} onRegister={onRegister} />
     </div>
