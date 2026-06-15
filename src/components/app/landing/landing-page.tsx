@@ -8,8 +8,6 @@ import {
   BarChart3,
   ArrowRight,
   Store,
-  Moon,
-  Sun,
   Menu,
   X,
   Check,
@@ -25,7 +23,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { RotatingText } from '@/components/app/landing/rotating-text'
-import { useTheme } from 'next-themes'
+import { ThemeToggle } from '@/components/app/landing/theme-toggle'
 import {
   Accordion,
   AccordionContent,
@@ -38,7 +36,6 @@ import {
 // ============================================
 function LandingNavbar({ onLogin, onRegister }: { onLogin: () => void; onRegister: () => void }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { theme, setTheme } = useTheme()
 
   return (
     <nav className="fixed top-4 left-0 right-0 z-50 px-4" aria-label="Main navigation">
@@ -61,13 +58,7 @@ function LandingNavbar({ onLogin, onRegister }: { onLogin: () => void; onRegiste
           <a href="#pricing" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition">
             Pricing
           </a>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition"
-            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-          >
-            {theme === 'dark' ? <Sun className="w-5 h-5" aria-hidden="true" /> : <Moon className="w-5 h-5" aria-hidden="true" />}
-          </button>
+          <ThemeToggle />
           <button
             onClick={onLogin}
             className="text-sm font-semibold text-muted-foreground hover:text-foreground transition"
@@ -84,13 +75,7 @@ function LandingNavbar({ onLogin, onRegister }: { onLogin: () => void; onRegiste
 
         {/* Mobile Nav */}
         <div className="md:hidden flex items-center gap-2">
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition"
-            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
-          >
-            {theme === 'dark' ? <Sun className="w-5 h-5" aria-hidden="true" /> : <Moon className="w-5 h-5" aria-hidden="true" />}
-          </button>
+          <ThemeToggle />
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 text-muted-foreground hover:text-foreground transition min-h-11 min-w-11 flex items-center justify-center"
