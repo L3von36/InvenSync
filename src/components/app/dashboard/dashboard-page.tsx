@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/recharts-exports'
 import { api, type DashboardData, type InventoryStats, type Sale, type Product, type Debt, type Customer } from '@/lib/api-client'
 import { getNetworkErrorMessage } from '@/lib/validation'
+import { db } from '@/lib/db'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useAppStore } from '@/lib/stores/app-store'
@@ -303,17 +304,26 @@ function QuickActionCard({ icon, label, iconBgClass, iconTextClass, onClick, pro
   )
 }
 
-function DashboardHeader({ title, subtitle, isRefreshing, onRefresh, dateRangePicker }: {
+function DashboardHeader({ title, subtitle, isRefreshing, onRefresh, dateRangePicker, isOfflineData }: {
   title: string
   subtitle: string
   isRefreshing: boolean
   onRefresh: () => void
   dateRangePicker?: React.ReactNode
+  isOfflineData?: boolean
 }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h1>
+          {isOfflineData && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+              Viewing cached data
+            </div>
+          )}
+        </div>
         <p className="text-muted-foreground text-sm">{subtitle}</p>
       </div>
       <div className="flex items-center gap-2">
@@ -633,6 +643,7 @@ function OwnerDashboard({
   customTo,
   onCustomFromChange,
   onCustomToChange,
+  isOfflineData,
 }: {
   dashboardData: EnhancedDashboardData
   inventoryData: InventoryStats | null
@@ -645,6 +656,7 @@ function OwnerDashboard({
   customTo: string
   onCustomFromChange: (value: string) => void
   onCustomToChange: (value: string) => void
+  isOfflineData?: boolean
 }) {
   const { currentOrg, currentShop } = useAuthStore()
   const { setPage } = useAppStore()
@@ -691,6 +703,7 @@ function OwnerDashboard({
         subtitle={hasMultipleShops ? `Overview across ${shops.length} shops` : 'Overview of your business performance and inventory'}
         isRefreshing={isRefreshing}
         onRefresh={onRefresh}
+        isOfflineData={isOfflineData}
         dateRangePicker={
           <DateRangePicker
             selectedPreset={dateRangePreset}
@@ -1032,6 +1045,7 @@ function ManagerDashboard({
   customTo,
   onCustomFromChange,
   onCustomToChange,
+  isOfflineData,
 }: {
   dashboardData: EnhancedDashboardData
   inventoryData: InventoryStats | null
@@ -1044,6 +1058,7 @@ function ManagerDashboard({
   customTo: string
   onCustomFromChange: (value: string) => void
   onCustomToChange: (value: string) => void
+  isOfflineData?: boolean
 }) {
   const { setPage } = useAppStore()
   const isMobile = useIsMobile()
@@ -1065,6 +1080,7 @@ function ManagerDashboard({
         subtitle="Overview of your business performance and inventory"
         isRefreshing={isRefreshing}
         onRefresh={onRefresh}
+        isOfflineData={isOfflineData}
         dateRangePicker={
           <DateRangePicker
             selectedPreset={dateRangePreset}
@@ -1306,10 +1322,12 @@ function CashierDashboard({
   dashboardData,
   isRefreshing,
   onRefresh,
+  isOfflineData,
 }: {
   dashboardData: EnhancedDashboardData
   isRefreshing: boolean
   onRefresh: () => void
+  isOfflineData?: boolean
 }) {
   const { setPage } = useAppStore()
   const { stats, recentSales } = dashboardData
@@ -1346,7 +1364,7 @@ function CashierDashboard({
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Cashier Dashboard" subtitle="Record sales and manage transactions" isRefreshing={isRefreshing} onRefresh={onRefresh} />
+      <DashboardHeader title="Cashier Dashboard" subtitle="Record sales and manage transactions" isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1482,11 +1500,13 @@ function WarehouseDashboard({
   inventoryData,
   isRefreshing,
   onRefresh,
+  isOfflineData,
 }: {
   dashboardData: EnhancedDashboardData
   inventoryData: InventoryStats | null
   isRefreshing: boolean
   onRefresh: () => void
+  isOfflineData?: boolean
 }) {
   const { setPage } = useAppStore()
   const { currentOrg, currentShop } = useAuthStore()
@@ -1521,7 +1541,7 @@ function WarehouseDashboard({
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Warehouse Dashboard" subtitle="Manage inventory and stock levels" isRefreshing={isRefreshing} onRefresh={onRefresh} />
+      <DashboardHeader title="Warehouse Dashboard" subtitle="Manage inventory and stock levels" isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1741,10 +1761,12 @@ function SalesDashboard({
   dashboardData,
   isRefreshing,
   onRefresh,
+  isOfflineData,
 }: {
   dashboardData: EnhancedDashboardData
   isRefreshing: boolean
   onRefresh: () => void
+  isOfflineData?: boolean
 }) {
   const { setPage } = useAppStore()
   const { currentOrg, currentShop } = useAuthStore()
@@ -1770,7 +1792,7 @@ function SalesDashboard({
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Sales Dashboard" subtitle="Track sales and manage customer relationships" isRefreshing={isRefreshing} onRefresh={onRefresh} />
+      <DashboardHeader title="Sales Dashboard" subtitle="Track sales and manage customer relationships" isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1967,6 +1989,7 @@ export function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isOfflineData, setIsOfflineData] = useState(false)
 
   // Date range state
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('this_month')
@@ -1997,12 +2020,136 @@ export function DashboardPage() {
         }),
       ])
 
-      // Process dashboard data (critical - if this fails, show error)
+      // Process dashboard data (critical - if this fails, fall back to local DB)
       if (results[0].status === 'fulfilled') {
         setDashboardData(results[0].value as EnhancedDashboardData)
+        setIsOfflineData(false)
       } else {
-        setError(getNetworkErrorMessage(results[0].reason))
-        return
+        // API call failed — try computing dashboard data from local IndexedDB
+        try {
+          const shopId = currentShop?.id
+
+          const localProducts = await db.products
+            .where('organizationId').equals(currentOrg.id)
+            .filter(p => !shopId || p.shopId === shopId || !p.shopId)
+            .toArray()
+
+          const localSales = await db.sales
+            .where('organizationId').equals(currentOrg.id)
+            .filter(s => !shopId || s.shopId === shopId || !s.shopId)
+            .toArray()
+
+          const localDebts = await db.debts
+            .where('organizationId').equals(currentOrg.id)
+            .filter(d => !shopId || d.shopId === shopId || !d.shopId)
+            .toArray()
+
+          const localExpenses = await db.expenses
+            .where('organizationId').equals(currentOrg.id)
+            .filter(e => !shopId || e.shopId === shopId || !e.shopId)
+            .toArray()
+
+          // Compute dashboard data from local records
+          const now = new Date()
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+          const todaySales = localSales.filter(s => s.saleDate >= todayStart && s.status === 'completed')
+          const monthSales = localSales.filter(s => s.saleDate >= monthStart && s.status === 'completed')
+
+          const outOfStock = localProducts.filter(p => p.quantity <= 0)
+          const lowStock = localProducts.filter(p => p.quantity > 0 && p.quantity <= p.lowStockThreshold)
+
+          const totalStockCostValue = localProducts.reduce((sum, p) => sum + (p.costPrice * p.quantity), 0)
+          const totalStockRetailValue = localProducts.reduce((sum, p) => sum + (p.sellingPrice * p.quantity), 0)
+
+          const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0)
+          const monthRevenue = monthSales.reduce((sum, s) => sum + s.total, 0)
+
+          const totalCustomerDebt = localDebts
+            .filter(d => d.type === 'customer_debt' && d.status !== 'paid')
+            .reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
+
+          const periodExpenses = localExpenses
+            .filter(e => e.date >= monthStart)
+            .reduce((sum, e) => sum + e.amount, 0)
+
+          const fallbackDashboardData: EnhancedDashboardData = {
+            stats: {
+              totalProducts: localProducts.length,
+              outOfStockCount: outOfStock.length,
+              lowStockCount: lowStock.length,
+              totalStockCostValue,
+              totalStockRetailValue,
+              todayRevenue,
+              todaySalesCount: todaySales.length,
+              monthRevenue,
+              totalCustomerDebt,
+              periodRevenue: monthRevenue,
+              periodExpenses,
+              periodCogs: 0, // Can't compute easily from local data
+              periodNetProfit: monthRevenue - periodExpenses,
+              periodSalesCount: monthSales.length,
+            },
+            comparison: {
+              revenueChange: 0, expenseChange: 0, netProfitChange: 0, salesCountChange: 0,
+              prevRevenue: 0, prevExpenses: 0, prevNetProfit: 0, prevSalesCount: 0,
+            },
+            period: {
+              from: range.from,
+              to: range.to,
+              prevFrom: '', prevTo: '',
+            },
+            anomalies: [
+              ...outOfStock.slice(0, 3).map(p => ({
+                id: p.id, type: 'out_of_stock' as const, message: `${p.name} is out of stock`, severity: 'high' as const,
+              })),
+              ...lowStock.slice(0, 3).map(p => ({
+                id: p.id, type: 'low_stock' as const, message: `${p.name} is low on stock (${p.quantity} left)`, severity: 'medium' as const,
+              })),
+            ],
+            recentSales: localSales
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 10)
+              .map(s => ({
+                id: s.id, organizationId: s.organizationId, customerId: s.customerId,
+                invoiceNumber: s.invoiceNumber, status: s.status, paymentMethod: s.paymentMethod,
+                subtotal: s.subtotal, discount: s.discount, tax: s.tax, total: s.total,
+                amountPaid: s.amountPaid, notes: s.notes, saleDate: s.saleDate,
+                createdAt: s.createdAt, updatedAt: s.updatedAt,
+                customer: null, items: undefined,
+              })),
+            topProducts: [], // Would need saleItems to compute
+            salesTrend: [], // Would need daily aggregation
+          }
+
+          setDashboardData(fallbackDashboardData)
+          setIsOfflineData(true)
+          setError(null)
+
+          // Also set inventory data from local products
+          setInventoryData({
+            overview: {
+              totalProducts: localProducts.length,
+              outOfStock: outOfStock.length,
+              lowStock: lowStock.length,
+              totalCostValue: totalStockCostValue,
+              totalRetailValue: totalStockRetailValue,
+            },
+            lowStockProducts: lowStock.slice(0, 10).map(p => ({
+              id: p.id, name: p.name, quantity: p.quantity,
+              lowStockThreshold: p.lowStockThreshold, costPrice: p.costPrice,
+              sellingPrice: p.sellingPrice, productType: { id: p.productTypeId, name: '—' },
+            })),
+            recentMovements: [],
+          })
+          setRevenueChartData([])
+          return
+        } catch {
+          // Local DB also failed — show error
+          setError(getNetworkErrorMessage(results[0].reason))
+          return
+        }
       }
 
       // Process inventory data (non-critical - show dashboard without it)
@@ -2094,6 +2241,7 @@ export function DashboardPage() {
             revenueChartData={revenueChartData}
             isRefreshing={isRefreshing}
             onRefresh={fetchDashboardData}
+            isOfflineData={isOfflineData}
             {...dateRangeProps}
           />
           {syncPanel}
@@ -2108,6 +2256,7 @@ export function DashboardPage() {
             revenueChartData={revenueChartData}
             isRefreshing={isRefreshing}
             onRefresh={fetchDashboardData}
+            isOfflineData={isOfflineData}
             {...dateRangeProps}
           />
           {syncPanel}
@@ -2120,6 +2269,7 @@ export function DashboardPage() {
             dashboardData={dashboardData}
             isRefreshing={isRefreshing}
             onRefresh={fetchDashboardData}
+            isOfflineData={isOfflineData}
           />
           {syncPanel}
         </>
@@ -2132,6 +2282,7 @@ export function DashboardPage() {
             inventoryData={inventoryData}
             isRefreshing={isRefreshing}
             onRefresh={fetchDashboardData}
+            isOfflineData={isOfflineData}
           />
           {syncPanel}
         </>
@@ -2143,6 +2294,7 @@ export function DashboardPage() {
             dashboardData={dashboardData}
             isRefreshing={isRefreshing}
             onRefresh={fetchDashboardData}
+            isOfflineData={isOfflineData}
           />
           {syncPanel}
         </>
@@ -2154,6 +2306,7 @@ export function DashboardPage() {
             dashboardData={dashboardData}
             isRefreshing={isRefreshing}
             onRefresh={fetchDashboardData}
+            isOfflineData={isOfflineData}
           />
           {syncPanel}
         </>

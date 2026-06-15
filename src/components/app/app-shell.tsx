@@ -11,6 +11,7 @@ import { ModuleGuard } from '@/components/shared/module-guard'
 import { NavigationProgressBar, PageTransitionSkeleton } from '@/components/shared/loading'
 import { CurrencyProvider } from '@/lib/currency-context'
 import { useBootstrap } from '@/lib/sync/use-bootstrap'
+import { getSyncEngine } from '@/lib/sync/engine'
 import { Database, Loader2 } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 
@@ -257,25 +258,45 @@ export default function AppShell() {
   }, [user?.role, currentPage, setPage])
 
   // Bootstrap check: after user is authenticated, check if they need bootstrapping
+  // Also start auto-sync if already bootstrapped
   useEffect(() => {
     if (!currentOrg || user?.role === 'admin') return
-    if (!checkNeedsBootstrap(currentOrg.id)) return
-    if (isBootstrapping) return
-    // Avoid re-triggering for the same org
-    if (bootstrapTriggeredForOrg.current === currentOrg.id) return
 
-    console.log('[AppShell] Organization needs bootstrapping, starting...')
-    bootstrapTriggeredForOrg.current = currentOrg.id
-    bootstrap(currentOrg.id, currentShop?.id ?? null)
-      .then(() => {
-        console.log('[AppShell] Bootstrap complete')
-      })
-      .catch((err) => {
-        console.error('[AppShell] Bootstrap failed:', err)
-        // Allow retry on next mount
-        bootstrapTriggeredForOrg.current = null
-      })
+    const needsBootstrap = checkNeedsBootstrap(currentOrg.id)
+
+    if (needsBootstrap) {
+      if (isBootstrapping) return
+      // Avoid re-triggering for the same org
+      if (bootstrapTriggeredForOrg.current === currentOrg.id) return
+
+      console.log('[AppShell] Organization needs bootstrapping, starting...')
+      bootstrapTriggeredForOrg.current = currentOrg.id
+      bootstrap(currentOrg.id, currentShop?.id ?? null)
+        .then(() => {
+          console.log('[AppShell] Bootstrap complete')
+          // Start auto-sync engine after bootstrap succeeds
+          const engine = getSyncEngine()
+          engine.startAutoSync()
+        })
+        .catch((err) => {
+          console.error('[AppShell] Bootstrap failed:', err)
+          // Allow retry on next mount
+          bootstrapTriggeredForOrg.current = null
+        })
+    } else {
+      // Already bootstrapped — ensure auto-sync is running
+      const engine = getSyncEngine()
+      engine.startAutoSync()
+    }
   }, [currentOrg, currentShop, user?.role, checkNeedsBootstrap, bootstrap, isBootstrapping])
+
+  // Stop auto-sync when the shell unmounts (user navigates away / logs out)
+  useEffect(() => {
+    return () => {
+      const engine = getSyncEngine()
+      engine.stopAutoSync()
+    }
+  }, [])
 
   // Show bootstrap overlay when bootstrapping (derived from hook state, no setState needed)
   const needsOverlay = isBootstrapping && currentOrg && checkNeedsBootstrap(currentOrg.id)

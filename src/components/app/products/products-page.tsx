@@ -25,6 +25,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, type Product, type ProductType, type AttributeDefinition, type StockMovement } from '@/lib/api-client'
+import { productRepo, categoryRepo } from '@/lib/repositories'
+import { db, type LocalProduct } from '@/lib/db'
 import { BarcodeDialog } from '@/components/app/products/barcode-dialog'
 import { BulkImportDialog } from '@/components/app/products/bulk-import-dialog'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -110,6 +112,27 @@ function parseAttributeOptions(raw: string | null | undefined): string[] | null 
   } catch {
     // If parsing fails, try splitting by comma
     return raw.split(',').map(s => s.trim()).filter(Boolean)
+  }
+}
+
+/** Map an API Product to a LocalProduct for IndexedDB storage */
+function mapToLocalProduct(p: Product): LocalProduct {
+  return {
+    id: p.id,
+    productTypeId: p.productTypeId,
+    organizationId: p.organizationId,
+    shopId: (p as Record<string, unknown>).shopId as string | null ?? null,
+    sku: p.sku ?? null,
+    name: p.name,
+    description: p.description ?? null,
+    imageUrl: p.imageUrl ?? null,
+    quantity: p.quantity,
+    costPrice: p.costPrice,
+    sellingPrice: p.sellingPrice,
+    lowStockThreshold: p.lowStockThreshold,
+    isActive: p.isActive,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
   }
 }
 
@@ -291,7 +314,7 @@ function ProductDialog({
         }))
 
       if (isEditing && product) {
-        await api.updateProduct(product.id, currentOrg.id, {
+        const result = await api.updateProduct(product.id, currentOrg.id, {
           name: data.name.trim(),
           sku: data.sku?.trim() || undefined,
           description: data.description?.trim() || undefined,
@@ -301,9 +324,11 @@ function ProductDialog({
           lowStockThreshold,
           attributeValues: attrVals,
         })
+        // Write to local DB on success
+        try { await db.products.put(mapToLocalProduct(result.product)) } catch {}
         toast.success('Product updated successfully')
       } else {
-        await api.createProduct(currentOrg.id, {
+        const result = await api.createProduct(currentOrg.id, {
           productTypeId,
           name: data.name.trim(),
           sku: data.sku?.trim() || undefined,
@@ -316,13 +341,50 @@ function ProductDialog({
           attributeValues: attrVals,
           shopId: currentShop?.id,
         })
+        // Write to local DB on success
+        try { await db.products.put(mapToLocalProduct(result.product)) } catch {}
         toast.success('Product created successfully')
       }
 
       onOpenChange(false)
       onSaved()
     } catch (error) {
-      toast.error(getNetworkErrorMessage(error))
+      // If offline, queue the mutation optimistically via the local repo
+      if (!navigator.onLine) {
+        try {
+          const localProductData = {
+            productTypeId,
+            organizationId: currentOrg.id,
+            shopId: currentShop?.id ?? null,
+            name: data.name.trim(),
+            sku: data.sku?.trim() || null,
+            description: data.description?.trim() || null,
+            imageUrl: imagePreview || product?.imageUrl || null,
+            quantity,
+            costPrice,
+            sellingPrice,
+            lowStockThreshold,
+            isActive: true,
+          } as Omit<LocalProduct, 'id' | 'createdAt' | 'updatedAt'>
+
+          if (isEditing && product) {
+            await productRepo.update(product.id, {
+              ...localProductData,
+            } as Partial<LocalProduct>)
+            toast.success('Product updated (will sync when online)')
+          } else {
+            await productRepo.create(localProductData)
+            toast.success('Product saved (will sync when online)')
+          }
+
+          onOpenChange(false)
+          onSaved()
+        } catch {
+          toast.error(getNetworkErrorMessage(error))
+        }
+      } else {
+        toast.error(getNetworkErrorMessage(error))
+      }
     } finally {
       setSaving(false)
     }
@@ -955,8 +1017,55 @@ export function ProductsPage() {
       setProducts(data.products)
       setTotalPages(data.pagination.totalPages)
       setTotal(data.pagination.total)
+      // Update local cache for offline use
+      try {
+        await db.products.bulkPut(
+          data.products.map(p => ({
+            id: p.id,
+            productTypeId: p.productTypeId,
+            organizationId: p.organizationId,
+            shopId: (p as Record<string, unknown>).shopId as string | null ?? null,
+            sku: p.sku ?? null,
+            name: p.name,
+            description: p.description ?? null,
+            imageUrl: p.imageUrl ?? null,
+            quantity: p.quantity,
+            costPrice: p.costPrice,
+            sellingPrice: p.sellingPrice,
+            lowStockThreshold: p.lowStockThreshold,
+            isActive: p.isActive,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+          }) satisfies LocalProduct)
+        )
+      } catch {
+        // Local cache update is non-critical; ignore errors
+      }
     } catch (error) {
-      setFetchError(getNetworkErrorMessage(error))
+      // API call failed — fall back to local IndexedDB
+      try {
+        const localProducts = await productRepo.getAll(currentOrg.id, currentShop?.id)
+        // Apply client-side filters that the API would have handled
+        let filtered = localProducts
+        if (filterType !== 'all') {
+          filtered = filtered.filter(p => p.productTypeId === filterType)
+        }
+        if (debouncedSearch) {
+          const q = debouncedSearch.toLowerCase()
+          filtered = filtered.filter(p =>
+            p.name.toLowerCase().includes(q) || (p.sku && p.sku.toLowerCase().includes(q))
+          )
+        }
+        // Paginate locally
+        const start = (page - 1) * limit
+        const paginated = filtered.slice(start, start + limit)
+        setProducts(paginated as unknown as Product[])
+        setTotalPages(Math.max(1, Math.ceil(filtered.length / limit)))
+        setTotal(filtered.length)
+      } catch {
+        // Even local DB failed — show the original API error
+        setFetchError(getNetworkErrorMessage(error))
+      }
     } finally {
       setLoading(false)
     }
@@ -967,9 +1076,31 @@ export function ProductsPage() {
     try {
       const data = await api.getProductTypes(currentOrg.id, currentShop?.id)
       setProductTypes(data.productTypes)
+      // Update local cache for offline use
+      try {
+        await db.categories.bulkPut(
+          data.productTypes.map(pt => ({
+            id: pt.id,
+            organizationId: pt.organizationId,
+            name: pt.name,
+            icon: pt.icon ?? null,
+            createdAt: pt.createdAt,
+            updatedAt: pt.updatedAt,
+          }))
+        )
+      } catch {
+        // Local cache update is non-critical; ignore errors
+      }
     } catch (error) {
-      // Log error so it's visible in dev tools; don't crash the page
-      console.warn('[ProductsPage] Failed to fetch product types:', error)
+      // API call failed — fall back to local IndexedDB
+      console.warn('[ProductsPage] Failed to fetch product types, falling back to local:', error)
+      try {
+        const localCategories = await categoryRepo.getAll(currentOrg.id)
+        setProductTypes(localCategories as unknown as ProductType[])
+      } catch {
+        // Even local DB failed; log but don't crash the page
+        console.warn('[ProductsPage] Local fallback for product types also failed')
+      }
     }
   }, [currentOrg, currentShop?.id])
 
@@ -1012,11 +1143,25 @@ export function ProductsPage() {
     setDeleting(true)
     try {
       await api.deleteProduct(deleteTarget.id, currentOrg.id)
+      // Remove from local DB on success
+      try { await db.products.delete(deleteTarget.id) } catch {}
       toast.success('Product deleted')
       setDeleteTarget(null)
       fetchProducts()
     } catch (error) {
-      toast.error(getNetworkErrorMessage(error))
+      // If offline, delete optimistically via local repo (queues outbox entry)
+      if (!navigator.onLine) {
+        try {
+          await productRepo.remove(deleteTarget.id)
+          toast.success('Product deleted (will sync when online)')
+          setDeleteTarget(null)
+          fetchProducts()
+        } catch {
+          toast.error(getNetworkErrorMessage(error))
+        }
+      } else {
+        toast.error(getNetworkErrorMessage(error))
+      }
     } finally {
       setDeleting(false)
     }

@@ -19,14 +19,14 @@ export interface OutboxItem {
   id: string
   entity: string
   operation: 'create' | 'update' | 'delete'
-  payload: Record<string, unknown>
+  payload: string
   localId?: string
   serverId?: string
-  createdAt: number
+  createdAt: string
   retryCount: number
   status: 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict'
   error?: string
-  lastAttemptAt?: number
+  lastAttemptAt?: string | null
 }
 
 export interface SyncEvent {
@@ -119,7 +119,7 @@ function isReadyForRetry(item: OutboxItem): boolean {
   if (item.retryCount === 0) return true
   if (!item.lastAttemptAt) return true
   const delay = getBackoffDelay(item.retryCount)
-  return Date.now() - item.lastAttemptAt >= delay
+  return Date.now() - new Date(item.lastAttemptAt).getTime() >= delay
 }
 
 function getMethodForOperation(operation: OutboxItem['operation']): string {
@@ -403,7 +403,7 @@ class SyncEngine {
 
     // Set status to syncing
     item.status = 'syncing'
-    item.lastAttemptAt = Date.now()
+    item.lastAttemptAt = new Date().toISOString()
     await dexieDb.outbox.put(item)
 
     try {
@@ -441,7 +441,9 @@ class SyncEngine {
 
       // Add body for create and update
       if (item.operation === 'create' || item.operation === 'update') {
-        fetchOptions.body = JSON.stringify(item.payload)
+        // Payload is stored as JSON string in the outbox
+        const payloadObj = typeof item.payload === 'string' ? item.payload : JSON.stringify(item.payload)
+        fetchOptions.body = payloadObj
       }
 
       const signal = this.abortController?.signal
@@ -659,8 +661,9 @@ class SyncEngine {
       // Update syncMeta with current timestamp
       const now = new Date().toISOString()
       await dexieDb.syncMeta.put({
-        key: entity,
+        id: entity,
         lastSyncedAt: now,
+        entityCount: 0,
       })
 
       this.emitEvent(
@@ -803,8 +806,9 @@ class SyncEngine {
         // Set syncMeta with current timestamp
         const now = new Date().toISOString()
         await db.syncMeta.put({
-          key: entity,
+          id: entity,
           lastSyncedAt: now,
+          entityCount: 0,
         })
 
         results[entity] = { pulled: activeItems.length }
@@ -880,7 +884,7 @@ class SyncEngine {
     }
   }
 
-  private stopAutoSync(): void {
+  stopAutoSync(): void {
     if (this.autoSyncTimer) {
       clearInterval(this.autoSyncTimer)
       this.autoSyncTimer = null
@@ -937,7 +941,7 @@ class SyncEngine {
     const outboxItem: OutboxItem = {
       ...item,
       id: generateId(),
-      createdAt: Date.now(),
+      createdAt: new Date().toISOString(),
       retryCount: 0,
       status: 'pending',
     }
@@ -1018,7 +1022,7 @@ class SyncEngine {
         item.status = 'pending'
         item.retryCount = 0
         item.error = undefined
-        item.lastAttemptAt = undefined
+        item.lastAttemptAt = null
         await dexieDb.outbox.put(item)
         console.log(`[Sync] Reset outbox item ${id} for retry`)
         this.notifyListeners()
