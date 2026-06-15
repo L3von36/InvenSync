@@ -589,6 +589,10 @@ class ApiClient {
   // stale background requests from interfering with an active login attempt.
   private _isLoggingIn: boolean = false
 
+  // Flag to suppress 401 auto-logout during bootstrap
+  // When true, 401 responses don't trigger logout (used during initial data hydration)
+  private _suppressAuthLogout: boolean = false
+
   // Request deduplication: prevent concurrent identical GET requests
   // If 3 components request the same endpoint simultaneously, only 1 fetch is made.
   private _inflightRequests = new Map<string, Promise<unknown>>()
@@ -619,6 +623,22 @@ class ApiClient {
     } catch {
       // client-cache may not be available during SSR
     }
+  }
+
+  /**
+   * Suppress 401 auto-logout during bootstrap or other batch operations.
+   * When active, 401 responses are thrown as errors but don't clear the token
+   * or trigger logout. Call endBatchOperation() when done.
+   */
+  beginBatchOperation(): void {
+    this._suppressAuthLogout = true
+  }
+
+  /**
+   * Re-enable 401 auto-logout after a batch operation completes.
+   */
+  endBatchOperation(): void {
+    this._suppressAuthLogout = false
   }
 
   private getToken(): string | null {
@@ -677,24 +697,40 @@ class ApiClient {
       if (inflight) {
         return inflight as Promise<T>
       }
+
+      // ---- Offline check: return persistent cache if available ----
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        // Try persistent IndexedDB cache first
+        try {
+          const { getCachedApiResponse } = await import('@/lib/db')
+          const persistentCached = await getCachedApiResponse<T>(cacheKey)
+          if (persistentCached !== null) {
+            console.log(`[ApiClient] Offline — returning persistent cached data for ${cacheKey}`)
+            return persistentCached
+          }
+        } catch (err) {
+          console.warn('[ApiClient] Failed to read from persistent cache:', err)
+        }
+        // For GET requests with no cache: throw with a helpful message
+        throw new Error('You are offline and no cached data is available for this request. Please connect to the internet.')
+      }
     }
 
-    if (typeof window !== 'undefined' && !navigator.onLine) {
-      if (isMutating) {
-        // Queue the operation for later sync
-        try {
-          const { queueOperation } = await import('@/lib/offline-queue')
-          await queueOperation(
-            endpoint,
-            method,
-            headers,
-            options.body ? String(options.body) : null
-          )
-          // Return a mock "offline queued" response so callers don't break
-          return { offline: true, queued: true } as unknown as T
-        } catch {
-          // If queuing fails, fall through to normal error
-        }
+    // Offline handling for non-GET (mutating) requests
+    // GET requests are already handled above in the isGet block
+    if (typeof window !== 'undefined' && !navigator.onLine && isMutating) {
+      try {
+        const { queueOperation } = await import('@/lib/offline-queue')
+        await queueOperation(
+          endpoint,
+          method,
+          headers,
+          options.body ? String(options.body) : null
+        )
+        // Return a mock "offline queued" response so callers don't break
+        return { offline: true, queued: true } as unknown as T
+      } catch {
+        // If queuing fails, fall through to throw error
       }
       throw new Error('You are offline. Please check your internet connection and try again.')
     }
@@ -746,6 +782,19 @@ class ApiClient {
           throw new Error('Request timed out — the server took too long to respond. Please try again.')
         }
         if (err instanceof TypeError && err.message === 'Failed to fetch') {
+          // For GET requests, try the persistent cache before throwing
+          if (isGet) {
+            try {
+              const { getCachedApiResponse } = await import('@/lib/db')
+              const cached = await getCachedApiResponse<T>(cacheKey)
+              if (cached !== null) {
+                console.log(`[ApiClient] Network error — returning cached data for ${cacheKey}`)
+                return cached
+              }
+            } catch {
+              // Fall through to error
+            }
+          }
           throw new Error('Network error — please check your internet connection and try again.')
         }
         throw new Error(err instanceof Error ? err.message : 'An unexpected network error occurred')
@@ -794,7 +843,7 @@ class ApiClient {
         // Auth endpoints (login, register, me) legitimately return 401 for wrong credentials
         // Also suppress auto-logout during active login to prevent race conditions
         const isAuthEndpoint = endpoint.startsWith('/api/auth/login') || endpoint.startsWith('/api/auth/register') || endpoint.startsWith('/api/auth/me')
-        if (response.status === 401 && token && !isAuthEndpoint && !this._isLoggingIn) {
+        if (response.status === 401 && token && !isAuthEndpoint && !this._isLoggingIn && !this._suppressAuthLogout) {
           // Only clear token and trigger logout if the token we sent is STILL the current token.
           // This prevents a stale background request from clearing a freshly-set token
           // after the user logged out and logged back in.
@@ -826,12 +875,19 @@ class ApiClient {
         throw new Error(errorMessage)
       }
 
-      // Cache successful GET responses for short TTL
+      // Cache successful GET responses for short TTL (in-memory)
       if (isGet) {
         this._responseCache.set(cacheKey, {
           data: data as T,
           expiresAt: Date.now() + ApiClient.RESPONSE_CACHE_TTL,
         })
+        // Also persist to IndexedDB for offline fallback (fire-and-forget)
+        try {
+          const { cacheApiResponse } = await import('@/lib/db')
+          cacheApiResponse(cacheKey, data as T).catch(() => {})
+        } catch {
+          // Import may fail during SSR
+        }
       }
 
       return data as T

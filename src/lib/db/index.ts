@@ -248,6 +248,18 @@ export interface LocalSyncMeta {
   lastFullSyncAt?: string | null
 }
 
+/** Cached API response for offline fallback */
+export interface LocalApiCache {
+  /** Cache key: method:url (e.g. 'GET:/api/products?orgId=xxx') */
+  id: string
+  /** Serialized JSON response */
+  data: string
+  /** ISO timestamp when this cache entry was created */
+  cachedAt: string
+  /** ISO timestamp when this entry expires */
+  expiresAt: string
+}
+
 /** Cached user profile for offline access */
 export interface LocalUserProfile {
   /** User ID (primary key) */
@@ -293,6 +305,7 @@ class InvenSyncDatabase extends Dexie {
   shops!: EntityTable<LocalShop, 'id'>
   outbox!: EntityTable<LocalOutbox, 'id'>
   syncMeta!: EntityTable<LocalSyncMeta, 'id'>
+  apiCache!: EntityTable<LocalApiCache, 'id'>
   userProfile!: EntityTable<LocalUserProfile, 'id'>
 
   constructor() {
@@ -336,6 +349,10 @@ class InvenSyncDatabase extends Dexie {
       syncMeta:
         'id, lastSyncedAt',
 
+      // API response cache for offline fallback
+      apiCache:
+        'id, cachedAt, expiresAt',
+
       // User profile cache
       userProfile:
         'id, email',
@@ -377,6 +394,7 @@ export async function clearLocalDatabase(): Promise<void> {
     db.shops.clear(),
     db.outbox.clear(),
     db.syncMeta.clear(),
+    db.apiCache.clear(),
     db.userProfile.clear(),
   ])
 }
@@ -403,6 +421,7 @@ export async function getLocalDataStats(): Promise<Record<string, number>> {
     shops,
     outbox,
     syncMeta,
+    apiCache,
     userProfile,
   ] = await Promise.all([
     db.products.count(),
@@ -421,6 +440,7 @@ export async function getLocalDataStats(): Promise<Record<string, number>> {
     db.shops.count(),
     db.outbox.count(),
     db.syncMeta.count(),
+    db.apiCache.count(),
     db.userProfile.count(),
   ])
 
@@ -441,6 +461,7 @@ export async function getLocalDataStats(): Promise<Record<string, number>> {
     shops,
     outbox,
     syncMeta,
+    apiCache,
     userProfile,
   }
 }
@@ -480,5 +501,72 @@ export async function isDatabaseReady(): Promise<boolean> {
     return count > 0
   } catch {
     return false
+  }
+}
+
+// -------------------------------------------
+// API Response Cache Helpers
+// -------------------------------------------
+
+/** Default TTL for cached API responses: 24 hours */
+const API_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Stores an API response in the persistent cache.
+ */
+export async function cacheApiResponse(key: string, data: unknown, ttlMs: number = API_CACHE_TTL_MS): Promise<void> {
+  try {
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + ttlMs)
+    await db.apiCache.put({
+      id: key,
+      data: JSON.stringify(data),
+      cachedAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    })
+  } catch (err) {
+    // Non-critical — don't break the app if caching fails
+    console.warn('[ApiCache] Failed to cache response:', err)
+  }
+}
+
+/**
+ * Retrieves a cached API response.
+ * Returns null if not found or expired.
+ */
+export async function getCachedApiResponse<T>(key: string): Promise<T | null> {
+  try {
+    const entry = await db.apiCache.get(key)
+    if (!entry) return null
+
+    // Check if expired
+    const expiresAt = new Date(entry.expiresAt).getTime()
+    if (Date.now() > expiresAt) {
+      // Clean up expired entry
+      await db.apiCache.delete(key)
+      return null
+    }
+
+    return JSON.parse(entry.data) as T
+  } catch (err) {
+    console.warn('[ApiCache] Failed to read cached response:', err)
+    return null
+  }
+}
+
+/**
+ * Removes expired entries from the API cache.
+ * Call periodically to prevent unbounded growth.
+ */
+export async function purgeExpiredCacheEntries(): Promise<number> {
+  try {
+    const now = new Date().toISOString()
+    const expired = await db.apiCache.where('expiresAt').below(now).toArray()
+    if (expired.length > 0) {
+      await db.apiCache.bulkDelete(expired.map(e => e.id))
+    }
+    return expired.length
+  } catch {
+    return 0
   }
 }

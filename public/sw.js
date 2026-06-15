@@ -1,25 +1,24 @@
-// InvenSync Service Worker
+// InvenSync Service Worker v2
 // Cache-first for static assets, Network-first for API calls, Offline fallback
+// Enhanced: caches Next.js static bundles on first load for true offline support
 
-const CACHE_NAME = 'invensync-v1';
-const STATIC_CACHE = 'invensync-static-v1';
-const API_CACHE = 'invensync-api-v1';
-const OFFLINE_URL = '/offline';
+const CACHE_NAME = 'invensync-v2';
+const STATIC_CACHE = 'invensync-static-v2';
+const API_CACHE = 'invensync-api-v2';
+const RUNTIME_CACHE = 'invensync-runtime-v2';
 
-// Static assets to pre-cache
-const STATIC_ASSETS = [
+// Core static assets to pre-cache on install
+const PRE_CACHE_ASSETS = [
   '/',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
 ];
 
-// Install event — pre-cache static assets
+// Install event — pre-cache core static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('[SW] Failed to cache some static assets:', err);
+      return cache.addAll(PRE_CACHE_ASSETS).catch((err) => {
+        console.warn('[SW] Failed to cache some pre-cache assets:', err);
       });
     })
   );
@@ -33,7 +32,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME && name !== STATIC_CACHE && name !== API_CACHE)
+          .filter((name) => name !== CACHE_NAME && name !== STATIC_CACHE && name !== API_CACHE && name !== RUNTIME_CACHE)
           .map((name) => caches.delete(name))
       );
     })
@@ -62,24 +61,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy: Network-first for API calls
+  // Strategy: Network-first for API calls (but return cached when offline)
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirst(request));
+    // Skip /api/ping - used for connectivity checks, don't cache
+    if (url.pathname === '/api/ping') {
+      return;
+    }
+    event.respondWith(networkFirstWithCache(request));
     return;
   }
 
-  // Strategy: Cache-first for static assets
+  // Strategy: Cache-first for static assets (JS, CSS, images, fonts)
   if (isStaticAsset(url.pathname)) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(cacheFirstWithRuntime(request));
     return;
   }
 
-  // Strategy: Stale-while-revalidate for pages
+  // Strategy: Stale-while-revalidate for HTML pages
   event.respondWith(staleWhileRevalidate(request));
 });
 
-// Cache-first strategy: Try cache, fallback to network
-async function cacheFirst(request) {
+// Cache-first strategy with runtime caching
+// Try cache first, fallback to network, cache the response for next time
+async function cacheFirstWithRuntime(request) {
   const cached = await caches.match(request);
   if (cached) {
     return cached;
@@ -88,17 +92,23 @@ async function cacheFirst(request) {
   try {
     const response = await fetch(request);
     if (response.ok) {
-      const cache = await caches.open(STATIC_CACHE);
+      // Cache static assets in the runtime cache for offline use
+      const cache = await caches.open(RUNTIME_CACHE);
       cache.put(request, response.clone());
     }
     return response;
   } catch (error) {
-    return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+    // Check runtime cache as last resort
+    const runtimeCached = await caches.match(request, { cacheName: RUNTIME_CACHE });
+    if (runtimeCached) {
+      return runtimeCached;
+    }
+    return new Response('', { status: 503, statusText: 'Service Unavailable' });
   }
 }
 
-// Network-first strategy: Try network, fallback to cache
-async function networkFirst(request) {
+// Network-first strategy with cache fallback for API calls
+async function networkFirstWithCache(request) {
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -107,10 +117,12 @@ async function networkFirst(request) {
     }
     return response;
   } catch (error) {
+    // Try API cache first
     const cached = await caches.match(request);
     if (cached) {
       return cached;
     }
+    // Return offline JSON response
     return new Response(JSON.stringify({ error: 'You are offline', offline: true }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' },
@@ -118,7 +130,7 @@ async function networkFirst(request) {
   }
 }
 
-// Stale-while-revalidate: Return cache if available, fetch in background
+// Stale-while-revalidate: Return cache if available, fetch in background to update
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
@@ -131,16 +143,18 @@ async function staleWhileRevalidate(request) {
       return response;
     })
     .catch(() => {
-      // If network fails and no cache, return offline page
-      if (!cached) {
-        return new Response(offlinePage(), {
-          status: 503,
-          headers: { 'Content-Type': 'text/html' },
-        });
+      // If network fails and we have cache, return it
+      if (cached) {
+        return cached;
       }
-      return cached;
+      // If no cache and offline, return offline page
+      return new Response(offlinePage(), {
+        status: 503,
+        headers: { 'Content-Type': 'text/html' },
+      });
     });
 
+  // Return cache immediately if available, otherwise wait for network
   return cached || fetchPromise;
 }
 
@@ -149,7 +163,7 @@ function isStaticAsset(pathname) {
   const staticExtensions = [
     '.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg',
     '.ico', '.woff', '.woff2', '.ttf', '.eot', '.webp',
-    '.json', '.xml', '.txt',
+    '.json', '.xml', '.txt', '.map',
   ];
   return staticExtensions.some((ext) => pathname.endsWith(ext));
 }
@@ -211,7 +225,7 @@ function offlinePage() {
       </svg>
     </div>
     <h1>You're Offline</h1>
-    <p>It looks like you've lost your internet connection. Please check your network and try again.</p>
+    <p>It looks like you've lost your internet connection. Your data is still available locally. Please check your network and try again.</p>
     <a href="/" class="btn">Try Again</a>
   </div>
 </body>

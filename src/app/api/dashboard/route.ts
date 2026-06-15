@@ -431,24 +431,24 @@ async function fetchDashboardData(
       name: product?.name || 'Unknown',
       sku: product?.sku || null,
       imageUrl: product?.imageUrl || null,
-      totalRevenue: item._sum.total || 0,
-      totalQuantity: item._sum.quantity || 0,
+      totalRevenue: Number(item._sum.total || 0),
+      totalQuantity: Number(item._sum.quantity || 0),
     }
   })
 
-  // COGS values from raw SQL aggregation
-  const periodCogs = periodCogsResult[0]?.cogs ?? 0
-  const prevPeriodCogs = prevPeriodCogsResult[0]?.cogs ?? 0
+  // COGS values from raw SQL aggregation — wrap with Number() to handle BigInt
+  const periodCogs = Number(periodCogsResult[0]?.cogs ?? 0)
+  const prevPeriodCogs = Number(prevPeriodCogsResult[0]?.cogs ?? 0)
 
-  // Calculate comparison metrics
-  const periodRevenue = periodSales._sum.total || 0
-  const prevRevenue = prevPeriodSales._sum.total || 0
+  // Calculate comparison metrics — wrap with Number() to handle BigInt from Prisma
+  const periodRevenue = Number(periodSales._sum.total || 0)
+  const prevRevenue = Number(prevPeriodSales._sum.total || 0)
   const revenueChange = prevRevenue > 0
     ? ((periodRevenue - prevRevenue) / prevRevenue * 100)
     : periodRevenue > 0 ? 100 : 0
 
-  const periodExpenseTotal = periodExpenses._sum.amount || 0
-  const prevExpenseTotal = prevPeriodExpenses._sum.amount || 0
+  const periodExpenseTotal = Number(periodExpenses._sum.amount || 0)
+  const prevExpenseTotal = Number(prevPeriodExpenses._sum.amount || 0)
   const expenseChange = prevExpenseTotal > 0
     ? ((periodExpenseTotal - prevExpenseTotal) / prevExpenseTotal * 100)
     : periodExpenseTotal > 0 ? 100 : 0
@@ -459,8 +459,8 @@ async function fetchDashboardData(
     ? ((periodNetProfit - prevNetProfit) / Math.abs(prevNetProfit) * 100)
     : periodNetProfit > 0 ? 100 : 0
 
-  const periodSalesCount = periodSales._count || 0
-  const prevSalesCount = prevPeriodSales._count || 0
+  const periodSalesCount = Number(periodSales._count || 0)
+  const prevSalesCount = Number(prevPeriodSales._count || 0)
   const salesCountChange = prevSalesCount > 0
     ? ((periodSalesCount - prevSalesCount) / prevSalesCount * 100)
     : periodSalesCount > 0 ? 100 : 0
@@ -470,12 +470,12 @@ async function fetchDashboardData(
       totalProducts,
       outOfStockCount,
       lowStockCount,
-      totalStockCostValue: totalStockValue.costValue,
-      totalStockRetailValue: totalStockValue.retailValue,
-      todayRevenue: todaySales._sum.total || 0,
-      todaySalesCount: todaySales._count || 0,
-      monthRevenue: monthSales._sum.total || 0,
-      totalCustomerDebt: (customerDebts._sum.amount || 0) - (customerDebts._sum.paidAmount || 0),
+      totalStockCostValue: Number(totalStockValue.costValue || 0),
+      totalStockRetailValue: Number(totalStockValue.retailValue || 0),
+      todayRevenue: Number(todaySales._sum.total || 0),
+      todaySalesCount: Number(todaySales._count || 0),
+      monthRevenue: Number(monthSales._sum.total || 0),
+      totalCustomerDebt: Number(customerDebts._sum.amount || 0) - Number(customerDebts._sum.paidAmount || 0),
       // New fields
       periodRevenue,
       periodExpenses: periodExpenseTotal,
@@ -506,7 +506,7 @@ async function fetchDashboardData(
     // Allows dashboard to render chart without a separate /api/reports call
     salesTrend: salesTrend.map(row => ({
       date: row.saleDate,
-      revenue: row.dailyRevenue,
+      revenue: Number(row.dailyRevenue),
     })),
   }
 }

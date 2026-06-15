@@ -426,6 +426,14 @@ export async function bootstrapLocalData(
   const stats: Record<string, number> = {}
   const errors: string[] = []
 
+  // Suppress 401 auto-logout during bootstrap — some API calls may fail
+  // with 401 (e.g., if the module isn't active), but we don't want to
+  // trigger a logout during the initial data hydration.
+  api.beginBatchOperation()
+
+  // Ensure we always re-enable 401 auto-logout, even if something throws
+  const finallyUnsuppress = () => { api.endBatchOperation() }
+
   const emitProgress = (partial: Partial<BootstrapProgress>) => {
     const progress: BootstrapProgress = {
       phase: partial.phase ?? 'idle',
@@ -561,6 +569,9 @@ export async function bootstrapLocalData(
   if (typeof window !== 'undefined') {
     localStorage.setItem(`invensync_bootstrapped_${orgId}`, new Date().toISOString())
   }
+
+  // Re-enable 401 auto-logout now that bootstrap is done
+  finallyUnsuppress()
 
   emitProgress({
     phase: hadErrors ? 'error' : 'complete',

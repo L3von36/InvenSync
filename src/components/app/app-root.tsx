@@ -34,17 +34,8 @@ export default function AppRoot() {
   // Prevent double invocation of checkAuth
   const hasCheckedRef = useRef(false)
 
-  // Initialize offline sync when authenticated
-  useEffect(() => {
-    if (!isAuthenticated) return
-    let cleanup: (() => void) | undefined
-    import('@/lib/offline-queue').then(({ initOfflineSync }) => {
-      cleanup = initOfflineSync()
-    })
-    return () => {
-      cleanup?.()
-    }
-  }, [isAuthenticated])
+  // Note: Offline sync is now handled by the new sync engine in app-shell.tsx
+  // The old offline-queue system has been replaced by the Dexie-based sync engine
 
   useEffect(() => {
     if (hasCheckedRef.current) return
