@@ -115,7 +115,12 @@ export default function RootLayout({
           <Toaster richColors position="top-right" />
         </ThemeProvider>
         <SessionExpiryHandler />
-        {/* Service Worker Registration — only in production */}
+        {/* Service Worker Registration — enables offline page loads by serving
+            cached HTML/JS bundles when the network is unavailable. The SW uses
+            a network-first strategy (public/sw.js) so dev HMR stays fresh, and
+            the api-client handles the SW's offline 503 responses for uncached
+            API endpoints (e.g. /api/auth/me) by reconstructing data from
+            IndexedDB. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `

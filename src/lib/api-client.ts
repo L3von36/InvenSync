@@ -861,6 +861,57 @@ class ApiClient {
           throw dbError
         }
 
+        // ----------------------------------------------------------------
+        // Service Worker offline response handling.
+        //
+        // When the app is offline and the service worker intercepts an API
+        // GET request that isn't in its cache, the SW returns a 503 with
+        // { error: 'You are offline', offline: true } (see public/sw.js ->
+        // networkFirstWithCache). This is a *real* Response object, so the
+        // fetch() does NOT throw a TypeError — which means the offline
+        // fallback paths above (navigator.onLine check) and below
+        // (TypeError 'Failed to fetch' check) never run.
+        //
+        // This is especially fatal for /api/auth/me on a fresh page reload
+        // while offline: the SW never cached /api/auth/me (it's only ever
+        // called before the SW takes control, or on a reload that is itself
+        // offline), so the SW returns 503, the api-client throws, and
+        // checkAuth() can't restore the session — leaving the app stuck on
+        // the "Loading InvenSync..." screen.
+        //
+        // Fix: treat the SW's offline 503 exactly like a network failure and
+        // route it through the persistent cache + entity-table fallback. For
+        // /api/auth/me this reconstructs the user profile from IndexedDB
+        // (db.userProfile), letting checkAuth succeed offline.
+        // ----------------------------------------------------------------
+        if (isGet && (data.offline === true || (response.status === 503 && errorCode !== 'DB_UNREACHABLE'))) {
+          // Try persistent IndexedDB cache first
+          try {
+            const { getCachedApiResponse } = await import('@/lib/db')
+            const cached = await getCachedApiResponse<T>(cacheKey)
+            if (cached !== null) {
+              console.log(`[ApiClient] SW offline response — returning cached data for ${cacheKey}`)
+              return cached
+            }
+          } catch {
+            // Fall through to entity-table fallback
+          }
+          // Fallback: reconstruct from IndexedDB entity tables
+          try {
+            const { getOfflineFallback } = await import('@/lib/sync/offline-fallback')
+            const offlineData = await getOfflineFallback<T>(endpoint)
+            if (offlineData !== null) {
+              console.log(`[ApiClient] SW offline response — reconstructed from entity tables for ${endpoint}`)
+              return offlineData
+            }
+          } catch {
+            // Fall through to error
+          }
+          // No cached or entity data available — throw a network-style error
+          // so callers (e.g. checkAuth) can apply their own offline handling.
+          throw new Error('You are offline and no cached data is available for this request. Please connect to the internet.')
+        }
+
         // For 401/403 on non-auth endpoints, try offline fallback from IndexedDB
         // before throwing. This handles cases where the server is unreachable
         // but returns auth errors, or where the user is working offline.

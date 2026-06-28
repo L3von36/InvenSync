@@ -1,14 +1,18 @@
-// InvenSync Service Worker v3
+// InvenSync Service Worker v4
 // Enhanced offline-first caching for PWA support
 // - Cache-first for static assets (JS, CSS, fonts, images)
 // - Network-first for API calls with cache fallback
 // - Stale-while-revalidate for HTML pages
 // - Runtime caching of Next.js static bundles on first load
+//
+// v4: Bumps all cache names so stale v3 caches (which could pin old,
+// pre-fix JS bundles in dev mode and mask the offline fix) are purged
+// on activation.
 
-const CACHE_NAME = 'invensync-v3';
-const STATIC_CACHE = 'invensync-static-v3';
-const API_CACHE = 'invensync-api-v3';
-const RUNTIME_CACHE = 'invensync-runtime-v3';
+const CACHE_NAME = 'invensync-v4';
+const STATIC_CACHE = 'invensync-static-v4';
+const API_CACHE = 'invensync-api-v4';
+const RUNTIME_CACHE = 'invensync-runtime-v4';
 
 // Core static assets to pre-cache on install
 const PRE_CACHE_ASSETS = [
@@ -44,7 +48,20 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event — routing strategy
+// Fetch event — unified network-first strategy with cache fallback.
+//
+// Every GET request (API, JS/CSS bundles, static assets, HTML pages) uses the
+// same strategy: try the network first, cache the response on success, and
+// fall back to the cache (any cache) when the network is unavailable.
+//
+// Why network-first for everything (instead of cache-first for static assets)?
+// In development, Turbopack recompiles chunks on every edit and changes their
+// hashes. A cache-first SW would pin stale pre-edit bundles and mask code
+// changes — including offline fixes — making dev iteration impossible.
+// Network-first always fetches fresh content while online (so HMR/recompiles
+// are reflected immediately) and only relies on the cache when actually
+// offline. The small latency cost in production is acceptable for an
+// offline-first business app where correctness matters more than byte-speed.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -59,7 +76,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip Next.js hot reload and dev requests
+  // Skip Next.js hot reload and dev requests — never cache/intercept these
   if (url.pathname.startsWith('/_next') && url.pathname.includes('.hot-update')) {
     return;
   }
@@ -69,141 +86,58 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy: Network-first for API calls (but return cached when offline)
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirstWithCache(request));
-    return;
-  }
-
-  // Strategy: Cache-first for Next.js static bundles (_next/static/*)
-  // These are hashed and immutable — safe to cache aggressively
-  if (url.pathname.startsWith('/_next/static/')) {
-    event.respondWith(cacheFirstWithRuntime(request));
-    return;
-  }
-
-  // Strategy: Cache-first for static assets (JS, CSS, images, fonts)
-  if (isStaticAsset(url.pathname)) {
-    event.respondWith(cacheFirstWithRuntime(request));
-    return;
-  }
-
-  // Strategy: Stale-while-revalidate for HTML pages
-  event.respondWith(staleWhileRevalidate(request));
+  event.respondWith(networkFirstWithCache(request));
 });
 
-// Cache-first strategy with runtime caching
-// Try cache first, fallback to network, cache the response for next time
-async function cacheFirstWithRuntime(request) {
-  // Check static cache first
-  const staticCached = await caches.match(request, { cacheName: STATIC_CACHE });
-  if (staticCached) {
-    return staticCached;
-  }
-
-  // Check runtime cache next
-  const runtimeCached = await caches.match(request, { cacheName: RUNTIME_CACHE });
-  if (runtimeCached) {
-    // Revalidate in background for next time
-    fetchAndCacheRuntime(request);
-    return runtimeCached;
-  }
-
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      // Cache in the runtime cache for offline use
-      const cache = await caches.open(RUNTIME_CACHE);
-      cache.put(request, response.clone());
-    }
-    return response;
-  } catch (error) {
-    // Last resort: check all caches
-    const anyCached = await caches.match(request);
-    if (anyCached) {
-      return anyCached;
-    }
-    return new Response('', { status: 503, statusText: 'Service Unavailable' });
-  }
-}
-
-// Network-first strategy with cache fallback for API calls
+// Network-first strategy with cache fallback — used for ALL GET requests.
+//
+// Online: fetch from network, cache the response, return it. Always fresh.
+// Offline: try the API cache, then ANY cache. If nothing is cached:
+//   - API requests -> 503 { error: 'You are offline', offline: true } so the
+//     api-client can reconstruct the response from IndexedDB entity tables.
+//   - Non-API requests (HTML/JS/CSS) -> the static offline page.
 async function networkFirstWithCache(request) {
+  const url = new URL(request.url);
+  const isApi = url.pathname.startsWith('/api/');
+  // Pick the right cache to write to: API responses go to API_CACHE, every
+  // other resource (HTML, JS, CSS, fonts, images) goes to RUNTIME_CACHE.
+  const targetCache = isApi ? API_CACHE : RUNTIME_CACHE;
+
   try {
     const response = await fetch(request);
     if (response.ok) {
-      const cache = await caches.open(API_CACHE);
+      const cache = await caches.open(targetCache);
       cache.put(request, response.clone());
     }
     return response;
   } catch (error) {
-    // Try API cache first
-    const cached = await caches.match(request, { cacheName: API_CACHE });
+    // Network failed (offline). Try the target cache first, then any cache.
+    const cached = await caches.match(request, { cacheName: targetCache });
     if (cached) {
       return cached;
     }
-    // Try any cache
-    const anyCached = await caches.match(request);
-    if (anyCached) {
-      return anyCached;
+    try {
+      const anyCached = await caches.match(request);
+      if (anyCached) {
+        return anyCached;
+      }
+    } catch {
+      // Fall through to offline response
     }
-    // Return offline JSON response
-    return new Response(JSON.stringify({ error: 'You are offline', offline: true }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-}
-
-// Stale-while-revalidate: Return cache if available, fetch in background to update
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
-
-  const fetchPromise = fetch(request)
-    .then((response) => {
-      if (response.ok) {
-        cache.put(request, response.clone());
-      }
-      return response;
-    })
-    .catch(() => {
-      // If network fails and we have cache, return it
-      if (cached) {
-        return cached;
-      }
-      // If no cache and offline, return offline page
-      return new Response(offlinePage(), {
+    // Nothing cached. For API requests, return a JSON offline response the
+    // api-client knows how to handle (it reconstructs data from IndexedDB).
+    // For everything else, return the static offline HTML page.
+    if (isApi) {
+      return new Response(JSON.stringify({ error: 'You are offline', offline: true }), {
         status: 503,
-        headers: { 'Content-Type': 'text/html' },
+        headers: { 'Content-Type': 'application/json' },
       });
-    });
-
-  // Return cache immediately if available, otherwise wait for network
-  return cached || fetchPromise;
-}
-
-// Background fetch and cache — doesn't block the response
-async function fetchAndCacheRuntime(request) {
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      const cache = await caches.open(RUNTIME_CACHE);
-      cache.put(request, response.clone());
     }
-  } catch {
-    // Silently ignore — background revalidation
+    return new Response(offlinePage(), {
+      status: 503,
+      headers: { 'Content-Type': 'text/html' },
+    });
   }
-}
-
-// Check if a pathname is a static asset
-function isStaticAsset(pathname) {
-  const staticExtensions = [
-    '.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg',
-    '.ico', '.woff', '.woff2', '.ttf', '.eot', '.webp',
-    '.json', '.xml', '.txt', '.map',
-  ];
-  return staticExtensions.some((ext) => pathname.endsWith(ext));
 }
 
 // Generate offline fallback page
