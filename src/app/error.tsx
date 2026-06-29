@@ -1,7 +1,35 @@
 'use client'
 
+import { useEffect } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { clearChunkReloadFlag } from '@/components/shared/error-boundary'
+
+// Must match the key in error-boundary.tsx so only ONE auto-reload happens
+// per session across all error handlers (boundary, route error, global listener).
+const CHUNK_RELOAD_KEY = 'invensync_chunk_reloaded'
+const CHUNK_RELOAD_LIMIT = 1
+
+function isChunkLoadError(error: Error): boolean {
+  return (
+    error?.name === 'ChunkLoadError' ||
+    error?.message?.includes('Failed to load chunk') ||
+    error?.message?.includes('Loading chunk') ||
+    error?.message?.includes('ChunkLoadError') ||
+    error?.message?.includes('dynamically imported module')
+  )
+}
+
+function shouldAutoReload(): boolean {
+  try {
+    const count = parseInt(sessionStorage.getItem(CHUNK_RELOAD_KEY) || '0', 10)
+    if (count >= CHUNK_RELOAD_LIMIT) return false
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, String(count + 1))
+    return true
+  } catch {
+    return true
+  }
+}
 
 export default function Error({
   error,
@@ -14,14 +42,24 @@ export default function Error({
   console.error('[InvenSync Route Error]', {
     digest: error.digest,
     message: error.message,
+    name: error.name,
   })
 
-  // ChunkLoadError means stale deployment — must hard-reload to get new chunks
-  const isChunkError = error.message?.includes('Failed to load chunk') ||
-    error.message?.includes('ChunkLoadError')
+  const isChunkError = isChunkLoadError(error)
+
+  // Auto-reload on ChunkLoadError (stale deployment) — once per session.
+  // This catches chunk errors that bubble up to the Next.js route error
+  // boundary instead of the React GlobalErrorBoundary.
+  useEffect(() => {
+    if (isChunkError && shouldAutoReload()) {
+      console.warn('[Route Error] ChunkLoadError — auto-reloading for new chunks')
+      window.location.reload()
+    }
+  }, [isChunkError])
 
   const handleRetry = () => {
     if (isChunkError) {
+      clearChunkReloadFlag()
       window.location.reload()
     } else {
       reset()

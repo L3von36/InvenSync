@@ -115,6 +115,56 @@ export default function RootLayout({
           <Toaster richColors position="top-right" />
         </ThemeProvider>
         <SessionExpiryHandler />
+        {/* Global ChunkLoadError auto-reload listener.
+            Runs before React hydrates so it catches chunk errors that happen
+            outside React's error boundaries (event handlers, unhandled promise
+            rejections). Uses the same sessionStorage key + limit as the React
+            error boundary and route error.tsx so at most ONE auto-reload occurs
+            per session — preventing infinite loops if the new deployment is
+            also broken. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var KEY = 'invensync_chunk_reloaded';
+                var LIMIT = 1;
+                function isChunkErr(msg, name) {
+                  msg = msg || ''; name = name || '';
+                  return name === 'ChunkLoadError' ||
+                    msg.indexOf('Failed to load chunk') > -1 ||
+                    msg.indexOf('Loading chunk') > -1 ||
+                    msg.indexOf('ChunkLoadError') > -1 ||
+                    msg.indexOf('dynamically imported module') > -1;
+                }
+                function canReload() {
+                  try {
+                    var c = parseInt(sessionStorage.getItem(KEY) || '0', 10);
+                    if (c >= LIMIT) return false;
+                    sessionStorage.setItem(KEY, String(c + 1));
+                    return true;
+                  } catch (e) { return true; }
+                }
+                // Catch synchronous errors (e.g. <script> chunk load failures)
+                window.addEventListener('error', function(e) {
+                  var err = e.error || e;
+                  if (isChunkErr(err && err.message, err && err.name) && canReload()) {
+                    console.warn('[ChunkGuard] ChunkLoadError — auto-reloading');
+                    window.location.reload();
+                  }
+                });
+                // Catch dynamic import failures that reject as unhandled promises
+                window.addEventListener('unhandledrejection', function(e) {
+                  var err = e.reason;
+                  if (isChunkErr(err && err.message, err && err.name) && canReload()) {
+                    console.warn('[ChunkGuard] ChunkLoadError (promise) — auto-reloading');
+                    e.preventDefault();
+                    window.location.reload();
+                  }
+                });
+              })();
+            `,
+          }}
+        />
         {/* Service Worker Registration — enables offline page loads by serving
             cached HTML/JS bundles when the network is unavailable. The SW uses
             a network-first strategy (public/sw.js) so dev HMR stays fresh, and
