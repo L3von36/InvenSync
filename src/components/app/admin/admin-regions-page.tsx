@@ -95,7 +95,15 @@ function RegionFormDialog({
     }
     setSaving(true)
     try {
-      const payload: Record<string, unknown> = {
+      const payload: {
+        name: string
+        slug: string
+        country: string
+        latitude: number | null
+        longitude: number | null
+        population: number | null
+        description: string | null
+      } = {
         name: form.name.trim(),
         slug: form.slug.trim(),
         country: form.country.trim() || 'Ethiopia',
@@ -277,7 +285,7 @@ export function AdminRegionsPage() {
   // Fetch regions list
   const fetchRegions = useCallback(async () => {
     try {
-      const data = await api.getAdminRegions({ includeStats: 'true' })
+      const data = await api.getAdminRegions({ includeStats: true })
       setRegions(data.regions || [])
     } catch (err) {
       toast.error(getNetworkErrorMessage(err))

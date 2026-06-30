@@ -129,9 +129,9 @@ export function handleApiError(error: unknown, context?: string): NextResponse<A
     statusCode = 400
     // Capture for monitoring (validation errors are lower priority but still useful)
     errorMonitor.capture(error, { type: 'validation', statusCode: 400, endpoint: context })
-    const zodIssues = error.issues ?? error.errors ?? []
-    const details = zodIssues.map((e: { path: (string | number)[]; message: string }) => ({
-      field: e.path.join('.'),
+    // Zod v4 exposes validation problems via `.issues`; `path` entries are PropertyKeys.
+    const details = error.issues.map((e) => ({
+      field: e.path.map(String).join('.'),
       message: e.message,
     }))
     return errorResponse('Validation failed', 400, 'VALIDATION_ERROR', details)

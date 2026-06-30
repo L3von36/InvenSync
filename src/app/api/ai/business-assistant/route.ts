@@ -173,10 +173,12 @@ async function computeBusinessAssistant(orgId: string, question: string) {
     }).then(async (items) => {
       const results = await Promise.all(
         items.map(async (item) => {
-          const product = await db.product.findUnique({
-            where: { id: item.productId },
-            select: { name: true }
-          })
+          const product = item.productId
+            ? await db.product.findUnique({
+                where: { id: item.productId },
+                select: { name: true }
+              })
+            : null
           return {
             name: product?.name || 'Unknown',
             revenue: item._sum.total || 0,

@@ -22,7 +22,7 @@ import { db } from '@/lib/prisma'
 // Lazy getter for JWT_SECRET — avoids throwing during `next build` (which runs in production mode)
 // when no auth operations are actually performed. The error is raised at runtime instead.
 let _jwtSecret: string | undefined
-function getJwtSecret(): string {
+export function getJwtSecret(): string {
   if (_jwtSecret) return _jwtSecret
   if (process.env.JWT_SECRET) {
     _jwtSecret = process.env.JWT_SECRET
@@ -102,6 +102,7 @@ export type AuthUser = {
       id: string
       name: string
       slug: string
+      logoUrl: string | null
       currency: string
       country: string
       businessType: string

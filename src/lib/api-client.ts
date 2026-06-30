@@ -300,6 +300,18 @@ export interface Shop {
   memberCount?: number
 }
 
+// Shape returned by the shops list endpoint, which always includes the shop's
+// members (with user details) and aggregate counts.
+export interface ShopWithDetails extends Shop {
+  members: Array<{
+    id: string
+    userId: string
+    role: string
+    user: { id: string; name: string; email: string; avatarUrl?: string | null }
+  }>
+  _count: { products: number; sales: number }
+}
+
 export interface ShopMemberData {
   id: string
   userId: string
@@ -1004,6 +1016,46 @@ class ApiClient {
   }
 
   // ============================================
+  // Generic REST helpers
+  // ----------------------------------------------------------------
+  // Public, typed wrappers around the private `request` method for
+  // endpoints that don't (yet) have a dedicated method. Bodies are
+  // JSON-serialized automatically.
+  // ============================================
+
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint)
+  }
+
+  async post<T>(endpoint: string, body?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    })
+  }
+
+  async put<T>(endpoint: string, body?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    })
+  }
+
+  async patch<T>(endpoint: string, body?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    })
+  }
+
+  async delete<T>(endpoint: string, body?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'DELETE',
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    })
+  }
+
+  // ============================================
   // Auth
   // ============================================
 
@@ -1018,7 +1070,7 @@ class ApiClient {
     // during the login process
     this._isLoggingIn = true
     try {
-      const data = await this.request('/api/auth/login', {
+      const data = await this.request<{ token: string; user: User; organizations: Organization[] }>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
@@ -1050,7 +1102,7 @@ class ApiClient {
     this.clearToken()
     this._isLoggingIn = true
     try {
-      const data = await this.request('/api/auth/register', {
+      const data = await this.request<{ token: string; user: User; organization: Organization }>('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify({ name, email, password, organizationName: orgName, ...extra }),
       })
@@ -1123,7 +1175,7 @@ class ApiClient {
     this.clearToken()
     this._isLoggingIn = true
     try {
-      const data = await this.request('/api/auth/login/2fa', {
+      const data = await this.request<{ token: string; user: User; organizations: Organization[] }>('/api/auth/login/2fa', {
         method: 'POST',
         body: JSON.stringify({ tempToken, code }),
       })
@@ -1209,7 +1261,7 @@ class ApiClient {
     productTypeCount: number
     attributeCount: number
   }> {
-    const result = await this.request('/api/organizations/business-type', {
+    const result = await this.request<{ success: boolean; businessType: string; seeded: boolean; productTypeCount: number; attributeCount: number }>('/api/organizations/business-type', {
       method: 'POST',
       body: JSON.stringify({ orgId, businessType }),
     })
@@ -1233,7 +1285,7 @@ class ApiClient {
     icon?: string
     attributes?: Array<{ name: string; fieldType: string; options?: string; required?: boolean }>
   }): Promise<{ productType: ProductType }> {
-    const result = await this.request('/api/product-types', {
+    const result = await this.request<{ productType: ProductType }>('/api/product-types', {
       method: 'POST',
       body: JSON.stringify({ orgId, ...data }),
     })
@@ -1247,7 +1299,7 @@ class ApiClient {
     icon?: string
     attributes?: Array<{ name: string; fieldType: string; options?: string; required?: boolean }>
   }): Promise<{ productType: ProductType }> {
-    const result = await this.request(`/api/product-types/${id}`, {
+    const result = await this.request<{ productType: ProductType }>(`/api/product-types/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ orgId, ...data }),
     })
@@ -1297,7 +1349,7 @@ class ApiClient {
     attributeValues?: Array<{ attributeDefinitionId: string; value: string }>
     shopId?: string
   }): Promise<{ product: Product }> {
-    const result = await this.request('/api/products', {
+    const result = await this.request<{ product: Product }>('/api/products', {
       method: 'POST',
       body: JSON.stringify({ orgId, ...data }),
     })
@@ -1317,7 +1369,7 @@ class ApiClient {
     lowStockThreshold?: number
     attributeValues?: Array<{ attributeDefinitionId: string; value: string }>
   }): Promise<{ product: Product }> {
-    const result = await this.request(`/api/products/${id}`, {
+    const result = await this.request<{ product: Product }>(`/api/products/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ orgId, ...data }),
     })
@@ -1389,7 +1441,7 @@ class ApiClient {
     address?: string
     shopId?: string
   }): Promise<{ customer: Customer }> {
-    const result = await this.request('/api/customers', {
+    const result = await this.request<{ customer: Customer }>('/api/customers', {
       method: 'POST',
       body: JSON.stringify({ orgId, ...data }),
     })
@@ -1403,7 +1455,7 @@ class ApiClient {
     phone?: string
     address?: string
   }): Promise<{ customer: Customer }> {
-    const result = await this.request(`/api/customers/${id}`, {
+    const result = await this.request<{ customer: Customer }>(`/api/customers/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ orgId, ...data }),
     })
@@ -1499,7 +1551,7 @@ class ApiClient {
     notes?: string
     shopId?: string
   }): Promise<{ sale: Sale }> {
-    const result = await this.request('/api/sales', {
+    const result = await this.request<{ sale: Sale }>('/api/sales', {
       method: 'POST',
       body: JSON.stringify({ orgId, ...data }),
     })
@@ -1892,7 +1944,7 @@ class ApiClient {
   // Shops
   // ============================================
 
-  async getShops(orgId: string): Promise<{ shops: Shop[] }> {
+  async getShops(orgId: string): Promise<{ shops: ShopWithDetails[] }> {
     return this.request(`/api/shops?orgId=${orgId}`)
   }
 
@@ -2116,7 +2168,7 @@ class ApiClient {
   async createAdminModule(data: {
     key: string
     name: string
-    description: string
+    description?: string
     icon?: string
     category?: string
     priceETB?: number
@@ -2604,10 +2656,10 @@ class ApiClient {
     name: string
     slug: string
     country?: string
-    latitude?: number
-    longitude?: number
-    population?: number
-    description?: string
+    latitude?: number | null
+    longitude?: number | null
+    population?: number | null
+    description?: string | null
     order?: number
   }): Promise<{ region: RegionData }> {
     return this.request('/api/admin/regions', {
@@ -2620,10 +2672,10 @@ class ApiClient {
     name?: string
     slug?: string
     country?: string
-    latitude?: number
-    longitude?: number
-    population?: number
-    description?: string
+    latitude?: number | null
+    longitude?: number | null
+    population?: number | null
+    description?: string | null
     isActive?: boolean
     order?: number
   }): Promise<{ region: RegionData }> {

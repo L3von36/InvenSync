@@ -7,6 +7,7 @@
  * No external OTP libraries — uses Node.js crypto module directly.
  */
 import crypto from 'crypto'
+import { getJwtSecret } from '@/lib/auth'
 
 // ============================================
 // Constants
@@ -167,10 +168,9 @@ export function generateTempToken(userId: string): string {
     rand: crypto.randomBytes(8).toString('hex'), // prevent guessing
   }
   const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const hmacSecret = process.env.JWT_SECRET || (() => {
-    console.warn('[2FA] WARNING: JWT_SECRET not set. Using generated secret. Set JWT_SECRET in production!')
-    return crypto.randomBytes(32).toString('hex')
-  })()
+  // Shared, cached signing secret (production-enforced; see getJwtSecret).
+  // Using a single cached secret ensures generate/verify agree within a process.
+  const hmacSecret = getJwtSecret()
   const signature = crypto
     .createHmac('sha256', hmacSecret)
     .update(encoded)

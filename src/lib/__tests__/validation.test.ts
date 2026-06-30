@@ -191,9 +191,9 @@ describe('validation utilities', () => {
   // validatePassword
   // ============================================
   describe('validatePassword', () => {
-    it('should return null for a valid password (6+ characters)', () => {
-      expect(validatePassword('password123')).toBeNull()
-      expect(validatePassword('123456')).toBeNull()
+    it('should return null for a valid strong password (8+ chars, mixed case, digit, special)', () => {
+      expect(validatePassword('Password123!')).toBeNull()
+      expect(validatePassword('Str0ng@Pass')).toBeNull()
     })
 
     it('should return an error for empty password', () => {
@@ -202,10 +202,17 @@ describe('validation utilities', () => {
       expect(result!.message).toContain('required')
     })
 
-    it('should return an error for passwords shorter than 6 characters', () => {
-      const result = validatePassword('12345')
+    it('should return an error for passwords shorter than 8 characters', () => {
+      const result = validatePassword('Ab1!')
       expect(result).not.toBeNull()
-      expect(result!.message).toContain('6')
+      expect(result!.message).toContain('8')
+    })
+
+    it('should require uppercase, lowercase, digit, and special character', () => {
+      expect(validatePassword('alllowercase1!')).not.toBeNull() // missing uppercase
+      expect(validatePassword('ALLUPPERCASE1!')).not.toBeNull() // missing lowercase
+      expect(validatePassword('NoDigitsHere!')).not.toBeNull()  // missing digit
+      expect(validatePassword('NoSpecial1234')).not.toBeNull()  // missing special char
     })
   })
 

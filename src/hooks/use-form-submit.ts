@@ -5,7 +5,7 @@
 // ============================================
 
 import { useState, useCallback } from 'react'
-import { type UseFormReturn } from 'react-hook-form'
+import { type FieldValues, type UseFormReturn } from 'react-hook-form'
 import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
 
@@ -17,7 +17,7 @@ interface UseFormSubmitOptions<TData> {
   resetOnSuccess?: boolean
 }
 
-interface UseFormSubmitReturn<TFieldValues> {
+interface UseFormSubmitReturn<TFieldValues extends FieldValues> {
   isSubmitting: boolean
   formError: string | null
   handleSubmit: (
@@ -29,7 +29,7 @@ interface UseFormSubmitReturn<TFieldValues> {
 
 type TData = unknown
 
-export function useFormSubmit<TFieldValues extends Record<string, unknown> = Record<string, unknown>>(
+export function useFormSubmit<TFieldValues extends FieldValues = FieldValues>(
   options: UseFormSubmitOptions<TData> = {}
 ): UseFormSubmitReturn<TFieldValues> {
   const [isSubmitting, setIsSubmitting] = useState(false)

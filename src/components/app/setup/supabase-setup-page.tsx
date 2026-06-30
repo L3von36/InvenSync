@@ -327,7 +327,7 @@ export function SupabaseSetupPage() {
   const isUnreachable = dbStatus === 'unreachable'
 
   // Determine the current setup step
-  const currentStep: SetupStep = (() => {
+  const currentStep: SetupStep = ((): SetupStep => {
     if (!isSupabaseConfigured) return 'check-env'
     if (isUnreachable) return 'run-migration'
     if (isSchemaMissing) return 'push-schema'

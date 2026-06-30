@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
+import { db } from '@/lib/db'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
@@ -269,7 +270,7 @@ export async function POST(request: Request) {
       await tx.saleItem.createMany({ data: saleItemsData })
 
       // Batch update product quantities and create stock movements
-      const stockMovementsData = []
+      const stockMovementsData: Prisma.StockMovementCreateManyInput[] = []
       for (const item of items) {
         const product = productMap.get(item.productId)!
         const itemQty = typeof item.quantity === 'string' ? parseInt(item.quantity, 10) : item.quantity

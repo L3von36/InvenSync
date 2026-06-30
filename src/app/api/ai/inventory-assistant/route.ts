@@ -87,6 +87,7 @@ Include only attributes that are clearly visible in the image. Be as specific as
 
     const ai = await createAI()
     const response = await ai.chat.completions.createVision({
+      model: 'glm-4v',
       messages: [
         {
           role: 'user',

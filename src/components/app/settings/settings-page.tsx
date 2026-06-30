@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { authFetch } from '@/lib/auth-fetch'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@/lib/zod-resolver'
 import {
   Building2, CreditCard, Plug, Save, Check, X,
   Send, MessageSquare, UserPlus, Shield, Crown, Loader2,
@@ -12,7 +12,7 @@ import {
   Pencil, MapPin, Phone, ChevronDown, ChevronUp, Trash2,
   Search, LayoutGrid, Sparkles, Zap, Wrench
 } from 'lucide-react'
-import { api, type Organization } from '@/lib/api-client'
+import { api, type Organization, type ShopWithDetails } from '@/lib/api-client'
 import { LocationPicker } from '@/components/app/shared/location-picker'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -772,16 +772,7 @@ const MODULE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }
 // Shops Tab
 // ============================================
 function ShopsTab({ orgId }: { orgId: string }) {
-  const [shops, setShops] = useState<Array<{
-    id: string
-    name: string
-    address: string | null
-    city: string | null
-    phone: string | null
-    isActive: boolean
-    members: Array<{ id: string; userId: string; role: string; user: { id: string; name: string; email: string; avatarUrl?: string | null } }>
-    _count: { products: number; sales: number }
-  }>>([])
+  const [shops, setShops] = useState<ShopWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [showDialog, setShowDialog] = useState(false)
@@ -1074,8 +1065,8 @@ function ShopsTab({ orgId }: { orgId: string }) {
               <div className="space-y-2">
                 <Label>Location</Label>
                 <LocationPicker
-                  latitude={shopForm.watch('latitude')}
-                  longitude={shopForm.watch('longitude')}
+                  latitude={shopForm.watch('latitude') ?? null}
+                  longitude={shopForm.watch('longitude') ?? null}
                   onChange={(lat, lng) => {
                     shopForm.setValue('latitude', lat)
                     shopForm.setValue('longitude', lng)

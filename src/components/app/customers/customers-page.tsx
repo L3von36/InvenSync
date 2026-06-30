@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@/lib/zod-resolver'
 import {
   Users, UserPlus, Search, Eye, Pencil, Trash2,
   TrendingUp, CreditCard, Calendar, Mail, Phone, MapPin,
@@ -227,7 +227,7 @@ export function CustomersPage() {
           // Run stats and debts fetch in parallel for better performance
           const [allData, debtsData] = await Promise.all([
             api.getCustomers(orgId, { limit: 100, shopId }),
-            api.getDebts(orgId, { type: 'customer_debt', status: 'all', limit: '100', shopId }),
+            api.getDebts(orgId, { type: 'customer_debt', status: 'all', limit: 100, shopId }),
           ])
 
           // New this month
@@ -364,7 +364,7 @@ export function CustomersPage() {
       setCustomerSales(filteredSales)
 
       // Fetch debts for this customer
-      const debtsData = await api.getDebts(orgId, { type: 'customer_debt', limit: '100', shopId })
+      const debtsData = await api.getDebts(orgId, { type: 'customer_debt', limit: 100, shopId })
       const filteredDebts = debtsData.debts.filter((d) => d.customerId === customer.id)
       setCustomerDebts(filteredDebts)
     } catch (err) {

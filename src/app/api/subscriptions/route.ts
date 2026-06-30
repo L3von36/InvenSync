@@ -107,7 +107,7 @@ export async function POST(request: Request) {
     // Direct subscription upgrades without payment verification are blocked
     if (body.plan === 'premium' || body.plan === 'enterprise') {
       // Check if this request came from an admin or has a valid payment reference
-      if (!body.paymentReference && !user.isAdmin) {
+      if (!body.paymentReference && user.role !== 'admin') {
         return NextResponse.json({ 
           error: 'Payment verification required for premium plans. Please complete payment first.' 
         }, { status: 402 })

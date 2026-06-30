@@ -224,7 +224,7 @@ export async function DELETE(
     // Verify org exists
     const existing = await db.organization.findUnique({
       where: { id },
-      select: { id: true, name: true, _count: { select: { members: true, shops: true, sales: true, customers: true, products: true } } },
+      select: { id: true, name: true, _count: { select: { members: true, shops: true, sales: true, customers: true } } },
     })
     if (!existing) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
@@ -235,7 +235,7 @@ export async function DELETE(
 
     return NextResponse.json({
       success: true,
-      message: `Organization "${existing.name}" deleted successfully along with ${existing._count.shops} shop(s), ${existing._count.members} member(s), ${existing._count.sales} sale(s), ${existing._count.customers} customer(s), and ${existing._count.products} product(s).`,
+      message: `Organization "${existing.name}" deleted successfully along with ${existing._count.shops} shop(s), ${existing._count.members} member(s), ${existing._count.sales} sale(s), and ${existing._count.customers} customer(s).`,
     })
   } catch (error) {
     if (isDatabaseError(error)) {

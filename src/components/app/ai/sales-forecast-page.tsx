@@ -141,7 +141,7 @@ export function SalesForecastPage() {
     setIsLoading(true)
     setFetchError(null)
     try {
-      const data = await api.getSalesForecast(currentOrg.id, p) as ForecastResult
+      const data = await api.getSalesForecast(currentOrg.id, p) as unknown as ForecastResult
       setResult(data)
       toast.success('Forecast generated', {
         description: `Prediction for next ${p} powered by ${data.source === 'ai' ? 'AI' : 'rule-based engine'}`,

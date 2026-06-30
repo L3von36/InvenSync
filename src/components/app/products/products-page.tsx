@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { authFetch } from '@/lib/auth-fetch'
 import { usePageSearch } from '@/hooks/use-page-search'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@/lib/zod-resolver'
 import {
   Plus,
   Search,
@@ -333,7 +333,7 @@ function ProductDialog({
           name: data.name.trim(),
           sku: data.sku?.trim() || undefined,
           description: data.description?.trim() || undefined,
-          imageUrl: imagePreview || product?.imageUrl || undefined,
+          imageUrl: imagePreview || undefined,
           quantity,
           costPrice,
           sellingPrice,

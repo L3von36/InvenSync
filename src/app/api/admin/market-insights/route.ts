@@ -93,6 +93,8 @@ export async function GET(request: Request) {
     // Aggregate by product
     const productSalesMap = new Map<string, { name: string; orgName: string; category: string; quantitySold: number; revenue: number }>()
     saleItems.forEach(item => {
+      // Skip items whose product was deleted (productId/product nullable after deletion)
+      if (!item.product || !item.productId) return
       const orgName = item.product.shop?.organization?.name || orgMap.get(item.product.organizationId)?.name || 'Unknown'
       const existing = productSalesMap.get(item.productId)
       if (existing) {
@@ -116,6 +118,7 @@ export async function GET(request: Request) {
     // Demand by category (aggregate product type demand)
     const demandByCategory = new Map<string, { category: string; quantitySold: number; revenue: number }>()
     saleItems.forEach(item => {
+      if (!item.product) return
       const cat = item.product.productType.name
       const existing = demandByCategory.get(cat)
       if (existing) {

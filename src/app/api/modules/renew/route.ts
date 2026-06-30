@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     // If module is expired, start from now
     const now = new Date()
     const isExpired = !orgModule.expiresAt || new Date(orgModule.expiresAt) < now
-    const baseDate = isExpired ? now : new Date(orgModule.expiresAt)
+    const baseDate = isExpired || !orgModule.expiresAt ? now : new Date(orgModule.expiresAt)
 
     const daysToAdd = billingCycle === 'yearly' ? 365 : 30
     const newExpiresAt = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000)

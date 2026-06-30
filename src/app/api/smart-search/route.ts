@@ -73,8 +73,8 @@ export async function POST(request: Request) {
 async function interpretQuery(query: string): Promise<SearchIntent> {
   // Try using the AI SDK to interpret the query
   try {
-    const { createSdk } = await import('z-ai-web-dev-sdk')
-    const sdk = createSdk()
+    const { createAI } = await import('@/lib/ai')
+    const sdk = await createAI()
 
     const SYSTEM_PROMPT = `You are a search query interpreter for an inventory management system called InvenSync. 
 Given a natural language query, extract the search intent and return a JSON object with:
@@ -294,7 +294,7 @@ async function searchSales(filters: Record<string, unknown>, orgId: string, limi
     where,
     select: {
       id: true,
-      saleNumber: true,
+      invoiceNumber: true,
       total: true,
       status: true,
       saleDate: true,
@@ -306,7 +306,7 @@ async function searchSales(filters: Record<string, unknown>, orgId: string, limi
 
   return sales.map(s => ({
     id: s.id,
-    saleNumber: s.saleNumber,
+    saleNumber: s.invoiceNumber,
     total: s.total,
     status: s.status,
     saleDate: s.saleDate.toISOString(),
@@ -317,10 +317,6 @@ async function searchSales(filters: Record<string, unknown>, orgId: string, limi
 async function searchCustomers(filters: Record<string, unknown>, orgId: string, limit: number) {
   const where: Record<string, unknown> = { organizationId: orgId }
 
-  if (filters.hasDebt) {
-    where.balance = { gt: 0 }
-  }
-
   if (filters.name) {
     where.name = { contains: filters.name as string }
   }
@@ -329,8 +325,10 @@ async function searchCustomers(filters: Record<string, unknown>, orgId: string, 
     where.phone = { contains: filters.phone as string }
   }
 
-  if (filters.minBalance) {
-    where.balance = { ...(where.balance as object || {}), gte: filters.minBalance }
+  // A customer's outstanding balance is derived from unpaid customer_debt records
+  // (there is no denormalized balance column on Customer).
+  if (filters.hasDebt) {
+    where.debts = { some: { type: 'customer_debt', status: { not: 'paid' } } }
   }
 
   const customers = await db.customer.findMany({
@@ -340,20 +338,33 @@ async function searchCustomers(filters: Record<string, unknown>, orgId: string, 
       name: true,
       phone: true,
       email: true,
-      balance: true,
+      debts: {
+        where: { type: 'customer_debt', status: { not: 'paid' } },
+        select: { amount: true, paidAmount: true },
+      },
     },
     take: limit,
     orderBy: { createdAt: 'desc' },
   })
 
-  return customers.map(c => ({
-    id: c.id,
-    name: c.name,
-    phone: c.phone,
-    email: c.email,
-    balance: c.balance,
-    hasDebt: c.balance > 0,
-  }))
+  let result = customers.map(c => {
+    const balance = c.debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
+    return {
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      balance,
+      hasDebt: balance > 0,
+    }
+  })
+
+  const minBalance = filters.minBalance != null ? Number(filters.minBalance) : null
+  if (minBalance != null && !Number.isNaN(minBalance)) {
+    result = result.filter(c => c.balance >= minBalance)
+  }
+
+  return result
 }
 
 async function searchSuppliers(filters: Record<string, unknown>, orgId: string, limit: number) {
@@ -363,10 +374,6 @@ async function searchSuppliers(filters: Record<string, unknown>, orgId: string, 
     where.name = { contains: filters.name as string }
   }
 
-  if (filters.city) {
-    where.city = { contains: filters.city as string }
-  }
-
   const suppliers = await db.supplier.findMany({
     where,
     select: {
@@ -374,8 +381,11 @@ async function searchSuppliers(filters: Record<string, unknown>, orgId: string, 
       name: true,
       phone: true,
       email: true,
-      city: true,
-      balance: true,
+      address: true,
+      debts: {
+        where: { type: 'supplier_debt', status: { not: 'paid' } },
+        select: { amount: true, paidAmount: true },
+      },
     },
     take: limit,
     orderBy: { createdAt: 'desc' },
@@ -386,8 +396,8 @@ async function searchSuppliers(filters: Record<string, unknown>, orgId: string, 
     name: s.name,
     phone: s.phone,
     email: s.email,
-    city: s.city,
-    balance: s.balance,
+    address: s.address,
+    balance: s.debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0),
   }))
 }
 

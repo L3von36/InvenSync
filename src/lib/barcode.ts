@@ -411,7 +411,7 @@ function computeErrorCorrection(data: number[], ecCount: number): number[] {
     ec.push(0)
     if (temp !== 0) {
       for (let i = 0; i < ecCount; i++) {
-        ec[i] ^= gfMultiply(temp, GENERATOR_ROOTS[ecCount - 1 - i])
+        ec[i] ^= gfMultiply(temp, GENERATOR_ROOTS[ecCount][ecCount - 1 - i])
       }
     }
   }

@@ -16,7 +16,7 @@
  *   --batch-size N  Insert batch size (default: 500 for SQLite)
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 import { hash } from 'bcryptjs'
 
 const prisma = new PrismaClient({
@@ -314,7 +314,7 @@ async function main() {
   
   for (let i = 0; i < scale; i += batchSize) {
     const batch = Math.min(batchSize, scale - i)
-    const productData = []
+    const productData: Prisma.ProductCreateManyInput[] = []
     
     for (let j = 0; j < batch; j++) {
       const idx = i + j
@@ -363,7 +363,7 @@ async function main() {
   
   for (let i = 0; i < numSuppliers; i += batchSize) {
     const batch = Math.min(batchSize, numSuppliers - i)
-    const supplierData = []
+    const supplierData: Prisma.SupplierCreateManyInput[] = []
     for (let j = 0; j < batch; j++) {
       const idx = i + j
       const name = `${randomFrom(PRODUCT_PREFIXES)} ${randomFrom(['Trading', 'Import', 'Export', 'Supply', 'Wholesale', 'Enterprise', 'Group', 'Industries'])}`
@@ -396,7 +396,7 @@ async function main() {
   
   for (let i = 0; i < scale; i += batchSize) {
     const batch = Math.min(batchSize, scale - i)
-    const customerData = []
+    const customerData: Prisma.CustomerCreateManyInput[] = []
     for (let j = 0; j < batch; j++) {
       const idx = i + j
       const firstName = randomFrom(ETHIOPIAN_FIRST_NAMES)
@@ -440,7 +440,7 @@ async function main() {
       const numItems = randomInt(1, 5)
       
       // Pick random products for items
-      const saleProducts = []
+      const saleProducts: typeof products = []
       for (let k = 0; k < numItems; k++) {
         saleProducts.push(products[Math.floor(Math.random() * products.length)])
       }
@@ -528,7 +528,7 @@ async function main() {
   
   for (let i = 0; i < numExpenses; i += batchSize) {
     const batch = Math.min(batchSize, numExpenses - i)
-    const expenseData = []
+    const expenseData: Prisma.ExpenseCreateManyInput[] = []
     for (let j = 0; j < batch; j++) {
       const idx = i + j
       expenseData.push({
@@ -556,7 +556,7 @@ async function main() {
   
   for (let i = 0; i < numDebts; i += batchSize) {
     const batch = Math.min(batchSize, numDebts - i)
-    const debtData = []
+    const debtData: Prisma.DebtCreateManyInput[] = []
     for (let j = 0; j < batch; j++) {
       const idx = i + j
       const isCustomer = Math.random() > 0.3
@@ -590,7 +590,7 @@ async function main() {
   
   for (let i = 0; i < numMovements; i += batchSize) {
     const batch = Math.min(batchSize, numMovements - i)
-    const movementData = []
+    const movementData: Prisma.StockMovementCreateManyInput[] = []
     for (let j = 0; j < batch; j++) {
       const idx = i + j
       const product = products[idx % products.length]

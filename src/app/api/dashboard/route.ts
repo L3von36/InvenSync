@@ -176,7 +176,10 @@ async function fetchDashboardData(
     ).then(result => Number(result[0]?.count ?? 0)),
 
     // Total stock value — raw SQL: DB-side SUM aggregation
-    db.$queryRaw<Array<{ costValue: number; retailValue: number }>>(
+    // NOTE: SUM over integer columns returns a bigint on SQLite (and on Postgres
+    // when the operand is an int4 column). Coerce to Number eagerly so downstream
+    // arithmetic and JSON serialization don't throw "Cannot mix BigInt" errors.
+    db.$queryRaw<Array<{ costValue: number | bigint; retailValue: number | bigint }>>(
       Prisma.sql`
         SELECT COALESCE(SUM(quantity * "costPrice"), 0) as costValue,
                COALESCE(SUM(quantity * "sellingPrice"), 0) as retailValue
@@ -185,8 +188,8 @@ async function fetchDashboardData(
         ${shopId ? Prisma.sql`AND ("shopId" = ${shopId} OR "shopId" IS NULL)` : Prisma.empty}
       `
     ).then(result => ({
-      costValue: result[0]?.costValue ?? 0,
-      retailValue: result[0]?.retailValue ?? 0,
+      costValue: Number(result[0]?.costValue ?? 0),
+      retailValue: Number(result[0]?.retailValue ?? 0),
     })),
 
     // Today's revenue and count
@@ -247,7 +250,8 @@ async function fetchDashboardData(
     }),
 
     // Period COGS — raw SQL: DB-side SUM with JOIN
-    db.$queryRaw<Array<{ cogs: number }>>(
+    // (See costValue note: SUM(int*…) returns bigint on SQLite; coerced below.)
+    db.$queryRaw<Array<{ cogs: number | bigint }>>(
       Prisma.sql`
         SELECT COALESCE(SUM(si."costPrice" * si.quantity), 0) as cogs
         FROM "SaleItem" si
@@ -259,7 +263,7 @@ async function fetchDashboardData(
     ),
 
     // Previous period COGS — raw SQL: DB-side SUM with JOIN
-    db.$queryRaw<Array<{ cogs: number }>>(
+    db.$queryRaw<Array<{ cogs: number | bigint }>>(
       Prisma.sql`
         SELECT COALESCE(SUM(si."costPrice" * si.quantity), 0) as cogs
         FROM "SaleItem" si
@@ -398,7 +402,7 @@ async function fetchDashboardData(
     // This replaces the separate /api/reports call for chart data,
     // eliminating an extra HTTP request and reducing dashboard load time.
     // ============================================
-    db.$queryRaw<Array<{ saleDate: string; dailyRevenue: number }>>(
+    db.$queryRaw<Array<{ saleDate: string; dailyRevenue: number | bigint }>>(
       Prisma.sql`
         SELECT DATE("saleDate") as saleDate, COALESCE(SUM(total), 0) as dailyRevenue
         FROM "Sale"
@@ -436,7 +440,7 @@ async function fetchDashboardData(
     }
   })
 
-  // COGS values from raw SQL aggregation — wrap with Number() to handle BigInt
+  // COGS values from raw SQL aggregation (BigInt-safe coercion)
   const periodCogs = Number(periodCogsResult[0]?.cogs ?? 0)
   const prevPeriodCogs = Number(prevPeriodCogsResult[0]?.cogs ?? 0)
 

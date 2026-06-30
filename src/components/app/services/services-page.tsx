@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { zodResolver } from '@/lib/zod-resolver'
 import {
   Clock, DollarSign, Plus, Pencil, Trash2, Calendar,
   CheckCircle2, XCircle, Loader2, Search, Phone,
