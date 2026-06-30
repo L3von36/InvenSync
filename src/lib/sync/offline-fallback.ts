@@ -1139,6 +1139,117 @@ async function handleModules(_endpoint: string): Promise<unknown> {
   }
 }
 
+/**
+ * Stock Transfers — no local Dexie table exists for these.
+ * Return an empty list with the correct shape so the page renders its
+ * "no transfers" state instead of erroring.
+ *
+ * Shape matches GET /api/stock-transfers and api.getStockTransfers().
+ */
+async function handleStockTransfers(_endpoint: string): Promise<unknown> {
+  return { transfers: [] }
+}
+
+/**
+ * Notifications — no local Dexie table exists for these.
+ * Return an empty list with zero unread count so the notification bell
+ * renders gracefully offline instead of erroring.
+ *
+ * Shape matches GET /api/notifications: { notifications, unreadCount }
+ */
+async function handleNotifications(_endpoint: string): Promise<unknown> {
+  return { notifications: [], unreadCount: 0 }
+}
+
+/**
+ * Loyalty Accounts — no local Dexie table exists for these.
+ * Return an empty paginated response so the Customer Loyalty page renders
+ * its empty state instead of crashing.
+ *
+ * Shape matches GET /api/loyalty:
+ *   { accounts: [], pagination: { page, limit, total, totalPages } }
+ */
+async function handleLoyalty(endpoint: string): Promise<unknown> {
+  const url = new URL(endpoint, 'http://localhost')
+  const page = parseInt(url.searchParams.get('page') || '1', 10)
+  const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+  return {
+    accounts: [],
+    pagination: { page, limit, total: 0, totalPages: 0 },
+  }
+}
+
+/**
+ * Credit Limits — no local Dexie table exists for these.
+ * Return an empty paginated response with zeroed summary KPIs so the
+ * Credit Limits page renders its empty state instead of crashing.
+ *
+ * Shape matches GET /api/credit-limits:
+ *   { creditLimits: [], pagination: {...}, summary: { totalCreditExtended, totalUsed, totalAvailable, blockedAccounts } }
+ */
+async function handleCreditLimits(endpoint: string): Promise<unknown> {
+  const url = new URL(endpoint, 'http://localhost')
+  const page = parseInt(url.searchParams.get('page') || '1', 10)
+  const limit = parseInt(url.searchParams.get('limit') || '50', 10)
+  return {
+    creditLimits: [],
+    pagination: { page, limit, total: 0, totalPages: 0 },
+    summary: {
+      totalCreditExtended: 0,
+      totalUsed: 0,
+      totalAvailable: 0,
+      blockedAccounts: 0,
+    },
+  }
+}
+
+/**
+ * Organization detail — reconstruct from the cached user profile
+ * (db.userProfile stores the user's organizations as JSON). Members can't
+ * be fully reconstructed offline, so we return an empty members array —
+ * the Settings page degrades gracefully.
+ *
+ * Shape matches GET /api/organizations/{id}:
+ *   { organization: Organization & { members: [...] } }
+ */
+async function handleOrganization(endpoint: string): Promise<unknown> {
+  try {
+    // Extract the org ID from /api/organizations/{id}
+    const match = endpoint.match(/\/api\/organizations\/([^/?]+)/)
+    const orgId = match?.[1]
+    if (!orgId) return null
+
+    const profiles = await db.userProfile.toArray()
+    if (profiles.length === 0) return null
+
+    const profile = profiles[0]
+    const orgs = JSON.parse(profile.organizations || '[]') as Array<{
+      id: string
+      name: string
+      slug?: string
+      role?: string
+      businessType?: string
+      description?: string
+      address?: string
+      city?: string
+      latitude?: number
+      longitude?: number
+      phone?: string
+    }>
+    const org = orgs.find(o => o.id === orgId)
+    if (!org) return null
+
+    return {
+      organization: {
+        ...org,
+        members: [],
+      },
+    }
+  } catch {
+    return null
+  }
+}
+
 // ============================================
 // Route Matching
 // ============================================
@@ -1168,6 +1279,11 @@ const ROUTE_HANDLERS: RouteHandler[] = [
   { pattern: /\/api\/purchase-orders/, handler: handlePurchaseOrders },
   { pattern: /\/api\/reports/, handler: handleReports },
   { pattern: /\/api\/modules/, handler: handleModules },
+  { pattern: /\/api\/stock-transfers/, handler: handleStockTransfers },
+  { pattern: /\/api\/notifications/, handler: handleNotifications },
+  { pattern: /\/api\/loyalty/, handler: handleLoyalty },
+  { pattern: /\/api\/credit-limits/, handler: handleCreditLimits },
+  { pattern: /\/api\/organizations\/[^/?]+/, handler: handleOrganization },
 ]
 
 // ============================================
