@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { api, type Supplier, type Debt } from '@/lib/api-client'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { db } from '@/lib/db'
 import { supplierSchema, type SupplierFormData } from '@/lib/validations'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -81,10 +82,73 @@ export function SuppliersPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [totalOwedToSuppliers, setTotalOwedToSuppliers] = useState(0)
 
+  // ============================================
+  // Local-First Data Loading (Repository Pattern)
+  // ============================================
+  // Reads from IndexedDB FIRST (instant, works offline), then refreshes
+  // from the API in the background and persists back to IndexedDB.
   const fetchSuppliers = useCallback(async () => {
     if (!orgId) return
     setLoading(true)
     setPageError(null)
+
+    // ---- Step 1: Read from IndexedDB FIRST (instant, offline) ----
+    try {
+      let localSuppliers = await db.suppliers
+        .where('organizationId')
+        .equals(orgId)
+        .toArray()
+
+      if (shopId) {
+        localSuppliers = localSuppliers.filter(
+          (s) => s.shopId === shopId || !s.shopId
+        )
+      }
+
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        localSuppliers = localSuppliers.filter(
+          (s) =>
+            s.name.toLowerCase().includes(q) ||
+            (s.phone && s.phone.toLowerCase().includes(q)) ||
+            (s.email && s.email.toLowerCase().includes(q))
+        )
+      }
+
+      localSuppliers.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+
+      const localTotal = localSuppliers.length
+      const localTotalPages = Math.max(1, Math.ceil(localTotal / limit))
+      const startIdx = (page - 1) * limit
+      const pagedLocal = localSuppliers.slice(startIdx, startIdx + limit)
+
+      setSuppliers(pagedLocal as unknown as Supplier[])
+      setTotal(localTotal)
+      setTotalPages(localTotalPages)
+      setLoading(false)
+
+      // Total owed to suppliers from local debts
+      if (page === 1 && !searchQuery) {
+        try {
+          const localDebts = await db.debts
+            .where('organizationId')
+            .equals(orgId)
+            .toArray()
+          const outstanding = localDebts
+            .filter((d) => d.type === 'supplier_debt' && d.status !== 'paid')
+            .reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
+          setTotalOwedToSuppliers(outstanding)
+        } catch {
+          // Local debts read failed — stats degrade gracefully
+        }
+      }
+    } catch {
+      setLoading(true)
+    }
+
+    // ---- Step 2: If online, refresh from API and update IndexedDB ----
     try {
       const data = await api.getSuppliers(orgId, {
         search: searchQuery || undefined,
@@ -95,6 +159,26 @@ export function SuppliersPage() {
       setSuppliers(data.suppliers)
       setTotalPages(data.pagination.totalPages)
       setTotal(data.pagination.total)
+
+      // Persist to IndexedDB for future offline reads
+      try {
+        const localRecords = data.suppliers.map((s) => ({
+          id: s.id,
+          organizationId: s.organizationId,
+          shopId: s.shopId || null,
+          name: s.name,
+          email: s.email || null,
+          phone: s.phone || null,
+          address: s.address || null,
+          createdAt: s.createdAt || new Date().toISOString(),
+          updatedAt: s.updatedAt || new Date().toISOString(),
+        }))
+        if (localRecords.length > 0) {
+          await db.suppliers.bulkPut(localRecords)
+        }
+      } catch {
+        // Caching failure is non-critical
+      }
 
       // Get total owed to suppliers from debts API
       if (page === 1 && !searchQuery) {
@@ -110,12 +194,14 @@ export function SuppliersPage() {
       }
     } catch (err) {
       const msg = getNetworkErrorMessage(err)
-      setPageError(msg)
-      toast.error(msg)
+      if (suppliers.length === 0) {
+        setPageError(msg)
+        toast.error(msg)
+      }
     } finally {
       setLoading(false)
     }
-  }, [orgId, searchQuery, page, shopId])
+  }, [orgId, searchQuery, page, shopId, suppliers.length])
 
   useEffect(() => {
     fetchSuppliers()

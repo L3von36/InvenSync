@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from '@/components/ui/recharts-exports'
 import { api, type Expense } from '@/lib/api-client'
+import { db } from '@/lib/db'
 import { formatETB } from '@/lib/format'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
@@ -119,10 +120,57 @@ export function ExpensesPage() {
 
   const isRecurring = form.watch('isRecurring')
 
+  // ============================================
+  // Local-First Data Loading (Repository Pattern)
+  // ============================================
+  // Reads from IndexedDB FIRST (instant, works offline), then refreshes
+  // from the API in the background and persists back to IndexedDB.
   const fetchExpenses = useCallback(async () => {
     if (!currentOrg) return
     setIsLoading(true)
     setError(null)
+
+    // ---- Step 1: Read from IndexedDB FIRST (instant, offline) ----
+    try {
+      let localExpenses = await db.expenses
+        .where('organizationId')
+        .equals(currentOrg.id)
+        .toArray()
+
+      // Apply category filter locally
+      if (categoryFilter && categoryFilter !== 'all') {
+        localExpenses = localExpenses.filter((e) => e.category === categoryFilter)
+      }
+
+      // Sort by date desc (newest first)
+      localExpenses.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      )
+
+      // Compute total + monthly summary from local data
+      const localTotal = localExpenses.reduce((sum, e) => sum + e.amount, 0)
+      setExpenses(localExpenses as unknown as Expense[])
+      setTotalExpenses(localTotal)
+
+      // Monthly summary from local data
+      const monthMap: Record<string, number> = {}
+      for (const e of localExpenses) {
+        const d = new Date(e.date)
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        monthMap[key] = (monthMap[key] || 0) + e.amount
+      }
+      const localMonthly = Object.entries(monthMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-6)
+        .map(([month, total]) => ({ month, total }))
+      setMonthlySummary(localMonthly)
+
+      setIsLoading(false)
+    } catch {
+      setIsLoading(true)
+    }
+
+    // ---- Step 2: If online, refresh from API and update IndexedDB ----
     try {
       const params: { category?: string } = {}
       if (categoryFilter && categoryFilter !== 'all') params.category = categoryFilter
@@ -131,12 +179,35 @@ export function ExpensesPage() {
       setExpenses(result.expenses || [])
       setTotalExpenses(result.summary?.totalExpenses || 0)
       setMonthlySummary(result.monthlySummary || [])
+
+      // Persist to IndexedDB for future offline reads
+      try {
+        const localRecords = (result.expenses || []).map((e) => ({
+          id: e.id,
+          organizationId: e.organizationId,
+          shopId: e.shopId || null,
+          category: e.category || '',
+          amount: e.amount ?? 0,
+          description: e.description || null,
+          date: e.expenseDate || new Date().toISOString(),
+          isRecurring: e.isRecurring ?? null,
+          createdAt: e.createdAt || new Date().toISOString(),
+          updatedAt: e.updatedAt || new Date().toISOString(),
+        }))
+        if (localRecords.length > 0) {
+          await db.expenses.bulkPut(localRecords)
+        }
+      } catch {
+        // Caching failure is non-critical
+      }
     } catch (err) {
-      setError(getNetworkErrorMessage(err))
+      if (expenses.length === 0) {
+        setError(getNetworkErrorMessage(err))
+      }
     } finally {
       setIsLoading(false)
     }
-  }, [currentOrg, categoryFilter])
+  }, [currentOrg, categoryFilter, expenses.length])
 
   useEffect(() => {
     fetchExpenses()
