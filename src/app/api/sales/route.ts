@@ -65,6 +65,15 @@ export async function GET(request: Request) {
       where.status = status
     }
 
+    // Delta sync: filter records updated since the given timestamp
+    const updatedSince = searchParams.get('updatedSince')
+    if (updatedSince) {
+      const updatedSinceDate = new Date(updatedSince)
+      if (!isNaN(updatedSinceDate.getTime())) {
+        where.updatedAt = { gte: updatedSinceDate }
+      }
+    }
+
     const [sales, total] = await Promise.all([
       db.sale.findMany({
         where,

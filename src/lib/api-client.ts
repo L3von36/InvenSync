@@ -601,6 +601,10 @@ class ApiClient {
   // stale background requests from interfering with an active login attempt.
   private _isLoggingIn: boolean = false
 
+  // Flag to suppress 401 auto-logout during bootstrap
+  // When true, 401 responses don't trigger logout (used during initial data hydration)
+  private _suppressAuthLogout: boolean = false
+
   // Request deduplication: prevent concurrent identical GET requests
   // If 3 components request the same endpoint simultaneously, only 1 fetch is made.
   private _inflightRequests = new Map<string, Promise<unknown>>()
@@ -631,6 +635,22 @@ class ApiClient {
     } catch {
       // client-cache may not be available during SSR
     }
+  }
+
+  /**
+   * Suppress 401 auto-logout during bootstrap or other batch operations.
+   * When active, 401 responses are thrown as errors but don't clear the token
+   * or trigger logout. Call endBatchOperation() when done.
+   */
+  beginBatchOperation(): void {
+    this._suppressAuthLogout = true
+  }
+
+  /**
+   * Re-enable 401 auto-logout after a batch operation completes.
+   */
+  endBatchOperation(): void {
+    this._suppressAuthLogout = false
   }
 
   private getToken(): string | null {
@@ -689,24 +709,52 @@ class ApiClient {
       if (inflight) {
         return inflight as Promise<T>
       }
+
+      // ---- Offline check: return persistent cache or entity-table fallback ----
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        // Try persistent IndexedDB cache first
+        try {
+          const { getCachedApiResponse } = await import('@/lib/db')
+          const persistentCached = await getCachedApiResponse<T>(cacheKey)
+          if (persistentCached !== null) {
+            console.log(`[ApiClient] Offline — returning persistent cached data for ${cacheKey}`)
+            return persistentCached
+          }
+        } catch (err) {
+          console.warn('[ApiClient] Failed to read from persistent cache:', err)
+        }
+
+        // Fallback: reconstruct response from IndexedDB entity tables
+        try {
+          const { getOfflineFallback } = await import('@/lib/sync/offline-fallback')
+          const offlineData = await getOfflineFallback<T>(endpoint)
+          if (offlineData !== null) {
+            return offlineData
+          }
+        } catch (err) {
+          console.warn('[ApiClient] Offline entity fallback failed:', err)
+        }
+
+        // For GET requests with no cache and no entity data: throw with a helpful message
+        throw new Error('You are offline and no cached data is available for this request. Please connect to the internet.')
+      }
     }
 
-    if (typeof window !== 'undefined' && !navigator.onLine) {
-      if (isMutating) {
-        // Queue the operation for later sync
-        try {
-          const { queueOperation } = await import('@/lib/offline-queue')
-          await queueOperation(
-            endpoint,
-            method,
-            headers,
-            options.body ? String(options.body) : null
-          )
-          // Return a mock "offline queued" response so callers don't break
-          return { offline: true, queued: true } as unknown as T
-        } catch {
-          // If queuing fails, fall through to normal error
-        }
+    // Offline handling for non-GET (mutating) requests
+    // GET requests are already handled above in the isGet block
+    if (typeof window !== 'undefined' && !navigator.onLine && isMutating) {
+      try {
+        const { queueOperation } = await import('@/lib/offline-queue')
+        await queueOperation(
+          endpoint,
+          method,
+          headers,
+          options.body ? String(options.body) : null
+        )
+        // Return a mock "offline queued" response so callers don't break
+        return { offline: true, queued: true } as unknown as T
+      } catch {
+        // If queuing fails, fall through to throw error
       }
       throw new Error('You are offline. Please check your internet connection and try again.')
     }
@@ -758,6 +806,29 @@ class ApiClient {
           throw new Error('Request timed out — the server took too long to respond. Please try again.')
         }
         if (err instanceof TypeError && err.message === 'Failed to fetch') {
+          // For GET requests, try persistent cache then entity-table fallback
+          if (isGet) {
+            try {
+              const { getCachedApiResponse } = await import('@/lib/db')
+              const cached = await getCachedApiResponse<T>(cacheKey)
+              if (cached !== null) {
+                console.log(`[ApiClient] Network error — returning cached data for ${cacheKey}`)
+                return cached
+              }
+            } catch {
+              // Fall through to entity fallback
+            }
+            // Fallback: reconstruct from entity tables
+            try {
+              const { getOfflineFallback } = await import('@/lib/sync/offline-fallback')
+              const offlineData = await getOfflineFallback<T>(endpoint)
+              if (offlineData !== null) {
+                return offlineData
+              }
+            } catch {
+              // Fall through to error
+            }
+          }
           throw new Error('Network error — please check your internet connection and try again.')
         }
         throw new Error(err instanceof Error ? err.message : 'An unexpected network error occurred')
@@ -802,11 +873,91 @@ class ApiClient {
           throw dbError
         }
 
-        // Handle auth errors — clear token and trigger logout if 401 from a non-auth endpoint
-        // Auth endpoints (login, register, me) legitimately return 401 for wrong credentials
-        // Also suppress auto-logout during active login to prevent race conditions
-        const isAuthEndpoint = endpoint.startsWith('/api/auth/login') || endpoint.startsWith('/api/auth/register') || endpoint.startsWith('/api/auth/me')
-        if (response.status === 401 && token && !isAuthEndpoint && !this._isLoggingIn) {
+        // ----------------------------------------------------------------
+        // Service Worker offline response handling.
+        //
+        // When the app is offline and the service worker intercepts an API
+        // GET request that isn't in its cache, the SW returns a 503 with
+        // { error: 'You are offline', offline: true } (see public/sw.js ->
+        // networkFirstWithCache). This is a *real* Response object, so the
+        // fetch() does NOT throw a TypeError — which means the offline
+        // fallback paths above (navigator.onLine check) and below
+        // (TypeError 'Failed to fetch' check) never run.
+        //
+        // This is especially fatal for /api/auth/me on a fresh page reload
+        // while offline: the SW never cached /api/auth/me (it's only ever
+        // called before the SW takes control, or on a reload that is itself
+        // offline), so the SW returns 503, the api-client throws, and
+        // checkAuth() can't restore the session — leaving the app stuck on
+        // the "Loading InvenSync..." screen.
+        //
+        // Fix: treat the SW's offline 503 exactly like a network failure and
+        // route it through the persistent cache + entity-table fallback. For
+        // /api/auth/me this reconstructs the user profile from IndexedDB
+        // (db.userProfile), letting checkAuth succeed offline.
+        // ----------------------------------------------------------------
+        if (isGet && (data.offline === true || (response.status === 503 && errorCode !== 'DB_UNREACHABLE'))) {
+          // Try persistent IndexedDB cache first
+          try {
+            const { getCachedApiResponse } = await import('@/lib/db')
+            const cached = await getCachedApiResponse<T>(cacheKey)
+            if (cached !== null) {
+              console.log(`[ApiClient] SW offline response — returning cached data for ${cacheKey}`)
+              return cached
+            }
+          } catch {
+            // Fall through to entity-table fallback
+          }
+          // Fallback: reconstruct from IndexedDB entity tables
+          try {
+            const { getOfflineFallback } = await import('@/lib/sync/offline-fallback')
+            const offlineData = await getOfflineFallback<T>(endpoint)
+            if (offlineData !== null) {
+              console.log(`[ApiClient] SW offline response — reconstructed from entity tables for ${endpoint}`)
+              return offlineData
+            }
+          } catch {
+            // Fall through to error
+          }
+          // No cached or entity data available — throw a network-style error
+          // so callers (e.g. checkAuth) can apply their own offline handling.
+          throw new Error('You are offline and no cached data is available for this request. Please connect to the internet.')
+        }
+
+        // For 401/403 on non-auth endpoints, try offline fallback from IndexedDB
+        // before throwing. This handles cases where the server is unreachable
+        // but returns auth errors, or where the user is working offline.
+        if (isGet && (response.status === 401 || response.status === 403) && !endpoint.startsWith('/api/auth/')) {
+          try {
+            const { getOfflineFallback } = await import('@/lib/sync/offline-fallback')
+            const offlineData = await getOfflineFallback<T>(endpoint)
+            if (offlineData !== null) {
+              console.log(`[ApiClient] ${response.status} on ${endpoint} — falling back to offline data`)
+              return offlineData
+            }
+          } catch {
+            // Fall through to normal error handling
+          }
+          // Also try the persistent API cache
+          try {
+            const { getCachedApiResponse } = await import('@/lib/db')
+            const cached = await getCachedApiResponse<T>(cacheKey)
+            if (cached !== null) {
+              console.log(`[ApiClient] ${response.status} on ${endpoint} — returning cached data`)
+              return cached
+            }
+          } catch {
+            // Fall through to normal error handling
+          }
+        }
+
+        // Handle auth errors — only auto-logout when the session-check endpoint
+        // returns 401, not every API endpoint. Other endpoints may return 401
+        // for reasons other than expired sessions (e.g., module access, rate limits,
+        // race conditions during bootstrap). The /api/auth/me endpoint is the
+        // authoritative source for session validity.
+        const isSessionCheckEndpoint = endpoint.startsWith('/api/auth/me')
+        if (response.status === 401 && token && isSessionCheckEndpoint && !this._isLoggingIn) {
           // Only clear token and trigger logout if the token we sent is STILL the current token.
           // This prevents a stale background request from clearing a freshly-set token
           // after the user logged out and logged back in.
@@ -838,12 +989,19 @@ class ApiClient {
         throw new Error(errorMessage)
       }
 
-      // Cache successful GET responses for short TTL
+      // Cache successful GET responses for short TTL (in-memory)
       if (isGet) {
         this._responseCache.set(cacheKey, {
           data: data as T,
           expiresAt: Date.now() + ApiClient.RESPONSE_CACHE_TTL,
         })
+        // Also persist to IndexedDB for offline fallback (fire-and-forget)
+        try {
+          const { cacheApiResponse } = await import('@/lib/db')
+          cacheApiResponse(cacheKey, data as T).catch(() => {})
+        } catch {
+          // Import may fail during SSR
+        }
       }
 
       return data as T

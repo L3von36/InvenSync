@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getUserFromRequest } from '@/lib/auth'
 import { invalidateModuleCache } from '@/lib/module-cache'
 import { isDatabaseError } from '@/lib/api-error'

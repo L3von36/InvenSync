@@ -14,6 +14,7 @@ import {
   ScanSearch,
   Bot,
   Settings,
+  Database,
   Building2,
   LogOut,
   ChevronDown,
@@ -499,6 +500,19 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu>
+          {/* Sync & Offline — business users only */}
+          {!isAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={currentPage === 'sync-offline'}
+                onClick={() => setPage('sync-offline')}
+                tooltip="Sync & Offline"
+              >
+                <Database className="size-4" />
+                <span>Sync & Offline</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           {/* Settings — business users only (admin should not see business settings) */}
           {!isAdmin && (
             <SidebarMenuItem>
@@ -616,6 +630,7 @@ export function MobileBottomNav() {
         ...(isManager && isModuleActive('reports') ? [{ page: 'reports' as Page, icon: BarChart3, label: 'Reports' }] : []),
         ...(isModuleActive('ai-assistant') ? [{ page: 'ai-assistant' as Page, icon: Bot, label: 'AI Chat' }] : []),
         { page: 'modules' as Page, icon: Puzzle, label: 'Modules' },
+        { page: 'sync-offline' as Page, icon: Database, label: 'Sync' },
         { page: 'settings' as Page, icon: Settings, label: 'Settings' },
       ]
 

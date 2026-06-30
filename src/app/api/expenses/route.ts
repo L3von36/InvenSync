@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
@@ -39,6 +39,15 @@ export async function GET(request: Request) {
       where.expenseDate = {
         ...(from ? { gte: new Date(from) } : {}),
         ...(to ? { lte: new Date(new Date(to).setHours(23, 59, 59, 999)) } : {}),
+      }
+    }
+
+    // Delta sync: filter records updated since the given timestamp
+    const updatedSince = searchParams.get('updatedSince')
+    if (updatedSince) {
+      const updatedSinceDate = new Date(updatedSince)
+      if (!isNaN(updatedSinceDate.getTime())) {
+        where.updatedAt = { gte: updatedSinceDate }
       }
     }
 

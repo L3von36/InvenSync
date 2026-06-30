@@ -1,72 +1,79 @@
 ---
 Task ID: 1
-Agent: Main
-Task: Push changes and redeploy
+Agent: main
+Task: Fix offline mode - app crashed with "Something went wrong" when going offline
 
 Work Log:
-- Pushed 3 existing commits to origin/main (auth audit fixes)
-- Attempted to start dev server - discovered it keeps dying due to sandbox memory constraints
-- Built production bundle successfully
-- Started production server - verified all API endpoints working
+- Diagnosed the root cause: `src/lib/sync/offline-fallback.ts` and `src/lib/offline-queue.ts` were missing
+- These modules were referenced by the API client (`src/lib/api-client.ts`) for offline fallback when network requests fail
+- Without them, all API calls threw "Network error" when offline, triggering the error boundary
+- Created `src/lib/sync/offline-fallback.ts` with handlers for 16 API endpoints:
+  - /api/auth/me (reads from db.userProfile)
+  - /api/dashboard (computes from products, sales, debts, expenses)
+  - /api/products, /api/product-types, /api/customers, /api/suppliers
+  - /api/sales, /api/inventory, /api/debts, /api/expenses
+  - /api/shops, /api/service-types, /api/service-bookings
+  - /api/purchase-orders, /api/reports, /api/modules
+- Created `src/lib/offline-queue.ts` for queuing mutating requests when offline
+- Fixed error boundary (`src/components/shared/error-boundary.tsx`) to detect network errors and show "You're offline" message instead of "Something went wrong"
+- Improved auth store network error detection to catch more error message variants
+- Tested with agent-browser: logged in, went offline, navigated pages, refreshed while offline — all working
 
 Stage Summary:
-- All auth audit fixes pushed to GitHub
-- Production build succeeds
-- API endpoints verified: auth/me, product-types, products, notifications all return 200
+- Offline mode now works: dashboard loads, pages navigate, auth persists on refresh
+- Key files created: `src/lib/sync/offline-fallback.ts`, `src/lib/offline-queue.ts`
+- Key files modified: `src/components/shared/error-boundary.tsx`, `src/lib/stores/auth-store.ts`
+- Browser verified: no "Something went wrong" error when going offline
 
 ---
 Task ID: 2
-Agent: Main
-Task: Investigate and fix product types not showing after creation
+Agent: main
+Task: Fix offline render crash — correct offline fallback data contracts to match real API shapes
 
 Work Log:
-- Investigated product-types API routes (GET, POST, PATCH, DELETE) - all looked correct
-- Investigated frontend components (product-types-page.tsx, products-page.tsx) - all using api-client correctly
-- Investigated api-client.ts cache invalidation - working as expected
-- Discovered ROOT CAUSE: Prisma schema declared `provider = "postgresql"` with `directUrl = env("DIRECT_URL")` but .env has `DATABASE_URL=file:../db/custom.db` (SQLite)
-- This caused Prisma to fail validation: "the URL must start with the protocol postgresql://"
-- Fixed by changing datasource to `provider = "sqlite"` and removing directUrl/relationMode
-- Ran `prisma db push` - schema synced, client regenerated
-- Verified all API endpoints return correct data via curl:
-  - GET /api/product-types returns 3 product types with attributes and counts
-  - POST /api/product-types creates new types successfully
-  - GET /api/products returns products with product type data
-  - GET /api/notifications returns 200 (no longer 401)
-- Committed and pushed fix to GitHub
+- Audited all API response shapes via api-client.ts interfaces vs offline-fallback.ts responses
+- Identified 15+ mismatches between real API shapes and offline fallback shapes
+- Root crash cause: branches-page.tsx accesses shop._count.products and shop.members.length, but offline shops had neither
+- Fixed all pagination shapes: replaced totalProducts/totalCustomers/etc with unified { page, limit, total, totalPages }
+- Fixed /api/shops fallback: added members[], _count: { products, sales }, latitude/longitude
+- Fixed /api/products fallback: added nested productType { id, name, icon }, attributeValues[]
+- Fixed /api/customers fallback: added _count: { sales, debts }
+- Fixed /api/sales fallback: added nested customer { id, name, phone }, items[] with product
+- Fixed /api/debts fallback: added nested customer/supplier { id, name, phone }, payments[]
+- Fixed /api/expenses fallback: added nested shop { id, name }, recurringPeriod, summary, monthlySummary
+- Fixed /api/dashboard fallback: added comparison, period, anomalies with correct shapes
+- Fixed /api/reports fallback: matched real key names (bestSellingProducts, inventoryValuation)
+- Fixed /api/service-bookings fallback: added nested serviceType and customer
+- Added latitude/longitude to LocalShop interface and bootstrap mapping
+- Fixed sync engine to prefer original _endpoint/_method from offline-queue payloads
+- Tested with browser: login → offline → dashboard → products → sales → customers → debts → reload while offline
+- All pages render without GlobalErrorBoundary crash
 
 Stage Summary:
-- ROOT CAUSE: Prisma schema configured for PostgreSQL but database is SQLite
-- FIX: Changed `provider = "postgresql"` to `provider = "sqlite"`, removed `directUrl` and `relationMode`
-- All API endpoints verified working after fix
-- Commit: "fix: change Prisma datasource from PostgreSQL to SQLite"
+- Commit: 36a34bb — pushed to origin/main
+- Files changed: src/lib/sync/offline-fallback.ts (full rewrite), src/lib/db/index.ts, src/lib/sync/bootstrap.ts, src/lib/sync/engine.ts
+- Endpoints that cannot be fully reconstructed offline: /api/credit-limits (no local table), /api/modules (returns empty), /api/notifications (uses persistent cache only)
+- All critical pages (dashboard, products, sales, customers, debts, expenses, inventory, branches) work offline without crash
 
 ---
 Task ID: 3
-Agent: Main
-Task: Implement Industry-Based Business Templates
+Agent: main
+Task: Fix offline mode — app stuck on "Loading InvenSync..." on offline reload
 
 Work Log:
-- Created `/src/lib/business-templates.ts` with 10 industry templates (Shoe Store, Clothing Store, Mobile Phone Shop, Grocery/Mini Market, Cosmetics Shop, Hardware Store, Restaurant/Cafe, Electronics Store, Pharmacy, General Retail), each with 5-8 product types and relevant attributes
-- Created `/src/lib/seed-business-template.ts` — seeding service that creates product types + attributes inside the registration transaction
-- Updated `/src/app/api/auth/register/route.ts` — imports seeding service, validates new business type values, calls seedBusinessTemplate() after org creation
-- Updated `/src/components/app/auth/register-page.tsx` — replaced 3-option dropdown with 10 industry-specific options, made businessType required, added template description preview card
-- Updated `/src/lib/validations.ts` — businessType is now required with refine validation against valid types
-- Updated `/src/components/app/layout/sidebar.tsx` — added retailBusinessTypes and serviceBusinessTypes arrays to support all new types in sidebar navigation
-- Updated `/src/lib/admin-utils.ts` — added badge/color mappings for all 10 new business types
-- Updated `/src/lib/api-client.ts` — changed Organization.businessType from union type to string, added updateBusinessType() API method
-- Created `/src/app/api/organizations/business-type/route.ts` — POST endpoint for updating business type and seeding templates for existing orgs
-- Updated `/src/components/app/settings/settings-page.tsx` — added BusinessTypeCard component for changing business type in Settings, with warning about template changes
-- Fixed .env file (JWT_SECRET was missing)
-- Lint passes clean
-- Build succeeds
-- Verified: registration with shoe_store creates 8 product types with all attributes
-- Verified: business type update API works for existing orgs
-- Committed and pushed to GitHub
+- Cloned https://github.com/L3von36/InvenSync.git and moved it into /home/z/my-project so it runs on the preview (port 3000)
+- Configured .env (SQLite file:./db/custom.db), installed deps, generated Prisma client, reset demo@invensync.com password to DemoPass123! for testing
+- Reproduced the bug with Agent Browser: login online → go offline → reload → app stuck on "Loading InvenSync..." (isLoading never becomes false)
+- Root cause: the service worker (public/sw.js) intercepted /api/auth/me — which is never SW-cached (only called before the SW takes control, or during an already-offline reload) — and returned a 503 { error:'You are offline', offline:true } Response. Because this is a real Response (not a thrown TypeError), the api-client's existing offline fallback paths (navigator.onLine check + TypeError 'Failed to fetch' handler) never ran, so checkAuth() could not restore the session from IndexedDB.
+- Fix 1 (src/lib/api-client.ts): detect the SW's offline 503 response (data.offline === true, or 503 that isn't DB_UNREACHABLE) for GET requests and route it through the persistent IndexedDB cache + entity-table fallback (getOfflineFallback) before throwing. For /api/auth/me this reconstructs { user, organizations } from db.userProfile, letting checkAuth() succeed offline.
+- Fix 2 (public/sw.js): rewrote to a unified network-first strategy with cache fallback for ALL request types. The old cache-first strategy for /_next/static/* pinned stale pre-edit Turbopack chunks in dev, masking code changes. Network-first fetches fresh online (HMR stays reliable) and only uses cache when actually offline. Bumped cache version v3→v4 and made the HTML offline branch check all caches (so the pre-cached '/' in STATIC_CACHE is served on offline reload).
+- Fix 3 (src/app/layout.tsx): updated SW registration comment only (no functional change).
+- Verified the 503 fix directly: monkey-patched fetch to return the SW's 503 {offline:true} for /api/auth/me, reset auth state, called checkAuth() — result: isAuthenticated=true, user=demo@invensync.com, orgs=1, with logs showing [ApiClient] SW offline response — reconstructed from entity tables for /api/auth/me + [OfflineFallback] ✓ Reconstructed response for /api/auth/me.
+- Verified no regressions: online login + dashboard + navigation all work; offline navigation (Products, Sales, Customers) renders from IndexedDB with no errors.
+- Committed (19373d2) and pushed to origin/main.
 
 Stage Summary:
-- 10 industry templates with 60+ product types and 250+ attributes total
-- Auto-seeding during registration (atomic transaction)
-- Settings page allows existing users to change business type
-- Templates are fully customizable (edit/delete/add after seeding)
-- Legacy businessType values (retail/service/mixed) are mapped to new equivalents
-- All changes pushed to origin/main
+- Commit: 19373d2 — pushed to origin/main
+- Files changed: src/lib/api-client.ts (SW offline 503 handling), public/sw.js (network-first rewrite + v4 cache bump), src/app/layout.tsx (comment)
+- The offline reload bug is fixed: checkAuth now restores the session from IndexedDB when the SW returns a 503 for /api/auth/me
+- Dev-mode note: Turbopack chunk hashing + the old cache-first SW made iterative testing difficult; the network-first SW resolves this for future dev work

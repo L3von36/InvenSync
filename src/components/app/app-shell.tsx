@@ -10,6 +10,10 @@ import { GlobalErrorBoundary } from '@/components/shared/error-boundary'
 import { ModuleGuard } from '@/components/shared/module-guard'
 import { NavigationProgressBar, PageTransitionSkeleton } from '@/components/shared/loading'
 import { CurrencyProvider } from '@/lib/currency-context'
+import { useBootstrap } from '@/lib/sync/use-bootstrap'
+import { getSyncEngine } from '@/lib/sync/engine'
+import { Database, Loader2 } from 'lucide-react'
+import { Progress } from '@/components/ui/progress'
 
 // Lazy-load all page components
 const DashboardPage = lazy(() => import('@/components/app/dashboard/dashboard-page').then(m => ({ default: m.DashboardPage })))
@@ -47,6 +51,7 @@ const SmartSearchPage = lazy(() => import('@/components/app/ai/smart-search-page
 const PriceOptimizationPage = lazy(() => import('@/components/app/ai/price-optimization-page').then(m => ({ default: m.PriceOptimizationPage })))
 const SalesForecastPage = lazy(() => import('@/components/app/ai/sales-forecast-page').then(m => ({ default: m.SalesForecastPage })))
 const AnomalyDetectionPage = lazy(() => import('@/components/app/ai/anomaly-detection-page').then(m => ({ default: m.AnomalyDetectionPage })))
+const SyncOfflinePage = lazy(() => import('@/components/app/dashboard/sync-panel').then(m => ({ default: m.SyncOfflinePage })))
 
 // ============================================
 // Page Router
@@ -173,17 +178,74 @@ function PageRenderer({ page }: { page: Page }) {
       return <ModuleGuard moduleKey="ai-inventory" moduleName="Sales Forecast"><SalesForecastPage /></ModuleGuard>
     case 'anomaly-detection':
       return <ModuleGuard moduleKey="ai-inventory" moduleName="Anomaly Detection"><AnomalyDetectionPage /></ModuleGuard>
+    case 'sync-offline':
+      return <SyncOfflinePage />
     default:
       return <DashboardPage />
   }
 }
 
 // ============================================
+// Bootstrap Overlay
+// ============================================
+
+function BootstrapOverlay({ progress }: { progress: import('@/lib/sync/bootstrap').BootstrapProgress }) {
+  const entityLabel = progress.currentEntity
+    ? progress.currentEntity.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())
+    : 'Initializing...'
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-background flex items-center justify-center" role="alert" aria-live="assertive">
+      <div className="flex flex-col items-center gap-6 max-w-sm w-full px-6">
+        <div className="flex items-center justify-center size-16 rounded-2xl bg-primary/10">
+          <Database className="size-8 text-primary" />
+        </div>
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-semibold tracking-tight">Preparing offline mode…</h2>
+          <p className="text-sm text-muted-foreground">
+            Downloading your data for offline access. This only happens once.
+          </p>
+        </div>
+        <div className="w-full space-y-3">
+          <Progress value={progress.percentComplete} className="h-2" />
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Loader2 className="size-3 animate-spin" />
+              {entityLabel}
+            </span>
+            <span>{progress.percentComplete}%</span>
+          </div>
+          {progress.completedEntities.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {progress.completedEntities.map((entity) => (
+                <span
+                  key={entity}
+                  className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 text-[10px] font-medium text-emerald-800 dark:text-emerald-400"
+                >
+                  ✓ {entity}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        {progress.phase === 'error' && progress.error && (
+          <p className="text-xs text-red-600 dark:text-red-400 text-center">
+            Some data failed to sync: {progress.error}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================
 // App Shell (authenticated layout)
 // ============================================
 export default function AppShell() {
-  const { user, currentOrg } = useAuthStore()
+  const { user, currentOrg, currentShop } = useAuthStore()
   const { currentPage, setPage } = useAppStore()
+  const { progress, bootstrap, isBootstrapping, needsBootstrap: checkNeedsBootstrap } = useBootstrap()
+  const bootstrapTriggeredForOrg = useRef<string | null>(null)
 
   // Redirect based on user role only once when the shell mounts
   useEffect(() => {
@@ -194,6 +256,62 @@ export default function AppShell() {
     }
     // Only run when user.role changes
   }, [user?.role, currentPage, setPage])
+
+  // Bootstrap check: after user is authenticated, check if they need bootstrapping
+  // Also start auto-sync if already bootstrapped
+  useEffect(() => {
+    if (!currentOrg || user?.role === 'admin') return
+
+    const needsBootstrap = checkNeedsBootstrap(currentOrg.id)
+
+    if (needsBootstrap) {
+      if (isBootstrapping) return
+      // Avoid re-triggering for the same org
+      if (bootstrapTriggeredForOrg.current === currentOrg.id) return
+
+      console.log('[AppShell] Organization needs bootstrapping, starting...')
+      bootstrapTriggeredForOrg.current = currentOrg.id
+      bootstrap(currentOrg.id, currentShop?.id ?? null)
+        .then(() => {
+          console.log('[AppShell] Bootstrap complete')
+          // Start auto-sync engine (push + pull) with org context so remote
+          // changes are fetched automatically, not just local writes pushed.
+          const engine = getSyncEngine()
+          engine.startAutoSync(5 * 60 * 1000, {
+            orgId: currentOrg.id,
+            shopId: currentShop?.id ?? undefined,
+          })
+        })
+        .catch((err) => {
+          console.error('[AppShell] Bootstrap failed:', err)
+          // Allow retry on next mount
+          bootstrapTriggeredForOrg.current = null
+        })
+    } else {
+      // Already bootstrapped — ensure auto-sync is running with org context
+      const engine = getSyncEngine()
+      engine.startAutoSync(5 * 60 * 1000, {
+        orgId: currentOrg.id,
+        shopId: currentShop?.id ?? undefined,
+      })
+    }
+  }, [currentOrg, currentShop, user?.role, checkNeedsBootstrap, bootstrap, isBootstrapping])
+
+  // Stop auto-sync when the shell unmounts (user navigates away / logs out)
+  useEffect(() => {
+    return () => {
+      const engine = getSyncEngine()
+      engine.stopAutoSync()
+    }
+  }, [])
+
+  // Show bootstrap overlay when bootstrapping (derived from hook state, no setState needed)
+  const needsOverlay = isBootstrapping && currentOrg && checkNeedsBootstrap(currentOrg.id)
+  if (needsOverlay) {
+    return (
+      <BootstrapOverlay progress={progress} />
+    )
+  }
 
   return (
     <GlobalErrorBoundary>

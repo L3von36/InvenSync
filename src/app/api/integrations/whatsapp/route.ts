@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { apiHandler, requireAuth, requireOrgAccess, handleApiError, isDatabaseError } from '@/lib/api-error'
 
 // GET /api/integrations/whatsapp — Get current WhatsApp config for an organization

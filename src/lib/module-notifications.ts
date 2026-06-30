@@ -5,7 +5,7 @@
 // thresholds and low stock alerts. Safe to call repeatedly —
 // duplicate checks prevent notification spam.
 
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 
 // ---------------------------------------------------------------------------
 // Types

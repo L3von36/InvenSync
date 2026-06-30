@@ -10,6 +10,8 @@ import {
   FileText, Download
 } from 'lucide-react'
 import { api, type Sale, type SaleItem, type Product, type Customer } from '@/lib/api-client'
+import { db, type LocalSale, type LocalCustomer, type LocalProduct, type LocalSaleItem } from '@/lib/db'
+import { getSyncEngine } from '@/lib/sync/engine'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -308,7 +310,21 @@ function AllSalesTab({
     } catch (err) {
       const msg = getNetworkErrorMessage(err)
       setError(msg)
-      toast.error(msg)
+      // Fallback to local IndexedDB when API fails
+      try {
+        let collection = db.sales.where('organizationId').equals(orgId)
+        if (shopId) {
+          const all = await collection.toArray()
+          const filtered = all.filter(s => s.shopId === shopId || !s.shopId)
+          setSales(filtered as unknown as Sale[])
+        } else {
+          const localSales = await collection.toArray()
+          setSales(localSales as unknown as Sale[])
+        }
+        setTotalPages(1)
+      } catch (localErr) {
+        console.error('[SalesPage] Local DB fallback failed:', localErr)
+      }
     } finally {
       setLoading(false)
     }
@@ -568,7 +584,24 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
       } catch (err) {
         const msg = getNetworkErrorMessage(err)
         setFetchError(msg)
-        toast.error(msg)
+        // Fallback to local IndexedDB when API fails
+        try {
+          let custCollection = db.customers.where('organizationId').equals(orgId)
+          let prodCollection = db.products.where('organizationId').equals(orgId)
+          if (shopId) {
+            const allCust = await custCollection.toArray()
+            const allProd = await prodCollection.toArray()
+            setCustomers(allCust.filter(c => c.shopId === shopId || !c.shopId) as unknown as Customer[])
+            setProducts(allProd.filter(p => (p.shopId === shopId || !p.shopId) && p.isActive && p.quantity > 0) as unknown as Product[])
+          } else {
+            const localCustomers = await custCollection.toArray()
+            const localProducts = await prodCollection.toArray()
+            setCustomers(localCustomers as unknown as Customer[])
+            setProducts(localProducts.filter(p => p.isActive && p.quantity > 0) as unknown as Product[])
+          }
+        } catch (localErr) {
+          console.error('[SalesPage] Local DB fallback failed:', localErr)
+        }
       } finally {
         setLoading(false)
       }
@@ -608,24 +641,113 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
       // Create customer inline if needed
       let finalCustomerId = data.customerId
       if (showNewCustomer && data.newCustomerName?.trim()) {
-        const custRes = await api.createCustomer(orgId, {
-          name: data.newCustomerName.trim(),
-          phone: data.newCustomerPhone?.trim() || undefined,
-          shopId,
-        })
-        finalCustomerId = custRes.customer.id
+        try {
+          const custRes = await api.createCustomer(orgId, {
+            name: data.newCustomerName.trim(),
+            phone: data.newCustomerPhone?.trim() || undefined,
+            shopId,
+          })
+          finalCustomerId = custRes.customer.id
+        } catch {
+          // Offline: create customer locally and queue in outbox
+          const localCustId = `local_cust_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+          const localCustomer: LocalCustomer = {
+            id: localCustId,
+            organizationId: orgId,
+            shopId: shopId ?? null,
+            name: data.newCustomerName.trim(),
+            phone: data.newCustomerPhone?.trim() || null,
+            email: null,
+            address: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+          await db.customers.add(localCustomer)
+          await getSyncEngine().addToOutbox({
+            entity: 'customers',
+            operation: 'create',
+            payload: JSON.stringify(localCustomer),
+            localId: localCustId,
+          })
+          finalCustomerId = localCustId
+        }
       }
 
-      await api.createSale(orgId, {
-        customerId: finalCustomerId || undefined,
-        items: data.items,
-        paymentMethod: data.paymentMethod,
-        discount: data.discount ?? 0,
-        tax: data.tax ?? 0,
-        amountPaid: data.paymentMethod === 'credit' ? (data.amountPaid ?? 0) : grandTotal,
-        notes: data.notes?.trim() || undefined,
-        shopId,
-      })
+      try {
+        await api.createSale(orgId, {
+          customerId: finalCustomerId || undefined,
+          items: data.items,
+          paymentMethod: data.paymentMethod,
+          discount: data.discount ?? 0,
+          tax: data.tax ?? 0,
+          amountPaid: data.paymentMethod === 'credit' ? (data.amountPaid ?? 0) : grandTotal,
+          notes: data.notes?.trim() || undefined,
+          shopId,
+        })
+      } catch {
+        // Offline: write sale to local DB and queue in outbox
+        const localSaleId = `local_sale_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+        const invoiceNumber = `INV-OFFLINE-${Date.now()}`
+
+        const localSale: LocalSale = {
+          id: localSaleId,
+          organizationId: orgId,
+          shopId: shopId ?? null,
+          customerId: finalCustomerId || null,
+          invoiceNumber,
+          status: 'pending',
+          paymentMethod: data.paymentMethod,
+          subtotal,
+          discount: data.discount ?? 0,
+          tax: data.tax ?? 0,
+          total: grandTotal,
+          amountPaid: data.paymentMethod === 'credit' ? (data.amountPaid ?? 0) : grandTotal,
+          notes: data.notes?.trim() || null,
+          saleDate: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        await db.sales.add(localSale)
+
+        // Store sale items locally
+        for (const item of data.items) {
+          const localSaleItem: LocalSaleItem = {
+            id: `local_si_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+            saleId: localSaleId,
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            costPrice: 0,
+            total: item.quantity * item.unitPrice,
+          }
+          await db.saleItems.add(localSaleItem)
+        }
+
+        // Queue in outbox for later sync
+        await getSyncEngine().addToOutbox({
+          entity: 'sales',
+          operation: 'create',
+          payload: JSON.stringify({
+            ...localSale,
+            items: data.items,
+          }),
+          localId: localSaleId,
+        })
+
+        // Decrement local product stock
+        for (const item of data.items) {
+          try {
+            const product = await db.products.get(item.productId)
+            if (product) {
+              await db.products.update(item.productId, {
+                quantity: Math.max(0, product.quantity - item.quantity),
+              })
+            }
+          } catch {
+            // Best effort — don't block sale creation
+          }
+        }
+      }
 
       toast.success('Sale completed successfully!')
       onSaleCreated()
@@ -966,7 +1088,21 @@ export function SalesPage() {
     } catch (err) {
       const msg = getNetworkErrorMessage(err)
       setPageError(msg)
-      toast.error(msg)
+      // Fallback to local IndexedDB when API fails
+      try {
+        let collection = db.sales.where('organizationId').equals(orgId)
+        if (currentShop?.id) {
+          const all = await collection.toArray()
+          const filtered = all.filter(s => s.shopId === currentShop.id || !s.shopId)
+          setAllSales(filtered as unknown as Sale[])
+        } else {
+          const localSales = await collection.toArray()
+          setAllSales(localSales as unknown as Sale[])
+        }
+      } catch (localErr) {
+        console.error('[SalesPage] Local DB fallback failed:', localErr)
+        toast.error(msg)
+      }
     } finally {
       setLoading(false)
     }

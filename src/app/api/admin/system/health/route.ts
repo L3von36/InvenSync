@@ -4,7 +4,7 @@ import { isDatabaseError } from '@/lib/api-error'
 import { cache } from '@/lib/cache'
 import { getRateLimitStats, applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 import { getResilienceStats } from '@/lib/resilience'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 
 // ============================================
 // System Health & Performance Monitoring API

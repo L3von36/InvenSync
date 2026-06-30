@@ -22,6 +22,7 @@ import { useAppStore, pageTitles, type Page } from '@/lib/stores/app-store'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useNotificationStore } from '@/lib/stores/notification-store'
 import { NotificationBell } from '@/components/shared/notification-bell'
+import { SyncStatusChip } from '@/components/app/dashboard/sync-panel'
 import { useTheme } from 'next-themes'
 import { Sun, Moon } from 'lucide-react'
 
@@ -82,6 +83,7 @@ const pageBreadcrumbs: Record<Page, string[]> = {
   'price-optimization': ['Home', 'AI', 'Price Optimization'],
   'sales-forecast': ['Home', 'AI', 'Sales Forecast'],
   'anomaly-detection': ['Home', 'AI', 'Anomaly Detection'],
+  'sync-offline': ['Home', 'Sync & Offline'],
 }
 
 export function AppHeader() {
@@ -138,6 +140,9 @@ export function AppHeader() {
       <div className="ml-auto flex items-center gap-2">
         {/* Theme toggle */}
         <ThemeToggle />
+
+        {/* Sync status chip */}
+        <SyncStatusChip />
 
         {/* Notification bell */}
         <NotificationBell />

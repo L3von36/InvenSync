@@ -17,7 +17,7 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 
 // Lazy getter for JWT_SECRET — avoids throwing during `next build` (which runs in production mode)
 // when no auth operations are actually performed. The error is raised at runtime instead.

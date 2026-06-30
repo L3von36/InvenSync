@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 
@@ -27,6 +27,15 @@ export async function GET(request: Request) {
 
     const where: Record<string, unknown> = { organizationId: orgId }
     if (status) where.status = status
+
+    // Delta sync: filter records updated since the given timestamp
+    const updatedSince = searchParams.get('updatedSince')
+    if (updatedSince) {
+      const updatedSinceDate = new Date(updatedSince)
+      if (!isNaN(updatedSinceDate.getTime())) {
+        where.updatedAt = { gte: updatedSinceDate }
+      }
+    }
 
     const [purchaseOrders, total] = await Promise.all([
       db.purchaseOrder.findMany({

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { api, type Debt, type DebtPayment, type Customer, type Supplier } from '@/lib/api-client'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { db } from '@/lib/db'
 import { debtSchema, type DebtFormData, debtPaymentSchema, type DebtPaymentFormData } from '@/lib/validations'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -88,25 +89,102 @@ export function DebtsPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
 
+  // ============================================
+  // Local-First Data Loading (Repository Pattern)
+  // ============================================
+  // Reads from IndexedDB FIRST (instant, works offline), then refreshes
+  // from the API in the background and persists back to IndexedDB.
   const fetchDebts = useCallback(async () => {
     if (!orgId) return
     setLoading(true)
     setPageError(null)
+
+    const type = activeTab === 'customer' ? 'customer_debt' : 'supplier_debt'
+
+    // ---- Step 1: Read from IndexedDB FIRST (instant, offline) ----
     try {
-      const type = activeTab === 'customer' ? 'customer_debt' : 'supplier_debt'
+      let localDebts = await db.debts
+        .where('organizationId')
+        .equals(orgId)
+        .toArray()
+
+      // Filter by debt type
+      localDebts = localDebts.filter((d) => d.type === type)
+
+      // Filter by shopId
+      if (shopId) {
+        localDebts = localDebts.filter((d) => d.shopId === shopId || !d.shopId)
+      }
+
+      // Filter by status
+      if (statusFilter !== 'all') {
+        localDebts = localDebts.filter((d) => d.status === statusFilter)
+      }
+
+      // Sort by createdAt desc
+      localDebts.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+
+      setDebts(localDebts as unknown as Debt[])
+
+      // Compute summary from local data
+      const customerDebts = localDebts.filter((d) => d.type === 'customer_debt' && d.status !== 'paid')
+      const supplierDebts = localDebts.filter((d) => d.type === 'supplier_debt' && d.status !== 'paid')
+      const totalCustomer = customerDebts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
+      const totalSupplier = supplierDebts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0)
+      setSummary({
+        totalCustomerDebt: totalCustomer,
+        totalSupplierDebt: totalSupplier,
+        totalOutstanding: totalCustomer + totalSupplier,
+      })
+
+      setLoading(false)
+    } catch {
+      setLoading(true)
+    }
+
+    // ---- Step 2: If online, refresh from API and update IndexedDB ----
+    try {
       const params: Record<string, string> = { orgId, type, limit: '100' }
       if (statusFilter !== 'all') params.status = statusFilter
       const data = await api.getDebts(orgId, { ...params, shopId })
       setDebts(data.debts)
       setSummary(data.summary)
+
+      // Persist to IndexedDB for future offline reads
+      try {
+        const localRecords = data.debts.map((d) => ({
+          id: d.id,
+          organizationId: d.organizationId,
+          shopId: d.shopId || null,
+          customerId: d.customerId || null,
+          supplierId: d.supplierId || null,
+          type: d.type || '',
+          amount: d.amount ?? 0,
+          paidAmount: d.paidAmount ?? 0,
+          dueDate: d.dueDate || null,
+          status: d.status || '',
+          description: d.description || null,
+          createdAt: d.createdAt || new Date().toISOString(),
+          updatedAt: d.updatedAt || new Date().toISOString(),
+        }))
+        if (localRecords.length > 0) {
+          await db.debts.bulkPut(localRecords)
+        }
+      } catch {
+        // Caching failure is non-critical
+      }
     } catch (err) {
       const msg = getNetworkErrorMessage(err)
-      setPageError(msg)
-      toast.error(msg)
+      if (debts.length === 0) {
+        setPageError(msg)
+        toast.error(msg)
+      }
     } finally {
       setLoading(false)
     }
-  }, [orgId, activeTab, statusFilter, shopId])
+  }, [orgId, activeTab, statusFilter, shopId, debts.length])
 
   useEffect(() => {
     fetchDebts()

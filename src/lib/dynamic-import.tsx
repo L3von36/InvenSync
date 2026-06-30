@@ -57,12 +57,17 @@ export function dynamicImport<T extends ComponentType<unknown>>(
       } catch (error) {
         lastError = error
 
-        // Only retry on chunk load errors (network/deployment issues)
+        // Only retry on chunk load errors (network/deployment issues).
+        // ChunkLoadError is the error *name* (error.name === 'ChunkLoadError'),
+        // but the *message* is "Failed to load chunk /_next/...". Match both
+        // the name and all known message variants so retries actually fire.
         const isChunkLoadError =
           error instanceof Error &&
-          (error.message.includes('Loading chunk') ||
-            error.message.includes('Failed to fetch') ||
+          (error.name === 'ChunkLoadError' ||
+            error.message.includes('Failed to load chunk') ||
+            error.message.includes('Loading chunk') ||
             error.message.includes('ChunkLoadError') ||
+            error.message.includes('Failed to fetch') ||
             error.message.includes('dynamically imported module'))
 
         if (!isChunkLoadError || attempt === retries) {
