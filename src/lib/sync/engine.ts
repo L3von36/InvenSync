@@ -10,6 +10,12 @@
 
 import { authFetch } from '@/lib/auth-fetch'
 import { db } from '@/lib/db'
+import {
+  resolveConflict,
+  findConflictingFields,
+  type ConflictInfo,
+  BASE_VALUES_KEY,
+} from '@/lib/sync/conflict'
 
 // ============================================
 // Types
@@ -183,8 +189,11 @@ class SyncEngine {
   private recentEvents: SyncEvent[] = []
   private maxRecentEvents = 50
   private autoSyncTimer: ReturnType<typeof setInterval> | null = null
+  private pullTimer: ReturnType<typeof setInterval> | null = null
   private connectivityCleanup: (() => void) | null = null
   private abortController: AbortController | null = null
+  // Org/shop context for auto-pull (set when startAutoSync is called with context)
+  private syncContext: { orgId: string; shopId?: string } | null = null
 
   constructor() {
     if (typeof window === 'undefined') return
@@ -499,15 +508,119 @@ class SyncEngine {
         return 'synced'
       }
 
-      // 409 Conflict
+      // 409 Conflict — attempt automatic resolution before flagging as manual.
+      //
+      // The server returns its current version of the record in the 409 body.
+      // We parse it, build a ConflictInfo, and call resolveConflict() with the
+      // entity's default strategy (LWW for most entities, delta-merge for
+      // products.quantity / debts.paidAmount / stockMovements.quantity).
+      //
+      // - If the strategy auto-resolves (LWW / server-wins / client-wins /
+      //   delta-merge), we write the merged record to the server via PUT and
+      //   update the local Dexie table. The outbox item is marked 'synced'.
+      // - If the strategy is 'manual' (none currently), we fall back to the
+      //   old behavior: mark the item as 'conflict' for the SyncPanel UI.
       if (response.status === 409) {
-        item.status = 'conflict'
+        let serverData: Record<string, unknown> = {}
+        let serverBodyText = ''
         try {
-          const body = await response.text()
-          item.error = `Conflict: ${body}`
+          serverBodyText = await response.text()
+          const parsed = JSON.parse(serverBodyText)
+          // Server may return { record: {...} } or { data: {...} } or the record directly
+          serverData = (parsed && (parsed.record || parsed.data || parsed)) || {}
         } catch {
-          item.error = 'Conflict detected'
+          // Body wasn't JSON — can't auto-resolve
         }
+
+        const localData = (payloadObj ?? {}) as Record<string, unknown>
+        const recordId = String(serverData.id ?? item.serverId ?? item.localId ?? '')
+
+        const conflictInfo: ConflictInfo = {
+          entity: item.entity,
+          localId: item.localId ?? recordId,
+          serverId: item.serverId ?? (serverData.id ? String(serverData.id) : undefined),
+          operation: item.operation,
+          localData,
+          serverData,
+          localUpdatedAt: String(localData.updatedAt ?? new Date().toISOString()),
+          serverUpdatedAt: String(serverData.updatedAt ?? new Date().toISOString()),
+          conflictingFields: findConflictingFields(localData, serverData),
+        }
+
+        const resolution = resolveConflict(conflictInfo)
+
+        if (resolution.strategy !== 'manual' && resolution.resolvedData) {
+          // Auto-resolved — push the merged/winning version to the server.
+          console.log(
+            `[Sync] Conflict auto-resolved for ${item.entity} ${recordId} ` +
+            `(strategy=${resolution.strategy}, winner=${resolution.winner}, ` +
+            `conflictingFields=[${conflictInfo.conflictingFields.join(',')}])`
+          )
+
+          try {
+            // Strip internal _baseValues before sending
+            const mergedPayload = { ...resolution.resolvedData }
+            delete (mergedPayload as Record<string, unknown>)[BASE_VALUES_KEY]
+            delete (mergedPayload as Record<string, unknown>)['_endpoint']
+            delete (mergedPayload as Record<string, unknown>)['_method']
+            delete (mergedPayload as Record<string, unknown>)['_rawBody']
+
+            const entityEndpoint = ENTITY_ENDPOINTS[item.entity]
+            const updateUrl = `${entityEndpoint}/${recordId}`
+            const updateResp = await authFetch(updateUrl, {
+              method: 'PUT',
+              body: JSON.stringify(mergedPayload),
+              signal: this.abortController?.signal,
+            })
+
+            if (updateResp.ok) {
+              // Update the local Dexie table with the resolved record
+              const tableName = ENTITY_TABLES[item.entity]
+              if (tableName) {
+                try {
+                  // Ensure the merged record has the right id + timestamps
+                  const localRecord = {
+                    ...resolution.resolvedData,
+                    id: recordId,
+                    updatedAt: new Date().toISOString(),
+                  }
+                  delete (localRecord as Record<string, unknown>)[BASE_VALUES_KEY]
+                  await dexieDb.table(tableName).put(localRecord)
+                } catch (err) {
+                  console.warn(`[Sync] Failed to update local table after conflict resolution:`, err)
+                }
+              }
+
+              item.status = 'synced'
+              item.error = undefined
+              await dexieDb.outbox.put(item)
+              this.emitEvent(
+                'item_synced',
+                item.entity,
+                `Conflict auto-resolved (${resolution.strategy}, ${resolution.winner})`
+              )
+              return 'synced'
+            } else {
+              // The re-PUT failed — fall back to flagging as conflict
+              const errBody = await updateResp.text().catch(() => '')
+              item.status = 'conflict'
+              item.error = `Conflict resolution re-PUT failed (${updateResp.status}): ${errBody.slice(0, 200)}`
+              await dexieDb.outbox.put(item)
+              this.emitEvent('item_conflict', item.entity, item.error)
+              return 'conflict'
+            }
+          } catch (err) {
+            item.status = 'conflict'
+            item.error = `Conflict resolution error: ${String(err)}`
+            await dexieDb.outbox.put(item)
+            this.emitEvent('item_conflict', item.entity, item.error)
+            return 'conflict'
+          }
+        }
+
+        // Manual strategy (or no server data to resolve with) — flag for user
+        item.status = 'conflict'
+        item.error = `Conflict (manual resolution required): ${serverBodyText.slice(0, 200)}`
         await dexieDb.outbox.put(item)
         this.emitEvent('item_conflict', item.entity, item.error)
         return 'conflict'
@@ -852,47 +965,109 @@ class SyncEngine {
   // Auto Sync
   // ------------------------------------------
 
-  async startAutoSync(intervalMs: number = 5 * 60 * 1000): Promise<() => void> {
+  /**
+   * Starts automatic background synchronization.
+   *
+   * Two timers run in parallel:
+   *  - Push timer (intervalMs, default 5 min): drains the local outbox so
+   *    offline mutations reach the server.
+   *  - Pull timer (2× intervalMs, default 10 min): delta-syncs all entities
+   *    so remote changes made by OTHER devices/users propagate to this
+   *    device's IndexedDB automatically. No manual sync button required.
+   *
+   * The pull timer requires org/shop context so it can call pullAll(). If no
+   * context is provided, only push runs (backward-compatible behavior).
+   *
+   * On "back online" events, BOTH a push (drain outbox) and a pull (fetch
+   * remote changes) are triggered so the device is fully up-to-date.
+   */
+  async startAutoSync(
+    intervalMs: number = 5 * 60 * 1000,
+    context?: { orgId: string; shopId?: string }
+  ): Promise<() => void> {
     if (typeof window === 'undefined') {
       return () => {}
     }
 
-    console.log(`[Sync] Starting auto sync with interval ${intervalMs}ms`)
+    // Store context for auto-pull (and back-online events)
+    if (context) {
+      this.syncContext = context
+    }
 
-    // Clear any existing timer
+    console.log(
+      `[Sync] Starting auto sync with interval ${intervalMs}ms` +
+      (context ? ` (push + pull, orgId=${context.orgId})` : ' (push only — no org context)')
+    )
+
+    // Clear any existing timers
     this.stopAutoSync()
 
-    // Set up interval
+    // --- Push timer: drain outbox ---
     this.autoSyncTimer = setInterval(async () => {
       const connService = await getConnectivityService()
       const isOnline = connService ? connService.isOnline : navigator.onLine
 
       if (isOnline) {
-        console.log('[Sync] Auto sync triggered')
+        console.log('[Sync] Auto push triggered')
         await this.push()
       } else {
-        console.log('[Sync] Offline, skipping auto sync')
+        console.log('[Sync] Offline, skipping auto push')
       }
     }, intervalMs)
+
+    // --- Pull timer: fetch remote changes (only if we have org context) ---
+    if (this.syncContext) {
+      const pullInterval = intervalMs * 2 // pull half as often as push
+      this.pullTimer = setInterval(async () => {
+        const connService = await getConnectivityService()
+        const isOnline = connService ? connService.isOnline : navigator.onLine
+
+        if (isOnline && this.syncContext) {
+          console.log('[Sync] Auto pull triggered — fetching remote changes')
+          try {
+            await this.pullAll(this.syncContext.orgId, this.syncContext.shopId)
+          } catch (err) {
+            console.error('[Sync] Auto pull failed:', err)
+          }
+        } else {
+          console.log('[Sync] Offline, skipping auto pull')
+        }
+      }, pullInterval)
+    }
 
     // Listen for connectivity changes — sync when coming back online
     const connService = await getConnectivityService()
     if (connService) {
       this.connectivityCleanup = connService.subscribe(async (online) => {
         if (online) {
-          console.log('[Sync] Back online, triggering sync')
+          console.log('[Sync] Back online, triggering push + pull')
           // Small delay to let connection stabilize
           setTimeout(async () => {
             await this.push()
+            // Also pull remote changes so this device is current
+            if (this.syncContext) {
+              try {
+                await this.pullAll(this.syncContext.orgId, this.syncContext.shopId)
+              } catch (err) {
+                console.error('[Sync] Back-online pull failed:', err)
+              }
+            }
           }, 1000)
         }
       })
     } else {
       // Fallback: listen for browser online events
       const handleOnline = () => {
-        console.log('[Sync] Browser online event, triggering sync')
+        console.log('[Sync] Browser online event, triggering push + pull')
         setTimeout(async () => {
           await this.push()
+          if (this.syncContext) {
+            try {
+              await this.pullAll(this.syncContext.orgId, this.syncContext.shopId)
+            } catch (err) {
+              console.error('[Sync] Browser-online pull failed:', err)
+            }
+          }
         }, 1000)
       }
       window.addEventListener('online', handleOnline)
@@ -912,10 +1087,16 @@ class SyncEngine {
       clearInterval(this.autoSyncTimer)
       this.autoSyncTimer = null
     }
+    if (this.pullTimer) {
+      clearInterval(this.pullTimer)
+      this.pullTimer = null
+    }
     if (this.connectivityCleanup) {
       this.connectivityCleanup()
       this.connectivityCleanup = null
     }
+    // Note: we intentionally do NOT clear syncContext here so a restart
+    // of auto-sync (e.g. after a transient stop) still knows the org.
   }
 
   // ------------------------------------------

@@ -274,9 +274,13 @@ export default function AppShell() {
       bootstrap(currentOrg.id, currentShop?.id ?? null)
         .then(() => {
           console.log('[AppShell] Bootstrap complete')
-          // Start auto-sync engine after bootstrap succeeds
+          // Start auto-sync engine (push + pull) with org context so remote
+          // changes are fetched automatically, not just local writes pushed.
           const engine = getSyncEngine()
-          engine.startAutoSync()
+          engine.startAutoSync(5 * 60 * 1000, {
+            orgId: currentOrg.id,
+            shopId: currentShop?.id ?? undefined,
+          })
         })
         .catch((err) => {
           console.error('[AppShell] Bootstrap failed:', err)
@@ -284,9 +288,12 @@ export default function AppShell() {
           bootstrapTriggeredForOrg.current = null
         })
     } else {
-      // Already bootstrapped — ensure auto-sync is running
+      // Already bootstrapped — ensure auto-sync is running with org context
       const engine = getSyncEngine()
-      engine.startAutoSync()
+      engine.startAutoSync(5 * 60 * 1000, {
+        orgId: currentOrg.id,
+        shopId: currentShop?.id ?? undefined,
+      })
     }
   }, [currentOrg, currentShop, user?.role, checkNeedsBootstrap, bootstrap, isBootstrapping])
 

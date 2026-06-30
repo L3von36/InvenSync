@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { api, type Customer, type Sale, type Debt } from '@/lib/api-client'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { db } from '@/lib/db'
 import { customerSchema, type CustomerFormData } from '@/lib/validations'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -88,10 +89,107 @@ export function CustomersPage() {
   // Stats
   const [newThisMonth, setNewThisMonth] = useState(0)
 
+  // ============================================
+  // Local-First Data Loading (Repository Pattern)
+  // ============================================
+  // This page reads from IndexedDB FIRST (instant, works offline), then
+  // refreshes from the API in the background. This implements the true
+  // offline-first architecture: the UI always reads from the local
+  // database, and the API is only used for synchronization.
+  //
+  // Flow:
+  //   1. Read from db.customers (Dexie) → render immediately
+  //   2. If online, fetch from API → update Dexie → re-render
+  //   3. If offline, the SW + offline-fallback handles API failures
+  //      transparently, but the local read already has the data.
   const fetchCustomers = useCallback(async () => {
     if (!orgId) return
     setLoading(true)
     setPageError(null)
+
+    // ---- Step 1: Read from IndexedDB FIRST (instant, offline) ----
+    try {
+      let localCustomers = await db.customers
+        .where('organizationId')
+        .equals(orgId)
+        .toArray()
+
+      // Filter by shopId if set (match shop or org-level records with no shop)
+      if (shopId) {
+        localCustomers = localCustomers.filter(
+          (c) => c.shopId === shopId || !c.shopId
+        )
+      }
+
+      // Apply search filter locally (case-insensitive on name/phone/email)
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        localCustomers = localCustomers.filter(
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            (c.phone && c.phone.toLowerCase().includes(q)) ||
+            (c.email && c.email.toLowerCase().includes(q))
+        )
+      }
+
+      // Sort by createdAt desc (newest first)
+      localCustomers.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+
+      // Paginate locally
+      const localTotal = localCustomers.length
+      const localTotalPages = Math.max(1, Math.ceil(localTotal / limit))
+      const startIdx = (page - 1) * limit
+      const pagedLocal = localCustomers.slice(startIdx, startIdx + limit)
+
+      // Render local data immediately
+      setCustomers(pagedLocal as unknown as Customer[])
+      setTotal(localTotal)
+      setTotalPages(localTotalPages)
+      setLoading(false)
+
+      // Compute stats from local data (only on first page without search)
+      if (page === 1 && !searchQuery) {
+        const now = new Date()
+        const newCount = localCustomers.filter((c) => {
+          const created = new Date(c.createdAt)
+          return (
+            created.getMonth() === now.getMonth() &&
+            created.getFullYear() === now.getFullYear()
+          )
+        }).length
+        setNewThisMonth(newCount)
+
+        // Per-customer debt map from local debts
+        try {
+          const localDebts = await db.debts
+            .where('organizationId')
+            .equals(orgId)
+            .toArray()
+          const debtMap: Record<string, number> = {}
+          for (const d of localDebts) {
+            if (d.status !== 'paid' && d.customerId) {
+              const outstanding = d.amount - d.paidAmount
+              debtMap[d.customerId] = (debtMap[d.customerId] || 0) + outstanding
+            }
+          }
+          setCustomerDebtMap(debtMap)
+          const outstandingDebt = Object.values(debtMap).reduce(
+            (sum, v) => sum + v,
+            0
+          )
+          setTotalDebt(outstandingDebt)
+        } catch {
+          // Local debts read failed — stats degrade gracefully
+        }
+      }
+    } catch {
+      // Local read failed — fall through to API-only mode
+      setLoading(true)
+    }
+
+    // ---- Step 2: If online, refresh from API and update IndexedDB ----
     try {
       const data = await api.getCustomers(orgId, {
         search: searchQuery || undefined,
@@ -102,6 +200,26 @@ export function CustomersPage() {
       setCustomers(data.customers)
       setTotalPages(data.pagination.totalPages)
       setTotal(data.pagination.total)
+
+      // Persist the fetched page to IndexedDB for future offline reads
+      try {
+        const localRecords = data.customers.map((c) => ({
+          id: c.id,
+          organizationId: c.organizationId,
+          shopId: c.shopId || null,
+          name: c.name,
+          email: c.email || null,
+          phone: c.phone || null,
+          address: c.address || null,
+          createdAt: c.createdAt || new Date().toISOString(),
+          updatedAt: c.updatedAt || new Date().toISOString(),
+        }))
+        if (localRecords.length > 0) {
+          await db.customers.bulkPut(localRecords)
+        }
+      } catch {
+        // Caching failure is non-critical
+      }
 
       // Calculate stats and per-customer debt (only on first page without search)
       if (page === 1 && !searchQuery) {
@@ -139,12 +257,17 @@ export function CustomersPage() {
       }
     } catch (err) {
       const msg = getNetworkErrorMessage(err)
-      setPageError(msg)
-      toast.error(msg)
+      // Only show an error if we have NO local data (the local read above
+      // already populated the UI; an API failure shouldn't override it
+      // with an error toast when the user can still see their data).
+      if (customers.length === 0) {
+        setPageError(msg)
+        toast.error(msg)
+      }
     } finally {
       setLoading(false)
     }
-  }, [orgId, searchQuery, page, shopId])
+  }, [orgId, searchQuery, page, shopId, customers.length])
 
   useEffect(() => {
     fetchCustomers()
