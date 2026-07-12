@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
-import { getUserFromRequest, isSupabaseAuth } from '@/lib/auth'
+import { getUserFromRequest, isSupabaseAuth, revokeSessionFromRequest } from '@/lib/auth'
 import { parseUserAgent } from '@/lib/two-factor'
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
@@ -15,6 +15,10 @@ export async function POST(request: Request) {
   try {
     // Try to get user from request for device tracking
     const user = await getUserFromRequest(request).catch(() => null)
+
+    // Revoke the JWT session server-side so the token stops working
+    // immediately — not just when the client discards it.
+    await revokeSessionFromRequest(request).catch(() => {})
 
     if (user) {
       // Mark the current device as inactive

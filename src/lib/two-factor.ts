@@ -43,7 +43,7 @@ function generateQrCodeUrl(secret: string, email: string, issuer: string = 'Inve
  * Generate backup codes (8 single-use codes).
  * Each code is 8 characters, alphanumeric, grouped as XXXX-XXXX.
  */
-function generateBackupCodes(count: number = 8): string[] {
+export function generateBackupCodes(count: number = 8): string[] {
   const codes: string[] = []
   for (let i = 0; i < count; i++) {
     const bytes = crypto.randomBytes(4)

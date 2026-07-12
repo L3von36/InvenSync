@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
-import { hashPassword, generateToken, validatePasswordStrength } from '@/lib/auth'
+import { hashPassword, createSession, validatePasswordStrength } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
@@ -242,8 +242,8 @@ export async function POST(request: Request) {
       return { newUser, organization, salesRepName }
     })
 
-    // Generate JWT token
-    const token = generateToken(newUser.id)
+    // Generate session-backed JWT token (revocable server-side)
+    const token = await createSession(newUser.id)
 
     return NextResponse.json({
       token,

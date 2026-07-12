@@ -10,6 +10,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // 2FA status — needed by the Security settings tab. Not part of the
+    // AuthUser shape, so fetch it explicitly.
+    const securityInfo = await db.user.findUnique({
+      where: { id: user.id },
+      select: { twoFactorEnabled: true },
+    })
+
     // Get user's shop memberships
     const shopMemberships = await db.shopMember.findMany({
       where: { userId: user.id },
@@ -81,6 +88,7 @@ export async function GET(request: Request) {
         name: user.name,
         avatarUrl: user.avatarUrl,
         role: user.role,
+        twoFactorEnabled: securityInfo?.twoFactorEnabled ?? false,
       },
       organizations: user.memberships.map(m => ({
         id: m.organization.id,

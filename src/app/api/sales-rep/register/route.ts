@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
-import { getUserFromRequest, hashPassword, generateToken } from '@/lib/auth'
+import { getUserFromRequest, hashPassword, createSession } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 
 export async function POST(request: Request) {
@@ -190,7 +190,7 @@ export async function POST(request: Request) {
     const result = { customerUser, organization }
 
     // 7. Generate token for the new customer user
-    const token = generateToken(result.customerUser.id)
+    const token = await createSession(result.customerUser.id)
 
     return NextResponse.json({
       token,

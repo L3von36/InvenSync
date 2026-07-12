@@ -197,13 +197,44 @@ async function getUserFromSupabase(): Promise<AuthUser | null> {
  */
 async function getUserFromJWT(request?: Request): Promise<AuthUser | null> {
   if (!request) return null
-  
+
   const authHeader = request.headers.get('authorization')
   if (!authHeader?.startsWith('Bearer ')) return null
 
   const token = authHeader.substring(7)
   const payload = verifyToken(token)
   if (!payload) return null
+
+  // Session-backed tokens (have a jti): validate the session record so
+  // revocation takes effect immediately. The session lookup includes the
+  // user, so this is still a single query.
+  // Legacy tokens without a jti (issued before session tracking) are
+  // accepted until their 24h expiry, then naturally phase out.
+  if (payload.jti) {
+    const session = await db.session.findUnique({
+      where: { token: payload.jti },
+      include: {
+        user: {
+          include: {
+            memberships: {
+              include: { organization: true }
+            }
+          }
+        }
+      }
+    })
+
+    if (
+      !session ||
+      session.revokedAt ||
+      session.expiresAt < new Date() ||
+      session.userId !== payload.userId
+    ) {
+      return null
+    }
+
+    return session.user as unknown as AuthUser
+  }
 
   // Let database errors propagate so getUserFromRequest can convert to DatabaseUnavailableError
   const user = await db.user.findUnique({
@@ -280,9 +311,71 @@ export function generateToken(userId: string): string {
   return jwt.sign({ userId }, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN })
 }
 
-export function verifyToken(token: string): { userId: string } | null {
+/**
+ * Create a session-backed token: signs a JWT carrying a `jti` claim and
+ * records a Session row keyed by that jti. Unlike bare `generateToken`
+ * output, these tokens can be revoked server-side (logout, revoke-all)
+ * and stop working immediately — not just when the JWT expires.
+ */
+export async function createSession(userId: string): Promise<string> {
+  const jti = crypto.randomUUID()
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // matches JWT_EXPIRES_IN
+
+  await db.session.create({
+    data: { userId, token: jti, expiresAt },
+  })
+
+  // Opportunistic cleanup so expired sessions don't accumulate forever
+  db.session
+    .deleteMany({ where: { userId, expiresAt: { lt: new Date() } } })
+    .catch(() => {})
+
+  return jwt.sign({ userId, jti }, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN })
+}
+
+/**
+ * Revoke the session behind a bearer token. No-op for legacy tokens
+ * without a jti. Safe to call with an invalid/expired token.
+ */
+export async function revokeSessionFromRequest(request: Request): Promise<void> {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) return
+  const payload = verifyToken(authHeader.substring(7))
+  if (!payload?.jti) return
+  await db.session
+    .updateMany({
+      where: { token: payload.jti, revokedAt: null },
+      data: { revokedAt: new Date() },
+    })
+    .catch(() => {})
+}
+
+/**
+ * Revoke every active session for a user, optionally keeping the current
+ * one alive (for "log out all other devices").
+ */
+export async function revokeAllSessions(userId: string, exceptJti?: string): Promise<number> {
+  const result = await db.session.updateMany({
+    where: {
+      userId,
+      revokedAt: null,
+      ...(exceptJti ? { token: { not: exceptJti } } : {}),
+    },
+    data: { revokedAt: new Date() },
+  })
+  return result.count
+}
+
+/** Extract the jti claim from a request's bearer token, if present. */
+export function getJtiFromRequest(request: Request): string | null {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) return null
+  return verifyToken(authHeader.substring(7))?.jti ?? null
+}
+
+export function verifyToken(token: string): { userId: string; jti?: string } | null {
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string }
+    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string; jti?: string }
     return decoded
   } catch {
     return null

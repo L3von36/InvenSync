@@ -78,11 +78,12 @@ vi.mock('@/lib/auth', async (importOriginal) => {
     ...actual,
     hashPassword: (...args: any[]) => mockHashPassword(...args),
     generateToken: (...args: any[]) => mockGenerateToken(...args),
+    createSession: async (...args: any[]) => mockGenerateToken(...args),
   }
 })
 
 // Mock db with $transaction support
-vi.mock('@/lib/db', () => {
+vi.mock('@/lib/prisma', () => {
   const mockFns = {
     user: {
       findUnique: (...args: any[]) => mockUserFindUnique(...args),

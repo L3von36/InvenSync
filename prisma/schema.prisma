@@ -42,13 +42,17 @@ model User {
 }
 
 model Session {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   userId        String
-  token         String   @unique
+  token         String    @unique
   expiresAt     DateTime
-  createdAt     DateTime @default(now())
+  // Set when the session is revoked (logout, "log out all devices").
+  // A revoked session's JWT is rejected immediately even though the
+  // token itself hasn't expired yet.
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
 
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -909,4 +913,35 @@ model ScheduledReport {
   @@index([organizationId])
   @@index([isActive])
   @@index([nextSendAt])
+}
+
+// Tombstones for offline delta sync: DELETE endpoints record one row here so
+// clients pulling with ?updatedSince=... learn about deletions and can remove
+// the record from their local IndexedDB (see engine.ts pull, _deleted flag).
+model DeletedRecord {
+  id             String   @id @default(cuid())
+  entity         String   // client entity name: products, customers, sales, ...
+  recordId       String
+  organizationId String
+  deletedAt      DateTime @default(now())
+
+  @@index([organizationId, entity, deletedAt])
+}
+
+// ============================================
+// PAYMENTS — Chapa webhook idempotency
+// ============================================
+// One row per Chapa transaction reference. Chapa retries webhooks every
+// 10 minutes for up to 72 hours on non-200 responses, so a payment can be
+// delivered hundreds of times. The unique constraint on txRef guarantees a
+// payment is only fulfilled once, even under concurrent deliveries.
+model ChapaWebhookEvent {
+  id        String   @id @default(cuid())
+  txRef     String   @unique
+  status    String   // received | fulfilled | failed
+  payload   String   // raw webhook JSON (String — SQLite has no Json type)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
 }

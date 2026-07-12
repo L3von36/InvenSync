@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
-import { getUserFromRequest } from '@/lib/auth'
+import { getUserFromRequest, revokeAllSessions, getJtiFromRequest } from '@/lib/auth'
 import { parseUserAgent } from '@/lib/two-factor'
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
@@ -33,7 +33,13 @@ export async function POST(request: Request) {
       },
     })
 
-    // Revoke all other active sessions
+    // Actually invalidate the JWTs: revoke every session except the one
+    // making this request. Without this, "revoked" tokens would keep
+    // working until their 24h expiry.
+    const currentJti = getJtiFromRequest(request)
+    await revokeAllSessions(user.id, currentJti ?? undefined)
+
+    // Also mark other devices inactive (UI state)
     const revoked = await db.userDevice.updateMany({
       where: {
         userId: user.id,

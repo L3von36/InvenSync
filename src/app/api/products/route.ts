@@ -4,6 +4,7 @@ import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
+import { isValidClientId } from '@/lib/client-id'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 
 // GET /api/products?orgId=xxx&productTypeId=xxx&search=xxx
@@ -103,6 +104,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       products,
+      serverTime: new Date().toISOString(),
       pagination: {
         page,
         limit,
@@ -127,17 +129,21 @@ export async function GET(request: Request) {
   }
 }
 
-// Helper: safely parse a numeric field from the request body (may be string or number)
+// Helper: safely parse a numeric field from the request body (may be string or number).
+// Clamped to non-negative — prices, quantities and thresholds are never negative,
+// and Infinity/-Infinity must not reach the database.
 function parseNumber(value: unknown, fallback: number): number {
   if (value === undefined || value === null || value === '') return fallback
   const num = typeof value === 'string' ? parseFloat(value) : Number(value)
-  return Number.isNaN(num) ? fallback : num
+  if (Number.isNaN(num) || !Number.isFinite(num)) return fallback
+  return Math.max(0, num)
 }
 
 function parseInteger(value: unknown, fallback: number): number {
   if (value === undefined || value === null || value === '') return fallback
   const num = typeof value === 'string' ? parseInt(value, 10) : Number(value)
-  return Number.isNaN(num) ? fallback : Math.floor(num)
+  if (Number.isNaN(num) || !Number.isFinite(num)) return fallback
+  return Math.max(0, Math.floor(num))
 }
 
 // POST /api/products - Create product with attribute values
@@ -218,6 +224,12 @@ export async function POST(request: Request) {
       )
     }
 
+    // Optional client-generated ID (offline-first creates)
+    const clientId = body.id
+    if (clientId !== undefined && !isValidClientId(clientId)) {
+      return NextResponse.json({ error: 'Invalid id format' }, { status: 400 })
+    }
+
     const hasAccess = await verifyOrgAccess(user, orgId)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -227,6 +239,20 @@ export async function POST(request: Request) {
     if (user.role !== 'admin') {
       const moduleError = await requireModule(orgId, 'inventory')
       if (moduleError) return moduleError
+    }
+
+    // Idempotent replay: return the existing record if this ID was already created
+    if (clientId) {
+      const existingById = await db.product.findUnique({
+        where: { id: clientId },
+        include: { productType: { select: { id: true, name: true, icon: true } } },
+      })
+      if (existingById) {
+        if (existingById.organizationId !== orgId) {
+          return NextResponse.json({ error: 'ID already in use' }, { status: 409 })
+        }
+        return NextResponse.json({ product: existingById }, { status: 200 })
+      }
     }
 
     // Verify product type belongs to org and fetch its attribute definitions
@@ -282,6 +308,7 @@ export async function POST(request: Request) {
     const result = await db.$transaction(async (tx) => {
       const product = await tx.product.create({
         data: {
+          ...(clientId ? { id: clientId } : {}),
           productTypeId,
           organizationId: orgId,
           shopId: shopId || null,
