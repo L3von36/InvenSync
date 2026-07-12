@@ -274,8 +274,14 @@ export interface LocalUserProfile {
   role?: string | null
   /** Serialized JSON of the user's organization memberships */
   organizations: string
-  currentOrgId: string
+  currentOrgId: string | null
   currentShopId?: string | null
+  /**
+   * Auth token mirror for the service worker's background outbox replay —
+   * the SW can't read localStorage. Same exposure profile as localStorage
+   * (both are script-readable); cleared on logout via clearLocalDatabase().
+   */
+  token?: string | null
   /** ISO timestamp when this profile was last cached */
   cachedAt: string
 }
@@ -489,6 +495,49 @@ export async function getDatabaseSize(): Promise<{
       usage: estimate.usage ?? 0,
       quota: estimate.quota ?? 0,
     }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Requests persistent storage for this origin. Persistent origins are
+ * exempt from the browser's LRU eviction under storage pressure (and from
+ * Safari's 7-day script-writable-storage cap), which protects IndexedDB
+ * data and the offline caches.
+ *
+ * Chrome/Edge/Safari grant or deny silently based on engagement;
+ * Firefox may prompt the user.
+ *
+ * @returns true if persistent, false if denied, null if unsupported.
+ */
+export async function requestPersistentStorage(): Promise<boolean | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.persist) {
+    return null
+  }
+
+  try {
+    // Already persisted? Don't re-request (avoids repeat prompts in Firefox)
+    if (navigator.storage.persisted) {
+      const already = await navigator.storage.persisted()
+      if (already) return true
+    }
+    return await navigator.storage.persist()
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Returns whether this origin's storage is currently persistent,
+ * or null if the Storage API is unavailable.
+ */
+export async function isStoragePersisted(): Promise<boolean | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage?.persisted) {
+    return null
+  }
+  try {
+    return await navigator.storage.persisted()
   } catch {
     return null
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
-import { comparePassword, generateToken, hashPassword, DatabaseUnavailableError } from '@/lib/auth'
+import { comparePassword, createSession, hashPassword, DatabaseUnavailableError } from '@/lib/auth'
 import { generateTempToken, parseUserAgent } from '@/lib/two-factor'
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
 
     if (process.env.NODE_ENV !== 'production') console.log('[Login] Successful login')
 
-    const token = generateToken(user.id)
+    const token = await createSession(user.id)
 
     // Track device
     await trackDevice(request, user.id)

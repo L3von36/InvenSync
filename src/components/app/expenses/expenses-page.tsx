@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -302,18 +304,17 @@ export function ExpensesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Expenses</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Track and manage your business expenses
-          </p>
-        </div>
-        <Button onClick={openCreateDialog} className="gap-2">
-          <Plus className="size-4" />
-          Add Expense
-        </Button>
-      </div>
+      <PageHeader
+        icon={<Receipt />}
+        title="Expenses"
+        subtitle="Track and manage your business expenses"
+        actions={
+          <Button onClick={openCreateDialog} className="gap-2">
+            <Plus className="size-4" />
+            Add Expense
+          </Button>
+        }
+      />
 
       {/* KPI Card */}
       <Card>
@@ -321,7 +322,7 @@ export function ExpensesPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground font-medium">Total Expenses</p>
-              <p className="text-xl sm:text-2xl font-bold tracking-tight">
+              <p className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight">
                 {isLoading ? <Skeleton className="h-9 w-32 inline-block" /> : formatETB(totalExpenses)}
               </p>
             </div>
@@ -453,7 +454,7 @@ export function ExpensesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8 h-9 w-9 sm:h-8 sm:w-8"
+                              className="size-9 sm:size-8"
                               onClick={() => openEditDialog(expense)}
                               aria-label={`Edit expense`}
                             >
@@ -462,7 +463,7 @@ export function ExpensesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8 h-9 w-9 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
+                              className="size-9 sm:size-8 text-destructive hover:text-destructive"
                               onClick={() => setDeleteTarget(expense)}
                               aria-label={`Delete expense`}
                             >

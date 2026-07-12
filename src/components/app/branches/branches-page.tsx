@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -89,7 +91,11 @@ export function BranchesPage() {
     try {
       const data = await api.getOrganization(orgId)
       setOrgMembers(data.organization.members || [])
-    } catch { /* silently fail */ }
+    } catch {
+      // Member assignment needs this list — tell the user instead of
+      // showing an inexplicably empty selector
+      toast.error('Could not load team members. Refresh the page to retry.')
+    }
   }, [orgId])
 
   useEffect(() => { fetchShops(); fetchOrgMembers() }, [fetchShops, fetchOrgMembers])
@@ -206,15 +212,16 @@ export function BranchesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Branches</h1>
-          <p className="text-sm text-muted-foreground">Manage your shop locations and branch teams</p>
-        </div>
-        <Button onClick={openCreateDialog} className="gap-2 w-full sm:w-auto">
-          <Plus className="size-4" /> Add Branch
-        </Button>
-      </div>
+      <PageHeader
+        icon={<Store />}
+        title="Branches"
+        subtitle="Manage your shop locations and branch teams"
+        actions={
+          <Button onClick={openCreateDialog} className="gap-2 w-full sm:w-auto">
+            <Plus className="size-4" /> Add Branch
+          </Button>
+        }
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -226,7 +233,7 @@ export function BranchesPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Total Branches</p>
-                <p className="text-xl sm:text-2xl font-bold">{branchList.length}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{branchList.length}</p>
               </div>
             </div>
           </CardContent>
@@ -239,7 +246,7 @@ export function BranchesPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Active</p>
-                <p className="text-xl sm:text-2xl font-bold">{activeBranches}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{activeBranches}</p>
               </div>
             </div>
           </CardContent>
@@ -252,7 +259,7 @@ export function BranchesPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Total Products</p>
-                <p className="text-xl sm:text-2xl font-bold">{totalProducts}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{totalProducts}</p>
               </div>
             </div>
           </CardContent>
@@ -265,7 +272,7 @@ export function BranchesPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Team Members</p>
-                <p className="text-xl sm:text-2xl font-bold">{totalMembers}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{totalMembers}</p>
               </div>
             </div>
           </CardContent>
@@ -323,7 +330,7 @@ export function BranchesPage() {
                           <span>Switch</span>
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(shop)}><Pencil className="size-4" /></Button>
+                      <Button variant="ghost" size="icon" className="size-9 md:size-8" onClick={() => openEditDialog(shop)} aria-label="Edit"><Pencil className="size-4" /></Button>
                       <Switch checked={shop.isActive} onCheckedChange={() => handleToggleActive(shop)} />
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm" className="gap-1">
@@ -367,7 +374,7 @@ export function BranchesPage() {
                                   <SelectItem value="sales">Sales</SelectItem>
                                 </SelectContent>
                               </Select>
-                              <Button variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-destructive" onClick={() => setRemoveMemberTarget({ shopId: shop.id, memberId: member.id, memberName: member.user.name, shopName: shop.name })}>
+                              <Button variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-destructive" onClick={() => setRemoveMemberTarget({ shopId: shop.id, memberId: member.id, memberName: member.user.name, shopName: shop.name })} aria-label="Delete">
                                 <Trash2 className="size-3.5" />
                               </Button>
                             </div>

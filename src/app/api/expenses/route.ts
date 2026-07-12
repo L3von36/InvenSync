@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
+import { getTombstones } from '@/lib/tombstones'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
+import { isValidClientId } from '@/lib/client-id'
 import { broadcastNotification, NotificationTypes } from '@/lib/notification-broadcast'
 import { cache, CacheNamespaces } from '@/lib/cache'
 
@@ -97,7 +99,8 @@ export async function GET(request: Request) {
       .sort((a, b) => a.month.localeCompare(b.month))
 
     return NextResponse.json({
-      expenses,
+      expenses: updatedSince ? [...expenses, ...(await getTombstones('expenses', organizationId, updatedSince))] : expenses,
+      serverTime: new Date().toISOString(),
       total,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       summary: {
@@ -164,13 +167,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Amount must be a positive number' }, { status: 400 })
     }
 
+    // Optional client-generated ID (offline-first creates)
+    const clientId = body.id
+    if (clientId !== undefined && !isValidClientId(clientId)) {
+      return NextResponse.json({ error: 'Invalid id format' }, { status: 400 })
+    }
+
     const hasAccess = await verifyOrgAccess(user, organizationId)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Idempotent replay: return the existing record if this ID was already created
+    if (clientId) {
+      const existingById = await db.expense.findUnique({
+        where: { id: clientId },
+        include: { shop: { select: { id: true, name: true } } },
+      })
+      if (existingById) {
+        if (existingById.organizationId !== organizationId) {
+          return NextResponse.json({ error: 'ID already in use' }, { status: 409 })
+        }
+        return NextResponse.json({ expense: existingById }, { status: 200 })
+      }
+    }
+
     const expense = await db.expense.create({
       data: {
+        ...(clientId ? { id: clientId } : {}),
         organizationId,
         shopId: shopId || null,
         category,

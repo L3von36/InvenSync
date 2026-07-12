@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
+import { getTombstones } from '@/lib/tombstones'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
+import { isValidClientId } from '@/lib/client-id'
 
 // GET /api/suppliers?orgId=xxx&search=xxx
 export async function GET(request: Request) {
@@ -73,7 +75,8 @@ export async function GET(request: Request) {
     ])
 
     return NextResponse.json({
-      suppliers,
+      suppliers: updatedSince ? [...suppliers, ...(await getTombstones('suppliers', orgId, updatedSince))] : suppliers,
+      serverTime: new Date().toISOString(),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
     }, {
       headers: {
@@ -140,6 +143,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: addressError }, { status: 400 })
     }
 
+    // Optional client-generated ID (offline-first creates)
+    const clientId = body.id
+    if (clientId !== undefined && !isValidClientId(clientId)) {
+      return NextResponse.json({ error: 'Invalid id format' }, { status: 400 })
+    }
+
     const hasAccess = await verifyOrgAccess(user, orgId)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -149,6 +158,17 @@ export async function POST(request: Request) {
     if (user.role !== 'admin') {
       const moduleError = await requireModule(orgId, 'suppliers')
       if (moduleError) return moduleError
+    }
+
+    // Idempotent replay: return the existing record if this ID was already created
+    if (clientId) {
+      const existingById = await db.supplier.findUnique({ where: { id: clientId } })
+      if (existingById) {
+        if (existingById.organizationId !== orgId) {
+          return NextResponse.json({ error: 'ID already in use' }, { status: 409 })
+        }
+        return NextResponse.json({ supplier: existingById }, { status: 200 })
+      }
     }
 
     // Check for duplicate supplier in this org
@@ -166,6 +186,7 @@ export async function POST(request: Request) {
 
     const supplier = await db.supplier.create({
       data: {
+        ...(clientId ? { id: clientId } : {}),
         organizationId: orgId,
         shopId: shopId || null,
         name,

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
-import { generateToken } from '@/lib/auth'
+import { createSession } from '@/lib/auth'
 import { verifyTempToken, verifyTotpCode, verifyBackupCode, hashBackupCode, parseUserAgent } from '@/lib/two-factor'
+import { decryptSecret } from '@/lib/crypto'
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
     }
 
     // Verify the TOTP code or backup code
-    let isValidTotp = verifyTotpCode(user.twoFactorSecret, code)
+    let isValidTotp = verifyTotpCode(decryptSecret(user.twoFactorSecret), code)
     let isValidBackup = false
 
     if (!isValidTotp && user.backupCodes) {
@@ -87,8 +88,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create session — generate a real JWT token
-    const token = generateToken(user.id)
+    // Create session — session-backed JWT (revocable server-side)
+    const token = await createSession(user.id)
 
     // Track device
     try {

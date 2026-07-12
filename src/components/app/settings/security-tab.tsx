@@ -68,45 +68,31 @@ function TwoFactorSection() {
   const [copiedSecret, setCopiedSecret] = useState(false)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [showDisableDialog, setShowDisableDialog] = useState(false)
+  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false)
+  const [regenerateCode, setRegenerateCode] = useState('')
 
-  // Fetch current 2FA status
+  // Fetch current 2FA status from /api/auth/me (returns twoFactorEnabled)
   const fetch2faStatus = useCallback(async () => {
     if (!user) return
     setLoading(true)
     try {
-      // Fetch user profile to check 2FA status
       const res = await authFetch('/api/auth/me')
       if (res.ok) {
         const data = await res.json()
-        // The /me endpoint returns user data — we check twoFactorEnabled
-        // from the db directly via a dedicated check
+        setEnabled(!!data.user?.twoFactorEnabled)
+      } else {
+        toast.error('Could not load two-factor status')
       }
     } catch {
-      // Silently fail
+      toast.error('Could not load two-factor status — check your connection')
     } finally {
       setLoading(false)
     }
-  }, [user, token])
+  }, [user])
 
-  // For simplicity, we'll check 2FA status from a lightweight endpoint
   useEffect(() => {
-    const checkStatus = async () => {
-      if (!user || !token) return
-      setLoading(true)
-      try {
-        // We use the setup endpoint to check current status
-        // (it returns an error if already enabled, which tells us the status)
-        // Actually, let's just query the user's 2FA status from the DB via the setup route
-        // For now, let's try to set up and see if it says "already enabled"
-        setEnabled(false) // We'll update this from the response
-      } catch {
-        // Ignore
-      } finally {
-        setLoading(false)
-      }
-    }
-    checkStatus()
-  }, [])
+    fetch2faStatus()
+  }, [fetch2faStatus])
 
   const handleSetup = async () => {
     if (!user) return
@@ -172,18 +158,19 @@ function TwoFactorSection() {
   }
 
   const handleRegenerateCodes = async () => {
-    if (!user) return
+    if (!user || regenerateCode.length !== 6) return
     setSubmitting(true)
     try {
-      const data = await api.setup2fa(user.id)
-      // This would normally be a separate endpoint, but we use setup
-      // to regenerate the secret and codes
+      const data = await api.regenerateBackupCodes(regenerateCode)
       setBackupCodes(data.backupCodes)
       setSetupStep('backup-codes')
-      toast.success('New backup codes generated')
+      setShowRegenerateDialog(false)
+      setRegenerateCode('')
+      toast.success('New backup codes generated — your old codes no longer work')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       toast.error(msg || 'Failed to regenerate backup codes')
+      setRegenerateCode('')
     } finally {
       setSubmitting(false)
     }
@@ -340,7 +327,7 @@ function TwoFactorSection() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-8 shrink-0"
+                  className="size-9 md:size-8 shrink-0"
                   onClick={() => copyToClipboard(secret)}
                 >
                   {copiedSecret ? <Check className="size-4" /> : <Copy className="size-4" />}
@@ -426,7 +413,7 @@ function TwoFactorSection() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-6 shrink-0"
+                    className="size-8 md:size-6 shrink-0"
                     onClick={() => copyToClipboard(code, String(index))}
                   >
                     {copiedCode === String(index) ? (
@@ -462,18 +449,68 @@ function TwoFactorSection() {
           </div>
         )}
 
-        {/* Regenerate backup codes option */}
+        {/* Regenerate backup codes option — requires a current TOTP code */}
         {enabled && setupStep === 'idle' && (
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRegenerateCodes}
-              disabled={submitting}
-            >
-              {submitting ? <Loader2 className="size-4 animate-spin mr-2" /> : <RefreshCw className="size-4 mr-2" />}
-              Regenerate Backup Codes
-            </Button>
+            <Dialog open={showRegenerateDialog} onOpenChange={(open) => {
+              setShowRegenerateDialog(open)
+              if (!open) setRegenerateCode('')
+            }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRegenerateDialog(true)}
+                disabled={submitting}
+              >
+                <RefreshCw className="size-4 mr-2" />
+                Regenerate Backup Codes
+              </Button>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Regenerate Backup Codes</DialogTitle>
+                  <DialogDescription>
+                    Enter the current 6-digit code from your authenticator app.
+                    Your existing backup codes will stop working.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-center py-2">
+                  <InputOTP
+                    maxLength={6}
+                    value={regenerateCode}
+                    onChange={setRegenerateCode}
+                    disabled={submitting}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                    </InputOTPGroup>
+                    <InputOTPSeparator />
+                    <InputOTPGroup>
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowRegenerateDialog(false)}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleRegenerateCodes}
+                    disabled={submitting || regenerateCode.length !== 6}
+                  >
+                    {submitting ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
+                    Generate New Codes
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <span className="text-xs text-muted-foreground">
               This will invalidate your current backup codes
             </span>

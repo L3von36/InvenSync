@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -332,19 +334,20 @@ export function DebtsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Debts & Credits</h1>
-          <p className="text-muted-foreground text-sm mt-1">Track customer and supplier debts, record payments</p>
-        </div>
-        <Button onClick={openAddDebt} className="gap-2">
-          <Plus className="size-4" />
-          Add Debt
-        </Button>
-      </div>
+      <PageHeader
+        icon={<CreditCard />}
+        title="Debts & Credits"
+        subtitle="Track customer and supplier debts, record payments"
+        actions={
+          <Button onClick={openAddDebt} className="gap-2">
+            <Plus className="size-4" />
+            Add Debt
+          </Button>
+        }
+      />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -353,7 +356,7 @@ export function DebtsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Customer Debts</p>
-                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalCustomerDebt)}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(summary.totalCustomerDebt)}</p>
               </div>
             </div>
           </CardContent>
@@ -366,7 +369,7 @@ export function DebtsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Supplier Debts</p>
-                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalSupplierDebt)}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(summary.totalSupplierDebt)}</p>
               </div>
             </div>
           </CardContent>
@@ -379,7 +382,7 @@ export function DebtsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Overdue Debts</p>
-                <p className="text-xl sm:text-2xl font-bold">{overdueCount}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{overdueCount}</p>
               </div>
             </div>
           </CardContent>
@@ -392,7 +395,7 @@ export function DebtsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Collected This Month</p>
-                <p className="text-xl sm:text-2xl font-bold">{formatETB(collectedThisMonth)}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(collectedThisMonth)}</p>
               </div>
             </div>
           </CardContent>

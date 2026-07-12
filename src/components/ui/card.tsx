@@ -7,7 +7,10 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        // Border-only elevation — cards are flat at rest (design rule:
+        // border OR shadow, never both). Hover lift comes from
+        // .ds-card-interactive where a card is actually interactive.
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6",
         className
       )}
       {...props}

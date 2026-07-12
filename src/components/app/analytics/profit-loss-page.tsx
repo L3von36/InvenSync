@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
@@ -168,7 +170,7 @@ function KPICard({
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium truncate">{title}</p>
-              <p className="text-xl sm:text-2xl font-bold tracking-tight truncate">{value}</p>
+              <p className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight truncate">{value}</p>
               {description && (
                 <p className="text-xs text-muted-foreground">{description}</p>
               )}
@@ -235,30 +237,29 @@ export function ProfitLossPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Profit & Loss</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Financial overview for {currentOrg?.name || 'your organization'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <CalendarDays className="size-4 text-muted-foreground" />
-          <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="this_month">This Month</SelectItem>
-              <SelectItem value="last_month">Last Month</SelectItem>
-              <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" onClick={fetchData} disabled={isLoading} aria-label="Refresh data">
-            <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<TrendingUp />}
+        title="Profit & Loss"
+        subtitle={`Financial overview for ${currentOrg?.name || 'your organization'}`}
+        actions={
+          <>
+            <CalendarDays className="size-4 text-muted-foreground" />
+            <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="this_month">This Month</SelectItem>
+                <SelectItem value="last_month">Last Month</SelectItem>
+                <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="icon" onClick={fetchData} disabled={isLoading} aria-label="Refresh data">
+              <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">

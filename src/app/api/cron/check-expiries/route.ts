@@ -16,9 +16,15 @@ import { getUserFromRequest } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 
 export async function GET(request: Request) {
-  // Check cron secret first (for Vercel Cron jobs)
-  const cronSecret = request.headers.get('x-cron-secret')
-  const isCronAuthed = cronSecret && cronSecret === process.env.CRON_SECRET
+  // Check cron secret first (for Vercel Cron jobs). Vercel sends the
+  // secret as `Authorization: Bearer <CRON_SECRET>`; manual triggers may
+  // use the `x-cron-secret` header. Accept either.
+  const secret = process.env.CRON_SECRET
+  const cronHeader = request.headers.get('x-cron-secret')
+  const authHeader = request.headers.get('authorization')
+  const isCronAuthed = !!secret && (
+    cronHeader === secret || authHeader === `Bearer ${secret}`
+  )
 
   // If not cron-authed, check JWT auth (for frontend/API calls)
   let isJwtAuthed = false
@@ -27,14 +33,11 @@ export async function GET(request: Request) {
     isJwtAuthed = !!user
   }
 
-  // Must be authenticated via either method
+  // Must be authenticated via either method — no open fallback.
+  // A missing CRON_SECRET must never mean "allow everyone": if the env var
+  // is ever unset in production, this endpoint would be publicly triggerable.
   if (!isCronAuthed && !isJwtAuthed) {
-    // If CRON_SECRET is not set (e.g. dev environment), allow through
-    if (!process.env.CRON_SECRET) {
-      // Allow unauthenticated access in development
-    } else {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {

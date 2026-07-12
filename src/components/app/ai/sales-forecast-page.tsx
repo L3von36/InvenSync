@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
@@ -187,46 +189,44 @@ export function SalesForecastPage() {
     }
   }
 
+  // Semantic confidence levels — uses the design system palette
+  // (emerald/amber, not green/yellow) for consistency.
   const confidenceConfig = {
-    high: { label: 'High', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-950/30' },
-    medium: { label: 'Medium', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-100 dark:bg-yellow-950/30' },
-    low: { label: 'Low', color: 'text-gray-600 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-950/30' },
+    high: { label: 'High', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
+    medium: { label: 'Medium', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
+    low: { label: 'Low', color: 'text-muted-foreground', bg: 'bg-muted' },
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight flex items-center gap-2">
-            <BarChart3 className="size-6 text-primary" />
-            Sales Forecast
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            AI-powered sales predictions based on your historical data.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {result && (
-            <span className="text-xs text-muted-foreground">
-              Last: {formatTimestamp(result.analyzedAt)}
-            </span>
-          )}
-          <Button
-            onClick={() => runForecast(period)}
-            disabled={isLoading || !currentOrg}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
-            size="sm"
-          >
-            {isLoading ? (
-              <Loader2 className="size-4 animate-spin mr-1" />
-            ) : (
-              <Sparkles className="size-4 mr-1" />
+      <PageHeader
+        icon={<BarChart3 />}
+        title="Sales Forecast"
+        subtitle="AI-powered sales predictions based on your historical data."
+        actions={
+          <>
+            {result && (
+              <span className="text-xs text-muted-foreground">
+                Last: {formatTimestamp(result.analyzedAt)}
+              </span>
             )}
-            {isLoading ? 'Forecasting...' : 'Generate Forecast'}
-          </Button>
-        </div>
-      </div>
+            <Button
+              onClick={() => runForecast(period)}
+              disabled={isLoading || !currentOrg}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
+              size="sm"
+            >
+              {isLoading ? (
+                <Loader2 className="size-4 animate-spin mr-1" />
+              ) : (
+                <Sparkles className="size-4 mr-1" />
+              )}
+              {isLoading ? 'Forecasting...' : 'Generate Forecast'}
+            </Button>
+          </>
+        }
+      />
 
       {/* Period Selector */}
       <div className="flex items-center gap-2">

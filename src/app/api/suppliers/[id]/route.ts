@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
+import { recordTombstone } from '@/lib/tombstones'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
@@ -185,6 +186,9 @@ export async function DELETE(
     }
 
     await db.supplier.delete({ where: { id } })
+
+    // Tombstone so offline clients learn about this deletion on delta pull
+    await recordTombstone('suppliers', id, existing.organizationId)
 
     return NextResponse.json({ message: 'Supplier deleted' })
   } catch (error) {

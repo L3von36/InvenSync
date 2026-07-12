@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { authFetch } from '@/lib/auth-fetch'
 import { useForm } from 'react-hook-form'
@@ -65,10 +67,11 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage your organization, subscription, and integrations</p>
-      </div>
+      <PageHeader
+        icon={<Building2 />}
+        title="Settings"
+        subtitle="Manage your organization, subscription, and integrations"
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -639,7 +642,7 @@ function SubscriptionTab({ orgId }: { orgId: string }) {
       </Card>
 
       {/* Plan Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {planDisplay.map((plan) => {
           const isCurrent = currentPlan === plan.key
           const isPopular = plan.popular
@@ -967,7 +970,7 @@ function ShopsTab({ orgId }: { orgId: string }) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(shop)}><Pencil className="size-4" /></Button>
+                      <Button variant="ghost" size="icon" className="size-9 md:size-8" onClick={() => openEditDialog(shop)} aria-label="Edit"><Pencil className="size-4" /></Button>
                       <Switch checked={shop.isActive} onCheckedChange={() => handleToggleActive(shop)} />
                       <CollapsibleTrigger asChild>
                         <Button variant="ghost" size="sm" className="gap-1">
@@ -1011,7 +1014,7 @@ function ShopsTab({ orgId }: { orgId: string }) {
                                   <SelectItem value="sales">Sales</SelectItem>
                                 </SelectContent>
                               </Select>
-                              <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive" onClick={() => setRemoveMemberTarget({ shopId: shop.id, memberId: member.id, memberName: member.user.name, shopName: shop.name })}>
+                              <Button variant="ghost" size="icon" className="size-9 md:size-7 text-muted-foreground hover:text-destructive" onClick={() => setRemoveMemberTarget({ shopId: shop.id, memberId: member.id, memberName: member.user.name, shopName: shop.name })} aria-label="Delete">
                                 <Trash2 className="size-3.5" />
                               </Button>
                             </div>

@@ -13,7 +13,7 @@
 // missing, the app crashes with TypeError.
 // ============================================
 
-import { db } from '@/lib/db'
+import { db, type LocalCustomer, type LocalSupplier, type LocalSaleItem } from '@/lib/db'
 
 // ============================================
 // Helper: Parse query params from endpoint URL
@@ -171,8 +171,8 @@ async function handleDashboard(endpoint: string): Promise<unknown> {
   const recentSaleIds = recentSalesRaw.map(s => s.id)
 
   const [recentCustomers, recentItems] = await Promise.all([
-    recentCustomerIds.length > 0 ? db.customers.where('id').anyOf(recentCustomerIds).toArray() : [],
-    recentSaleIds.length > 0 ? db.saleItems.where('saleId').anyOf(recentSaleIds).toArray() : [],
+    recentCustomerIds.length > 0 ? db.customers.where('id').anyOf(recentCustomerIds).toArray() : ([] as LocalCustomer[]),
+    recentSaleIds.length > 0 ? db.saleItems.where('saleId').anyOf(recentSaleIds).toArray() : ([] as LocalSaleItem[]),
   ])
   const recentCustomerMap = new Map(recentCustomers.map(c => [c.id, c]))
   const recentItemsBySale = new Map<string, typeof recentItems>()
@@ -259,7 +259,7 @@ async function handleDashboard(endpoint: string): Promise<unknown> {
       })),
       ...lowStock.slice(0, 3).map(p => ({
         id: p.id,
-        type: 'low_stock' as const,
+        type: 'critical_low' as const,
         message: `${p.name} is low on stock (${p.quantity} left)`,
         severity: 'medium' as const,
       })),
@@ -696,8 +696,8 @@ async function handleDebts(endpoint: string): Promise<unknown> {
   const supplierIds = [...new Set(paged.map(d => d.supplierId).filter(Boolean) as string[])]
 
   const [customers, suppliers] = await Promise.all([
-    customerIds.length > 0 ? db.customers.where('id').anyOf(customerIds).toArray() : [],
-    supplierIds.length > 0 ? db.suppliers.where('id').anyOf(supplierIds).toArray() : [],
+    customerIds.length > 0 ? db.customers.where('id').anyOf(customerIds).toArray() : ([] as LocalCustomer[]),
+    supplierIds.length > 0 ? db.suppliers.where('id').anyOf(supplierIds).toArray() : ([] as LocalSupplier[]),
   ])
   const customerMap = new Map(customers.map(c => [c.id, c]))
   const supplierMap = new Map(suppliers.map(s => [s.id, s]))

@@ -1,13 +1,41 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { Prisma } from '@prisma/client'
-import { db } from '@/lib/db'
+import { db } from '@/lib/prisma'
 import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
+import { isValidClientId } from '@/lib/client-id'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 import { broadcastNotification, NotificationTypes } from '@/lib/notification-broadcast'
 import { cache, CacheNamespaces } from '@/lib/cache'
+
+// Body validation for sale creation. The critical guard is the positive-int
+// quantity: without it a negative quantity passes the stock check (stock <
+// negative is false) and would INCREASE inventory while producing a negative
+// total. Numbers are coerced because offline clients may send them as strings.
+const CreateSaleSchema = z.object({
+  id: z.string().max(64).optional(),
+  orgId: z.string().min(1),
+  shopId: z.string().min(1).nullish(),
+  customerId: z.string().min(1).nullish(),
+  items: z
+    .array(
+      z.object({
+        productId: z.string().min(1),
+        quantity: z.coerce.number().int().positive().max(100_000),
+        unitPrice: z.coerce.number().nonnegative().max(1_000_000_000).optional(),
+      }),
+    )
+    .min(1)
+    .max(200),
+  paymentMethod: z.string().max(50).optional(),
+  notes: z.string().max(2000).nullish(),
+  discount: z.coerce.number().nonnegative().max(1_000_000_000).optional(),
+  tax: z.coerce.number().nonnegative().max(1_000_000_000).optional(),
+  amountPaid: z.coerce.number().nonnegative().max(1_000_000_000).optional(),
+})
 
 // GET /api/sales?orgId=xxx&startDate=xxx&endDate=xxx&status=xxx
 export async function GET(request: Request) {
@@ -117,6 +145,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       sales,
+      serverTime: new Date().toISOString(),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
     }, {
       headers: {
@@ -155,10 +184,25 @@ export async function POST(request: Request) {
     } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
+
+    const parsed = CreateSaleSchema.safeParse(body)
+    if (!parsed.success) {
+      const first = parsed.error.issues[0]
+      return NextResponse.json(
+        {
+          error: `Invalid sale data: ${first.path.join('.') || 'body'} — ${first.message}`,
+          details: parsed.error.flatten(),
+        },
+        { status: 400 },
+      )
+    }
+    // Use validated + coerced values downstream (quantities are guaranteed
+    // positive integers, money fields non-negative numbers)
+    body = { ...body, ...parsed.data }
     const {
       orgId, customerId, items, paymentMethod, shopId
-    } = body
-    let { notes } = body
+    } = parsed.data
+    let { notes } = parsed.data
 
     // Sanitize text inputs
     notes = notes ? sanitizeAndTruncate(notes, 1000) : notes
@@ -179,6 +223,13 @@ export async function POST(request: Request) {
       )
     }
 
+    // Optional client-generated ID (offline-first creates) — accepted as
+    // canonical so no local/server ID remapping is needed after sync
+    const clientId = body.id
+    if (clientId !== undefined && !isValidClientId(clientId)) {
+      return NextResponse.json({ error: 'Invalid id format' }, { status: 400 })
+    }
+
     const hasAccess = await verifyOrgAccess(user, orgId)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -188,6 +239,22 @@ export async function POST(request: Request) {
     if (user.role !== 'admin') {
       const moduleError = await requireModule(orgId, 'sales')
       if (moduleError) return moduleError
+    }
+
+    // Idempotent replay: if this client ID was already created (e.g. the
+    // offline outbox replayed twice), return the existing sale as success
+    // instead of double-charging stock
+    if (clientId) {
+      const existingById = await db.sale.findUnique({
+        where: { id: clientId },
+        include: { items: true, customer: { select: { id: true, name: true, phone: true } } },
+      })
+      if (existingById) {
+        if (existingById.organizationId !== orgId) {
+          return NextResponse.json({ error: 'ID already in use' }, { status: 409 })
+        }
+        return NextResponse.json({ sale: existingById }, { status: 200 })
+      }
     }
 
     // Calculate totals
@@ -235,6 +302,7 @@ export async function POST(request: Request) {
 
       const sale = await tx.sale.create({
         data: {
+          ...(clientId ? { id: clientId } : {}),
           organizationId: orgId,
           shopId: shopId || null,
           customerId: customerId || null,

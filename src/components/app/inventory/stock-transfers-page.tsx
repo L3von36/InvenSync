@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   ArrowLeftRight, Plus, Filter, CheckCircle, XCircle,
@@ -130,7 +132,8 @@ export function StockTransfersPage() {
       const data = await api.getProducts(orgId, { limit: 200 })
       setProducts(data.products.map(p => ({ id: p.id, name: p.name, sku: p.sku || null })))
     } catch {
-      // silently fail
+      // Without products the transfer form is unusable — tell the user
+      toast.error('Could not load products. Close and reopen the form to retry.')
     } finally {
       setLoadingProducts(false)
     }
@@ -239,21 +242,17 @@ export function StockTransfersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <ArrowLeftRight className="size-6" />
-            Stock Transfers
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Transfer stock between your shops and branches
-          </p>
-        </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-          <Plus className="size-4" />
-          New Transfer
-        </Button>
-      </div>
+      <PageHeader
+        icon={<ArrowLeftRight />}
+        title="Stock Transfers"
+        subtitle="Transfer stock between your shops and branches"
+        actions={
+          <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+            <Plus className="size-4" />
+            New Transfer
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <Card>

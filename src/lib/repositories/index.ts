@@ -23,17 +23,19 @@ import {
   type LocalServiceType,
   type LocalShop,
 } from '@/lib/db'
+import { newClientId } from '@/lib/client-id'
 
 // -------------------------------------------
 // Helpers
 // -------------------------------------------
 
 /**
- * Generates a client-side unique ID with a `local_` prefix.
- * Used for optimistic creates before the server confirms with a real ID.
+ * Generates a client-side unique ID for optimistic creates.
+ * Server-valid (the API accepts it as canonical), so no local/server
+ * ID remapping is needed after the outbox syncs.
  */
 function generateLocalId(): string {
-  return 'local_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9)
+  return newClientId()
 }
 
 // -------------------------------------------
@@ -140,7 +142,7 @@ class LocalRepository<T extends { id: string }> {
       id,
       createdAt: now,
       updatedAt: now,
-    } as T
+    } as unknown as T
 
     await db.table(this.tableName).add(record)
     await this.addToOutbox('create', record)
@@ -201,7 +203,7 @@ class LocalRepository<T extends { id: string }> {
         id: (providedId as string) || generateLocalId(),
         createdAt: now,
         updatedAt: now,
-      } as T
+      } as unknown as T
     })
 
     await db.table(this.tableName).bulkAdd(records)

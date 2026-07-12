@@ -15,7 +15,7 @@ vi.mock('@/lib/auth', async (importOriginal) => {
 // Mock db
 const mockFindMany = vi.fn()
 const mockCount = vi.fn()
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   db: {
     loyaltyAccount: {
       findMany: (...args: any[]) => mockFindMany(...args),

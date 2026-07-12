@@ -17,7 +17,7 @@ const mockTransferFindMany = vi.fn()
 const mockTransferCreate = vi.fn()
 const mockProductFindFirst = vi.fn()
 const mockShopFindMany = vi.fn()
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   db: {
     stockTransfer: {
       findMany: (...args: any[]) => mockTransferFindMany(...args),

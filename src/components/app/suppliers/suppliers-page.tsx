@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -311,19 +313,20 @@ export function SuppliersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Suppliers</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage supplier information and track supplier debts</p>
-        </div>
-        <Button onClick={openAddDialog} className="gap-2">
-          <Plus className="size-4" />
-          Add Supplier
-        </Button>
-      </div>
+      <PageHeader
+        icon={<Truck />}
+        title="Suppliers"
+        subtitle="Manage supplier information and track supplier debts"
+        actions={
+          <Button onClick={openAddDialog} className="gap-2">
+            <Plus className="size-4" />
+            Add Supplier
+          </Button>
+        }
+      />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -332,7 +335,7 @@ export function SuppliersPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Suppliers</p>
-                <p className="text-xl sm:text-2xl font-bold">{total}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{total}</p>
               </div>
             </div>
           </CardContent>
@@ -345,7 +348,7 @@ export function SuppliersPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-muted-foreground">Active Suppliers</p>
-                <p className="text-xl sm:text-2xl font-bold">{activeSuppliers}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{activeSuppliers}</p>
               </div>
             </div>
           </CardContent>
@@ -358,7 +361,7 @@ export function SuppliersPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm text-muted-foreground">Total Owed to Suppliers</p>
-                <p className="text-xl sm:text-2xl font-bold">{formatETB(totalOwedToSuppliers)}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(totalOwedToSuppliers)}</p>
               </div>
             </div>
           </CardContent>

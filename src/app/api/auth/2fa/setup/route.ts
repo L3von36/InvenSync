@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
 import { getUserFromRequest } from '@/lib/auth'
 import { generateTotpSecret, hashBackupCode } from '@/lib/two-factor'
+import { encryptSecret } from '@/lib/crypto'
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     await db.user.update({
       where: { id: user.id },
       data: {
-        twoFactorSecret: secret,
+        twoFactorSecret: encryptSecret(secret),
         backupCodes: JSON.stringify(hashedBackupCodes),
       },
     })

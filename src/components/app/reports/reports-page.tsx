@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
@@ -284,22 +286,23 @@ export function ReportsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Reports</h1>
-          <p className="text-muted-foreground text-sm">Analyze your sales, profit, and inventory performance</p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportCSV}
-          disabled={!reportData || salesByDate.length === 0}
-          className="gap-2"
-        >
-          <Download className="size-4" />
-          Export CSV
-        </Button>
-      </div>
+      <PageHeader
+        icon={<BarChart3 />}
+        title="Reports"
+        subtitle="Analyze your sales, profit, and inventory performance"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            disabled={!reportData || salesByDate.length === 0}
+            className="gap-2"
+          >
+            <Download className="size-4" />
+            Export CSV
+          </Button>
+        }
+      />
 
       {/* Date Range Selector */}
       <Card>
@@ -392,7 +395,7 @@ export function ReportsPage() {
           ) : (
             <>
               {/* Summary Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
@@ -401,7 +404,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Total Revenue</p>
-                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalRevenue || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(summary?.totalRevenue || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -414,7 +417,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Total Transactions</p>
-                        <p className="text-xl sm:text-2xl font-bold">{summary?.totalSales || 0}</p>
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">{summary?.totalSales || 0}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -427,7 +430,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Avg Transaction</p>
-                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.averageSaleValue || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(summary?.averageSaleValue || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -602,7 +605,7 @@ export function ReportsPage() {
           ) : (
             <>
               {/* Summary Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
@@ -611,7 +614,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Gross Revenue</p>
-                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalRevenue || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(summary?.totalRevenue || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -624,7 +627,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Total Cost</p>
-                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalCost || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(summary?.totalCost || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -637,7 +640,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Gross Profit</p>
-                        <p className="text-xl sm:text-2xl font-bold">{formatETB(summary?.totalProfit || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(summary?.totalProfit || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -650,7 +653,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Profit Margin</p>
-                        <p className="text-xl sm:text-2xl font-bold">
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">
                           {summary && summary.totalRevenue > 0
                             ? `${((summary.totalProfit / summary.totalRevenue) * 100).toFixed(1)}%`
                             : '0%'}
@@ -989,7 +992,7 @@ export function ReportsPage() {
           ) : (
             <>
               {/* Summary Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
@@ -998,7 +1001,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Cost Value</p>
-                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(inventoryVal?.totalCostValue || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1011,7 +1014,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Retail Value</p>
-                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(inventoryVal?.totalRetailValue || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1024,7 +1027,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Potential Profit</p>
-                        <p className="text-xl sm:text-2xl font-bold">{formatETB(inventoryVal?.potentialProfit || 0)}</p>
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(inventoryVal?.potentialProfit || 0)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1037,7 +1040,7 @@ export function ReportsPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Total Items</p>
-                        <p className="text-xl sm:text-2xl font-bold">{inventoryVal?.totalItems || 0}</p>
+                        <p className="text-xl sm:text-2xl font-semibold tabular-nums">{inventoryVal?.totalItems || 0}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1084,7 +1087,7 @@ export function ReportsPage() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Shows total inventory value at cost and retail prices
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <Card className="bg-muted/50">
                       <CardContent className="p-4 text-center">
                         <p className="text-sm text-muted-foreground">Total at Cost</p>
@@ -1124,7 +1127,7 @@ export function ReportsPage() {
 function LoadingSkeleton({ cards = 3 }: { cards?: number }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {Array.from({ length: cards }).map((_, i) => (
           <Card key={i}>
             <CardContent className="p-4">

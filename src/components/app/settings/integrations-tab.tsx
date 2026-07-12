@@ -118,6 +118,9 @@ export function IntegrationsTab({ orgId }: { orgId: string }) {
       }
     } catch (err) {
       console.error('Failed to fetch integration configs:', err)
+      // Without this the tab renders as "nothing configured", which could
+      // mislead a user into reconfiguring from scratch
+      toast.error('Could not load integration settings. Refresh the page to retry.')
     } finally {
       setLoading(false)
     }

@@ -1,4 +1,25 @@
 import type { NextConfig } from "next";
+import withSerwistInit from "@serwist/next";
+
+// Serwist generates public/sw.js at build time with a precache manifest of
+// every hashed build asset, so all pages/chunks work offline — including
+// ones the user never visited (the gap in the old hand-rolled sw.js).
+const withSerwist = withSerwistInit({
+  swSrc: "src/sw.ts",
+  swDest: "public/sw.js",
+  // The app registers the service worker itself in src/app/layout.tsx
+  // (with an https/localhost guard) — don't inject a second registration.
+  register: false,
+  // Never hard-reload the page when connectivity returns — a cashier
+  // mid-sale on a flaky connection would lose their in-progress form.
+  reloadOnOnline: false,
+  // Serve navigations from the precache so page loads work offline
+  // even for routes the user hasn't visited yet.
+  cacheOnNavigation: true,
+  // No service worker in dev: Turbopack recompiles chunks on every edit,
+  // and a SW would pin stale bundles and mask code changes.
+  disable: process.env.NODE_ENV === "development",
+});
 
 const nextConfig: NextConfig = {
   // Type errors now fail the build — the codebase is type-clean (see `npx tsc --noEmit`).
@@ -6,7 +27,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  // Strict mode double-invokes effects in dev to surface unsafe patterns
+  // (stale closures, missing cleanup) before they ship.
+  reactStrictMode: true,
 
   // Enable gzip compression for responses
   compress: true,
@@ -112,4 +135,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);

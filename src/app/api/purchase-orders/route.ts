@@ -87,6 +87,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       purchaseOrders,
+      serverTime: new Date().toISOString(),
       total,
       ...(lowStockOnly ? { lowStockProducts } : {}),
     })

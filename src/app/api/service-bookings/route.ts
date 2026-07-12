@@ -76,6 +76,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       bookings,
+      serverTime: new Date().toISOString(),
       pagination: {
         page,
         limit,

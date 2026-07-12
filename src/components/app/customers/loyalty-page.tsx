@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Award, Search, Eye, Plus, Minus, Star, Shield, Crown, Gem,
@@ -248,12 +250,11 @@ export function LoyaltyPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Customer Loyalty</h1>
-          <p className="text-muted-foreground text-sm">Manage loyalty accounts, tiers, and points adjustments</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<Award />}
+        title="Customer Loyalty"
+        subtitle="Manage loyalty accounts, tiers, and points adjustments"
+      />
 
       {/* Tier Thresholds */}
       <Card>
@@ -281,7 +282,7 @@ export function LoyaltyPage() {
       </Card>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -290,7 +291,7 @@ export function LoyaltyPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Accounts</p>
-                <p className="text-xl sm:text-2xl font-bold">{total}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{total}</p>
               </div>
             </div>
           </CardContent>
@@ -303,7 +304,7 @@ export function LoyaltyPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Earned</p>
-                <p className="text-xl sm:text-2xl font-bold">{totalEarned.toLocaleString()}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{totalEarned.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -316,7 +317,7 @@ export function LoyaltyPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Redeemed</p>
-                <p className="text-xl sm:text-2xl font-bold">{totalRedeemed.toLocaleString()}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{totalRedeemed.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -329,7 +330,7 @@ export function LoyaltyPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Active Points</p>
-                <p className="text-xl sm:text-2xl font-bold">{totalPoints.toLocaleString()}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{totalPoints.toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
@@ -340,7 +341,7 @@ export function LoyaltyPage() {
       <div className="grid grid-cols-4 gap-2">
         {Object.entries(TIER_CONFIG).map(([key, config]) => (
           <div key={key} className={`rounded-lg border p-3 text-center ${config.bgClass}`}>
-            <p className="text-xl sm:text-2xl font-bold">{tierCounts[key as keyof typeof tierCounts]}</p>
+            <p className="text-xl sm:text-2xl font-semibold tabular-nums">{tierCounts[key as keyof typeof tierCounts]}</p>
             <p className="text-xs">{config.label}</p>
           </div>
         ))}
@@ -428,25 +429,25 @@ export function LoyaltyPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-8"
+                            className="size-9 md:size-8"
                             onClick={() => openDetail(account)}
-                          >
+                           aria-label="View details">
                             <Eye className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-8 text-emerald-600"
+                            className="size-9 md:size-8 text-emerald-600"
                             onClick={() => openAdjust(account, 'add')}
-                          >
+                           aria-label="Add">
                             <Plus className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-8 text-red-600"
+                            className="size-9 md:size-8 text-red-600"
                             onClick={() => openAdjust(account, 'deduct')}
-                          >
+                           aria-label="Decrease">
                             <Minus className="size-4" />
                           </Button>
                         </div>
@@ -578,15 +579,15 @@ export function LoyaltyPage() {
               {/* Points Summary */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-lg border p-3 text-center">
-                  <p className="text-xl sm:text-2xl font-bold">{selectedAccount.points.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl font-semibold tabular-nums">{selectedAccount.points.toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">Current Points</p>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
-                  <p className="text-xl sm:text-2xl font-bold text-emerald-600">+{selectedAccount.totalEarned.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl font-semibold tabular-nums text-emerald-600">+{selectedAccount.totalEarned.toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">Total Earned</p>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
-                  <p className="text-xl sm:text-2xl font-bold text-red-600">-{selectedAccount.totalRedeemed.toLocaleString()}</p>
+                  <p className="text-xl sm:text-2xl font-semibold tabular-nums text-red-600">-{selectedAccount.totalRedeemed.toLocaleString()}</p>
                   <p className="text-xs text-muted-foreground">Total Redeemed</p>
                 </div>
               </div>

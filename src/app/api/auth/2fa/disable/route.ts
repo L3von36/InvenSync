@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
 import { getUserFromRequest } from '@/lib/auth'
 import { verifyTotpCode, verifyBackupCode, hashBackupCode } from '@/lib/two-factor'
+import { decryptSecret } from '@/lib/crypto'
 import { isDatabaseError } from '@/lib/api-error'
 import { applyRateLimit, RateLimitTiers } from '@/lib/rate-limit'
 
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
     let isValidBackup = false
 
     if (dbUser.twoFactorSecret) {
-      isValidTotp = verifyTotpCode(dbUser.twoFactorSecret, code)
+      isValidTotp = verifyTotpCode(decryptSecret(dbUser.twoFactorSecret), code)
     }
 
     if (!isValidTotp && dbUser.backupCodes) {

@@ -45,6 +45,7 @@ import { api, type DashboardData, type InventoryStats, type Sale, type Product, 
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { db } from '@/lib/db'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
+import { PageHeader, StatCard, StatCardSkeleton, STAT_TONE_CLASSES, type StatTone } from '@/components/shared/design-system'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useAppStore } from '@/lib/stores/app-store'
 import { SyncPanel } from '@/components/app/dashboard/sync-panel'
@@ -187,50 +188,8 @@ const shopComparisonChartConfig = {
 // Shared Components
 // ============================================
 
-interface StatCardProps {
-  title: string
-  value: string
-  subtitle: string
-  icon: React.ReactNode
-  iconBgClass: string
-  iconTextClass: string
-  comparisonBadge?: React.ReactNode
-}
-
-const StatCard = memo(function StatCard({ title, value, subtitle, icon, iconBgClass, iconTextClass, comparisonBadge }: StatCardProps) {
-  return (
-    <Card className="gap-2 sm:gap-4">
-      <CardHeader className="flex flex-row items-center justify-between pb-0 space-y-0">
-        <CardDescription className="text-xs text-muted-foreground font-medium pr-1 line-clamp-1">{title}</CardDescription>
-        <div className={`flex items-center justify-center size-7 sm:size-10 rounded-lg ${iconBgClass} shrink-0`}>
-          <div className={`${iconTextClass} [&_svg]:size-3.5 sm:[&_svg]:size-5`}>{icon}</div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="text-xl sm:text-2xl font-bold tracking-tight leading-tight whitespace-nowrap">{value}</div>
-        <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1">
-          <p className="text-xs text-muted-foreground line-clamp-1">{subtitle}</p>
-          {comparisonBadge}
-        </div>
-      </CardContent>
-    </Card>
-  )
-})
-
-function StatCardSkeleton() {
-  return (
-    <Card className="gap-4">
-      <CardHeader className="flex flex-row items-center justify-between pb-0">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="size-10 rounded-lg" />
-      </CardHeader>
-      <CardContent className="pt-0">
-        <Skeleton className="h-8 w-36 mb-1" />
-        <Skeleton className="h-3 w-28" />
-      </CardContent>
-    </Card>
-  )
-}
+// StatCard / StatCardSkeleton now come from the shared design system
+// (see DESIGN_SYSTEM.md) so all dashboards render KPIs identically.
 
 const ComparisonBadge = memo(function ComparisonBadge({ value, label }: { value: number; label?: string }) {
   if (value === 0) return null
@@ -282,21 +241,22 @@ const StatusBadge = memo(function StatusBadge({ status }: { status: string }) {
 interface QuickActionCardProps {
   icon: React.ReactNode
   label: string
-  iconBgClass: string
-  iconTextClass: string
+  /** Semantic tone from the design system — neutral by default */
+  tone?: StatTone
   onClick: () => void
   prominent?: boolean
 }
 
-function QuickActionCard({ icon, label, iconBgClass, iconTextClass, onClick, prominent }: QuickActionCardProps) {
+function QuickActionCard({ icon, label, tone = 'neutral', onClick, prominent }: QuickActionCardProps) {
+  const toneClasses = STAT_TONE_CLASSES[tone]
   return (
     <Card
-      className={`cursor-pointer hover:shadow-md transition-shadow ${prominent ? 'border-primary/30 bg-primary/5' : ''}`}
+      className={`ds-card-interactive cursor-pointer ${prominent ? 'border-primary/30 bg-primary/5' : ''}`}
       onClick={onClick}
     >
       <CardContent className={`flex flex-col items-center justify-center gap-3 ${prominent ? 'py-10' : 'py-8'}`}>
-        <div className={`flex items-center justify-center size-12 rounded-xl ${iconBgClass}`}>
-          <div className={iconTextClass}>{icon}</div>
+        <div className={`flex items-center justify-center size-12 rounded-xl ${toneClasses.bg}`}>
+          <div className={toneClasses.text}>{icon}</div>
         </div>
         <span className={`font-medium text-sm ${prominent ? 'text-primary' : ''}`}>{label}</span>
       </CardContent>
@@ -313,32 +273,33 @@ function DashboardHeader({ title, subtitle, isRefreshing, onRefresh, dateRangePi
   isOfflineData?: boolean
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h1>
-          {isOfflineData && (
-            <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2.5 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-              Viewing cached data
-            </div>
-          )}
-        </div>
-        <p className="text-muted-foreground text-sm">{subtitle}</p>
-      </div>
-      <div className="flex items-center gap-2">
-        {dateRangePicker}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-        >
-          <RefreshCw className={`size-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
-    </div>
+    <PageHeader
+      icon={<BarChart3 />}
+      title={title}
+      subtitle={subtitle}
+      badges={
+        isOfflineData ? (
+          <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2.5 py-1 rounded-full">
+            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+            Viewing cached data
+          </div>
+        ) : undefined
+      }
+      actions={
+        <>
+          {dateRangePicker}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`size-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </>
+      }
+    />
   )
 }
 
@@ -523,7 +484,7 @@ const AnomalyAlertWidget = memo(function AnomalyAlertWidget({ anomalies }: { ano
                       ? 'bg-red-100 dark:bg-red-900/30'
                       : anomaly.severity === 'medium'
                       ? 'bg-amber-100 dark:bg-amber-900/30'
-                      : 'bg-sky-100 dark:bg-sky-900/30'
+                      : 'bg-muted'
                   }`}
                 >
                   {anomaly.severity === 'high' ? (
@@ -539,7 +500,7 @@ const AnomalyAlertWidget = memo(function AnomalyAlertWidget({ anomalies }: { ano
                       className={`size-3.5 ${
                         anomaly.severity === 'medium'
                           ? 'text-amber-600 dark:text-amber-400'
-                          : 'text-sky-600 dark:text-sky-400'
+                          : 'text-muted-foreground'
                       }`}
                     />
                   )}
@@ -553,7 +514,7 @@ const AnomalyAlertWidget = memo(function AnomalyAlertWidget({ anomalies }: { ano
                     ? 'text-red-600 border-red-200 dark:text-red-400 dark:border-red-800'
                     : anomaly.severity === 'medium'
                     ? 'text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800'
-                    : 'text-sky-600 border-sky-200 dark:text-sky-400 dark:border-sky-800'
+                    : 'text-muted-foreground'
                 }`}
               >
                 {anomaly.severity === 'high' ? 'Critical' : anomaly.severity === 'medium' ? 'Warning' : 'Info'}
@@ -573,7 +534,7 @@ const AnomalyAlertWidget = memo(function AnomalyAlertWidget({ anomalies }: { ano
 function DashboardLoading() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
           <StatCardSkeleton key={i} />
         ))}
@@ -722,14 +683,13 @@ function OwnerDashboard({
       )}
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
         <StatCard
           title="Period Revenue"
           value={formatETB(stats.periodRevenue ?? stats.monthRevenue)}
           subtitle={`Today: ${formatETB(stats.todayRevenue)}`}
           icon={<TrendingUp className="size-5" />}
-          iconBgClass="bg-brand-50 dark:bg-brand-900/20"
-          iconTextClass="text-primary"
+          tone="brand"
           comparisonBadge={comparison ? <ComparisonBadge value={comparison.revenueChange} /> : undefined}
         />
         <StatCard
@@ -737,16 +697,12 @@ function OwnerDashboard({
           value={formatNumber(stats.totalProducts)}
           subtitle={`${stats.outOfStockCount} out of stock`}
           icon={<Package className="size-5" />}
-          iconBgClass="bg-sky-100 dark:bg-sky-900/30"
-          iconTextClass="text-sky-600 dark:text-sky-400"
         />
         <StatCard
           title="Expenses"
           value={formatETB(stats.periodExpenses ?? 0)}
           subtitle="Period expenses"
           icon={<Receipt className="size-5" />}
-          iconBgClass="bg-rose-100 dark:bg-rose-900/30"
-          iconTextClass="text-rose-600 dark:text-rose-400"
           comparisonBadge={comparison ? <ComparisonBadge value={comparison.expenseChange} /> : undefined}
         />
         <StatCard
@@ -754,8 +710,7 @@ function OwnerDashboard({
           value={formatETB(stats.periodNetProfit ?? 0)}
           subtitle={stats.periodNetProfit !== undefined && stats.periodNetProfit >= 0 ? 'Profitable' : 'Loss'}
           icon={<PiggyBank className="size-5" />}
-          iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
-          iconTextClass="text-emerald-600 dark:text-emerald-400"
+          tone={(stats.periodNetProfit ?? 0) >= 0 ? 'success' : 'danger'}
           comparisonBadge={comparison ? <ComparisonBadge value={comparison.netProfitChange} /> : undefined}
         />
         <StatCard
@@ -763,16 +718,13 @@ function OwnerDashboard({
           value={hasMultipleShops ? formatNumber(shops.filter(s => s.isActive).length) : '1'}
           subtitle={hasMultipleShops ? `${shops.length} total shops` : 'Single shop'}
           icon={<Store className="size-5" />}
-          iconBgClass="bg-amber-100 dark:bg-amber-900/30"
-          iconTextClass="text-amber-600 dark:text-amber-400"
         />
         <StatCard
           title="Customer Debts"
           value={formatETB(stats.totalCustomerDebt)}
           subtitle={stats.totalCustomerDebt > 0 ? 'Outstanding balance' : 'No outstanding debts'}
           icon={<CreditCard className="size-5" />}
-          iconBgClass="bg-red-100 dark:bg-red-900/30"
-          iconTextClass="text-red-600 dark:text-red-400"
+          tone={stats.totalCustomerDebt > 0 ? 'danger' : 'neutral'}
         />
       </div>
 
@@ -853,7 +805,7 @@ function OwnerDashboard({
       )}
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-sm">Revenue Trend</CardTitle>
@@ -991,18 +943,18 @@ function OwnerDashboard({
 
       {/* Low Stock Alert */}
       {lowStockProducts.length > 0 && (
-        <Card className="border-orange-200 dark:border-orange-900/50">
+        <Card className="border-amber-200 dark:border-amber-900/50">
           <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center size-8 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                <AlertTriangle className="size-4 text-orange-600 dark:text-orange-400" />
+              <div className="flex items-center justify-center size-8 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
                 <CardTitle className="text-sm">Low Stock Alert</CardTitle>
                 <CardDescription>{lowStockProducts.length} product{lowStockProducts.length !== 1 ? 's' : ''} below threshold</CardDescription>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setPage('inventory')} className="border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setPage('inventory')} className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/20 shrink-0">
               View Inventory
               <ArrowRight className="size-4 ml-1" />
             </Button>
@@ -1010,13 +962,13 @@ function OwnerDashboard({
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto custom-scrollbar">
               {lowStockProducts.map((product) => (
-                <div key={product.id} className="flex items-center justify-between p-3 rounded-lg border border-orange-200 bg-orange-50/50 dark:border-orange-900/30 dark:bg-orange-900/10">
+                <div key={product.id} className="flex items-center justify-between p-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900/30 dark:bg-amber-900/10">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{product.name}</p>
                     <p className="text-xs text-muted-foreground">Threshold: {product.lowStockThreshold}</p>
                   </div>
                   <div className="flex items-center gap-2 ml-3 shrink-0">
-                    <span className="text-sm font-bold text-orange-600 dark:text-orange-400">{product.quantity}</span>
+                    <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{product.quantity}</span>
                     <span className="text-xs text-muted-foreground">left</span>
                   </div>
                 </div>
@@ -1098,14 +1050,13 @@ function ManagerDashboard({
         <AnomalyAlertWidget anomalies={anomalies} />
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
         <StatCard
           title="Period Revenue"
           value={formatETB(stats.periodRevenue ?? stats.monthRevenue)}
           subtitle={`Today: ${formatETB(stats.todayRevenue)}`}
           icon={<TrendingUp className="size-5" />}
-          iconBgClass="bg-brand-50 dark:bg-brand-900/20"
-          iconTextClass="text-primary"
+          tone="brand"
           comparisonBadge={comparison ? <ComparisonBadge value={comparison.revenueChange} /> : undefined}
         />
         <StatCard
@@ -1113,24 +1064,18 @@ function ManagerDashboard({
           value={formatNumber(stats.totalProducts)}
           subtitle={`${stats.outOfStockCount} out of stock`}
           icon={<Package className="size-5" />}
-          iconBgClass="bg-sky-100 dark:bg-sky-900/30"
-          iconTextClass="text-sky-600 dark:text-sky-400"
         />
         <StatCard
           title="Inventory Value"
           value={formatETB(stats.totalStockRetailValue)}
           subtitle={`Cost: ${formatETB(stats.totalStockCostValue)}`}
           icon={<WarehouseIcon className="size-5" />}
-          iconBgClass="bg-amber-100 dark:bg-amber-900/30"
-          iconTextClass="text-amber-600 dark:text-amber-400"
         />
         <StatCard
           title="Expenses"
           value={formatETB(stats.periodExpenses ?? 0)}
           subtitle="Period expenses"
           icon={<Receipt className="size-5" />}
-          iconBgClass="bg-rose-100 dark:bg-rose-900/30"
-          iconTextClass="text-rose-600 dark:text-rose-400"
           comparisonBadge={comparison ? <ComparisonBadge value={comparison.expenseChange} /> : undefined}
         />
         <StatCard
@@ -1138,8 +1083,7 @@ function ManagerDashboard({
           value={formatETB(stats.periodNetProfit ?? 0)}
           subtitle={stats.periodNetProfit !== undefined && stats.periodNetProfit >= 0 ? 'Profitable' : 'Loss'}
           icon={<PiggyBank className="size-5" />}
-          iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
-          iconTextClass="text-emerald-600 dark:text-emerald-400"
+          tone={(stats.periodNetProfit ?? 0) >= 0 ? 'success' : 'danger'}
           comparisonBadge={comparison ? <ComparisonBadge value={comparison.netProfitChange} /> : undefined}
         />
         <StatCard
@@ -1147,12 +1091,11 @@ function ManagerDashboard({
           value={formatETB(stats.totalCustomerDebt)}
           subtitle={stats.totalCustomerDebt > 0 ? 'Outstanding balance' : 'No outstanding debts'}
           icon={<CreditCard className="size-5" />}
-          iconBgClass="bg-red-100 dark:bg-red-900/30"
-          iconTextClass="text-red-600 dark:text-red-400"
+          tone={stats.totalCustomerDebt > 0 ? 'danger' : 'neutral'}
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-sm">Revenue Trend</CardTitle>
@@ -1276,18 +1219,18 @@ function ManagerDashboard({
 
       {/* Low Stock Alert */}
       {lowStockProducts.length > 0 && (
-        <Card className="border-orange-200 dark:border-orange-900/50">
+        <Card className="border-amber-200 dark:border-amber-900/50">
           <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center size-8 rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                <AlertTriangle className="size-4 text-orange-600 dark:text-orange-400" />
+              <div className="flex items-center justify-center size-8 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
                 <CardTitle className="text-sm">Low Stock Alert</CardTitle>
                 <CardDescription>{lowStockProducts.length} product{lowStockProducts.length !== 1 ? 's' : ''} below threshold</CardDescription>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setPage('inventory')} className="border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setPage('inventory')} className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-900/20 shrink-0">
               View Inventory
               <ArrowRight className="size-4 ml-1" />
             </Button>
@@ -1295,13 +1238,13 @@ function ManagerDashboard({
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto custom-scrollbar">
               {lowStockProducts.map((product) => (
-                <div key={product.id} className="flex items-center justify-between p-3 rounded-lg border border-orange-200 bg-orange-50/50 dark:border-orange-900/30 dark:bg-orange-900/10">
+                <div key={product.id} className="flex items-center justify-between p-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900/30 dark:bg-amber-900/10">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{product.name}</p>
                     <p className="text-xs text-muted-foreground">Threshold: {product.lowStockThreshold}</p>
                   </div>
                   <div className="flex items-center gap-2 ml-3 shrink-0">
-                    <span className="text-sm font-bold text-orange-600 dark:text-orange-400">{product.quantity}</span>
+                    <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{product.quantity}</span>
                     <span className="text-xs text-muted-foreground">left</span>
                   </div>
                 </div>
@@ -1354,7 +1297,16 @@ function CashierDashboard({
         const data = await api.getProducts(currentOrg.id, { search: productSearch, limit: 8, shopId: currentShop?.id })
         setSearchResults(data.products)
       } catch {
-        setSearchResults([])
+        const query = productSearch.toLowerCase()
+        const shopId = currentShop?.id
+        const local = await db.products
+          .where('organizationId').equals(currentOrg.id)
+          .filter(p => p.isActive && (!shopId || p.shopId === shopId || !p.shopId) && (
+            p.name.toLowerCase().includes(query) || (p.sku?.toLowerCase().includes(query) ?? false)
+          ))
+          .limit(8)
+          .toArray()
+        setSearchResults(local.map(p => ({ ...p, productType: { id: p.productTypeId, name: '—' } })) as unknown as Product[])
       } finally {
         setIsSearching(false)
       }
@@ -1371,23 +1323,18 @@ function CashierDashboard({
         <QuickActionCard
           icon={<ShoppingCart className="size-6" />}
           label="Record Sale"
-          iconBgClass="bg-primary/10"
-          iconTextClass="text-primary"
+          tone="brand"
           onClick={() => setPage('sales')}
           prominent
         />
         <QuickActionCard
           icon={<Search className="size-6" />}
           label="Search Product"
-          iconBgClass="bg-sky-100 dark:bg-sky-900/30"
-          iconTextClass="text-sky-600 dark:text-sky-400"
           onClick={() => document.getElementById('cashier-product-search')?.focus()}
         />
         <QuickActionCard
           icon={<Users className="size-6" />}
           label="Find Customer"
-          iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
-          iconTextClass="text-emerald-600 dark:text-emerald-400"
           onClick={() => setPage('customers')}
         />
       </div>
@@ -1444,30 +1391,26 @@ function CashierDashboard({
       </Card>
 
       {/* Today's Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard
           title="Today's Sales"
           value={formatNumber(todaySalesCount)}
           subtitle="transactions"
           icon={<ShoppingCart className="size-5" />}
-          iconBgClass="bg-brand-50 dark:bg-brand-900/20"
-          iconTextClass="text-primary"
+          tone="brand"
         />
         <StatCard
           title="Today's Revenue"
           value={formatETB(todayRevenue)}
           subtitle={`${recentSales.length} total recent`}
           icon={<DollarSign className="size-5" />}
-          iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
-          iconTextClass="text-emerald-600 dark:text-emerald-400"
+          tone="success"
         />
         <StatCard
           title="Avg. Transaction"
           value={formatETB(avgTransaction)}
           subtitle="per sale today"
           icon={<BarChart3 className="size-5" />}
-          iconBgClass="bg-sky-100 dark:bg-sky-900/30"
-          iconTextClass="text-sky-600 dark:text-sky-400"
         />
       </div>
 
@@ -1531,7 +1474,16 @@ function WarehouseDashboard({
         const data = await api.getProducts(currentOrg.id, { search: productSearch, limit: 8, shopId: currentShop?.id })
         setSearchResults(data.products)
       } catch {
-        setSearchResults([])
+        const query = productSearch.toLowerCase()
+        const shopId = currentShop?.id
+        const local = await db.products
+          .where('organizationId').equals(currentOrg.id)
+          .filter(p => p.isActive && (!shopId || p.shopId === shopId || !p.shopId) && (
+            p.name.toLowerCase().includes(query) || (p.sku?.toLowerCase().includes(query) ?? false)
+          ))
+          .limit(8)
+          .toArray()
+        setSearchResults(local.map(p => ({ ...p, productType: { id: p.productTypeId, name: '—' } })) as unknown as Product[])
       } finally {
         setIsSearching(false)
       }
@@ -1548,23 +1500,18 @@ function WarehouseDashboard({
         <QuickActionCard
           icon={<Plus className="size-6" />}
           label="Add Stock"
-          iconBgClass="bg-primary/10"
-          iconTextClass="text-primary"
+          tone="brand"
           onClick={() => setPage('inventory')}
           prominent
         />
         <QuickActionCard
           icon={<Search className="size-6" />}
           label="Check Product"
-          iconBgClass="bg-sky-100 dark:bg-sky-900/30"
-          iconTextClass="text-sky-600 dark:text-sky-400"
           onClick={() => document.getElementById('warehouse-product-search')?.focus()}
         />
         <QuickActionCard
           icon={<ArrowUpDown className="size-6" />}
           label="Stock Movement"
-          iconBgClass="bg-amber-100 dark:bg-amber-900/30"
-          iconTextClass="text-amber-600 dark:text-amber-400"
           onClick={() => setPage('inventory')}
         />
       </div>
@@ -1621,38 +1568,33 @@ function WarehouseDashboard({
       </Card>
 
       {/* Stock Overview */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Total Products"
           value={formatNumber(overview?.totalProducts || stats.totalProducts)}
           subtitle={`${overview?.outOfStock || stats.outOfStockCount} out of stock`}
           icon={<Package className="size-5" />}
-          iconBgClass="bg-sky-100 dark:bg-sky-900/30"
-          iconTextClass="text-sky-600 dark:text-sky-400"
         />
         <StatCard
           title="Out of Stock"
           value={formatNumber(overview?.outOfStock || stats.outOfStockCount)}
           subtitle="need restocking"
           icon={<AlertCircle className="size-5" />}
-          iconBgClass="bg-red-100 dark:bg-red-900/30"
-          iconTextClass="text-red-600 dark:text-red-400"
+          tone="danger"
         />
         <StatCard
           title="Low Stock"
           value={formatNumber(overview?.lowStock || stats.lowStockCount)}
           subtitle="below threshold"
           icon={<AlertTriangle className="size-5" />}
-          iconBgClass="bg-amber-100 dark:bg-amber-900/30"
-          iconTextClass="text-amber-600 dark:text-amber-400"
+          tone="warning"
         />
         <StatCard
           title="Inventory Value"
           value={formatETB(overview?.totalRetailValue || stats.totalStockRetailValue)}
           subtitle={`Cost: ${formatETB(overview?.totalCostValue || stats.totalStockCostValue)}`}
           icon={<WarehouseIcon className="size-5" />}
-          iconBgClass="bg-brand-50 dark:bg-brand-900/20"
-          iconTextClass="text-primary"
+          tone="brand"
         />
       </div>
 
@@ -1778,8 +1720,24 @@ function SalesDashboard({
   useEffect(() => {
     if (!currentOrg) return
     Promise.all([
-      api.getCustomers(currentOrg.id, { limit: 5, shopId: currentShop?.id }).catch(() => ({ customers: [] })),
-      api.getDebts(currentOrg.id, { status: 'pending', limit: 5, shopId: currentShop?.id }).catch(() => ({ debts: [], summary: { totalCustomerDebt: 0, totalSupplierDebt: 0, totalOutstanding: 0 } })),
+      api.getCustomers(currentOrg.id, { limit: 5, shopId: currentShop?.id }).catch(async () => {
+        const shopId = currentShop?.id
+        const local = await db.customers
+          .where('organizationId').equals(currentOrg.id)
+          .filter(c => !shopId || c.shopId === shopId || !c.shopId)
+          .limit(5)
+          .toArray()
+        return { customers: local as unknown as Customer[] }
+      }),
+      api.getDebts(currentOrg.id, { status: 'pending', limit: 5, shopId: currentShop?.id }).catch(async () => {
+        const shopId = currentShop?.id
+        const local = await db.debts
+          .where('organizationId').equals(currentOrg.id)
+          .filter(d => (d.status === 'pending' || d.status === 'partial') && (!shopId || d.shopId === shopId || !d.shopId))
+          .limit(5)
+          .toArray()
+        return { debts: local as unknown as Debt[], summary: { totalCustomerDebt: 0, totalSupplierDebt: 0, totalOutstanding: 0 } }
+      }),
     ]).then(([customersData, debtsData]) => {
       setRecentCustomers(customersData.customers)
       setOutstandingDebts(debtsData.debts)
@@ -1799,64 +1757,55 @@ function SalesDashboard({
         <QuickActionCard
           icon={<ShoppingCart className="size-6" />}
           label="Record Sale"
-          iconBgClass="bg-primary/10"
-          iconTextClass="text-primary"
+          tone="brand"
           onClick={() => setPage('sales')}
           prominent
         />
         <QuickActionCard
           icon={<UserPlus className="size-6" />}
           label="New Customer"
-          iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
-          iconTextClass="text-emerald-600 dark:text-emerald-400"
           onClick={() => setPage('customers')}
         />
         <QuickActionCard
           icon={<Phone className="size-6" />}
           label="Follow Up Debt"
-          iconBgClass="bg-red-100 dark:bg-red-900/30"
-          iconTextClass="text-red-600 dark:text-red-400"
+          tone="danger"
           onClick={() => setPage('debts')}
         />
       </div>
 
       {/* Sales Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Today's Sales"
           value={formatNumber(todaySalesCount)}
           subtitle="transactions today"
           icon={<ShoppingCart className="size-5" />}
-          iconBgClass="bg-brand-50 dark:bg-brand-900/20"
-          iconTextClass="text-primary"
+          tone="brand"
         />
         <StatCard
           title="Today's Revenue"
           value={formatETB(todayRevenue)}
           subtitle="total today"
           icon={<DollarSign className="size-5" />}
-          iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
-          iconTextClass="text-emerald-600 dark:text-emerald-400"
+          tone="success"
         />
         <StatCard
           title="Month Revenue"
           value={formatETB(stats.monthRevenue)}
           subtitle="this month"
           icon={<TrendingUp className="size-5" />}
-          iconBgClass="bg-sky-100 dark:bg-sky-900/30"
-          iconTextClass="text-sky-600 dark:text-sky-400"
         />
         <StatCard
           title="Customer Debts"
           value={formatETB(stats.totalCustomerDebt)}
           subtitle="outstanding"
           icon={<CreditCard className="size-5" />}
-          iconBgClass="bg-red-100 dark:bg-red-900/30"
-          iconTextClass="text-red-600 dark:text-red-400"
+          tone="danger"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Outstanding Debts */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -2074,6 +2023,66 @@ export function DashboardPage() {
             .filter(e => e.date >= monthStart)
             .reduce((sum, e) => sum + e.amount, 0)
 
+          // Fetch sale items for completed sales to compute topProducts, COGS, and trend
+          const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+          const completedSaleIds = localSales
+            .filter(s => s.status === 'completed')
+            .map(s => s.id)
+          const localSaleItems = completedSaleIds.length > 0
+            ? await db.saleItems.where('saleId').anyOf(completedSaleIds).toArray()
+            : []
+
+          // Top products: aggregate revenue/qty per product over last 30 days
+          const recentSaleIdSet = new Set(
+            localSales
+              .filter(s => s.status === 'completed' && s.saleDate >= thirtyDaysAgo)
+              .map(s => s.id)
+          )
+          const productRevMap = new Map<string, { total: number; quantity: number }>()
+          for (const item of localSaleItems) {
+            if (!recentSaleIdSet.has(item.saleId)) continue
+            const existing = productRevMap.get(item.productId) ?? { total: 0, quantity: 0 }
+            productRevMap.set(item.productId, {
+              total: existing.total + item.total,
+              quantity: existing.quantity + item.quantity,
+            })
+          }
+          const productLookup = new Map(localProducts.map(p => [p.id, p]))
+          const offlineTopProducts = [...productRevMap.entries()]
+            .sort((a, b) => b[1].total - a[1].total)
+            .slice(0, 5)
+            .map(([productId, stats]) => {
+              const p = productLookup.get(productId)
+              return {
+                id: productId,
+                name: p?.name ?? 'Unknown',
+                sku: p?.sku ?? null,
+                imageUrl: p?.imageUrl ?? null,
+                totalRevenue: stats.total,
+                totalQuantity: stats.quantity,
+              }
+            })
+
+          // Period COGS from sale items (current month)
+          const monthSaleIdSet = new Set(monthSales.map(s => s.id))
+          const periodCogs = localSaleItems
+            .filter(i => monthSaleIdSet.has(i.saleId))
+            .reduce((sum, i) => sum + (i.costPrice * i.quantity), 0)
+
+          // Sales trend: daily revenue for last 30 days
+          const salesTrendMap = new Map<string, number>()
+          for (const sale of localSales) {
+            if (sale.status !== 'completed') continue
+            const dateKey = sale.saleDate.split('T')[0]
+            salesTrendMap.set(dateKey, (salesTrendMap.get(dateKey) ?? 0) + sale.total)
+          }
+          const offlineSalesTrend: Array<{ date: string; revenue: number }> = []
+          for (let i = 29; i >= 0; i--) {
+            const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+            const dateKey = d.toISOString().split('T')[0]
+            offlineSalesTrend.push({ date: dateKey, revenue: salesTrendMap.get(dateKey) ?? 0 })
+          }
+
           const fallbackDashboardData: EnhancedDashboardData = {
             stats: {
               totalProducts: localProducts.length,
@@ -2087,8 +2096,8 @@ export function DashboardPage() {
               totalCustomerDebt,
               periodRevenue: monthRevenue,
               periodExpenses,
-              periodCogs: 0, // Can't compute easily from local data
-              periodNetProfit: monthRevenue - periodExpenses,
+              periodCogs,
+              periodNetProfit: monthRevenue - periodCogs - periodExpenses,
               periodSalesCount: monthSales.length,
             },
             comparison: {
@@ -2105,7 +2114,7 @@ export function DashboardPage() {
                 id: p.id, type: 'out_of_stock' as const, message: `${p.name} is out of stock`, severity: 'high' as const,
               })),
               ...lowStock.slice(0, 3).map(p => ({
-                id: p.id, type: 'low_stock' as const, message: `${p.name} is low on stock (${p.quantity} left)`, severity: 'medium' as const,
+                id: p.id, type: 'critical_low' as const, message: `${p.name} is low on stock (${p.quantity} left)`, severity: 'medium' as const,
               })),
             ],
             recentSales: localSales
@@ -2119,8 +2128,8 @@ export function DashboardPage() {
                 createdAt: s.createdAt, updatedAt: s.updatedAt,
                 customer: null, items: undefined,
               })),
-            topProducts: [], // Would need saleItems to compute
-            salesTrend: [], // Would need daily aggregation
+            topProducts: offlineTopProducts,
+            salesTrend: offlineSalesTrend,
           }
 
           setDashboardData(fallbackDashboardData)
@@ -2143,7 +2152,7 @@ export function DashboardPage() {
             })),
             recentMovements: [],
           })
-          setRevenueChartData([])
+          setRevenueChartData(offlineSalesTrend.map(d => ({ date: formatDateShort(d.date), revenue: d.revenue })))
           return
         } catch {
           // Local DB also failed — show error

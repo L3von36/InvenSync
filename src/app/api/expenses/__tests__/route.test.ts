@@ -33,7 +33,7 @@ const mockFindMany = vi.fn()
 const mockCount = vi.fn()
 const mockAggregate = vi.fn()
 const mockCreate = vi.fn()
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   db: {
     expense: {
       findMany: (...args: any[]) => mockFindMany(...args),

@@ -5,6 +5,7 @@ import { Loader2, Package } from 'lucide-react'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { PWAInstallPrompt } from '@/components/shared/pwa-install-prompt'
 import { OfflineIndicator } from '@/components/shared/offline-indicator'
+import { SwUpdateBanner } from '@/components/shared/sw-update-banner'
 
 // Dynamically import all components
 const AuthFlow = lazy(() => import('@/components/app/auth-flow'))
@@ -111,6 +112,7 @@ export default function AppRoot() {
 
   return (
     <>
+      <SwUpdateBanner />
       <OfflineIndicator />
       <Suspense fallback={<LoadingScreen />}>
         <AppShell />

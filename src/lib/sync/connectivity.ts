@@ -47,6 +47,14 @@ class ConnectivityService {
     return this.state
   }
 
+  /**
+   * True when the browser reports online AND the last heartbeat check passed.
+   * Exposed as a plain property for non-React consumers (e.g. the sync engine).
+   */
+  get isOnline(): boolean {
+    return this.state.isOnline && this.state.isConnected
+  }
+
   subscribe(listener: (state: ConnectivityState) => void): () => void {
     this.listeners.add(listener)
 

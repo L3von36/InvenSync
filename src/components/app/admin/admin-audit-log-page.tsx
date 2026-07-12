@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   FileText, Search, Loader2, RefreshCw, Download,
@@ -197,23 +199,23 @@ export function AuditLogPage() {
       value: summary.totalActionsToday,
       icon: Activity,
       color: 'text-primary',
-      bg: 'bg-brand-50 dark:bg-brand-900/20',
+      bg: 'bg-primary/10',
     },
     {
       title: 'Most Active User',
       value: summary.mostActiveUser?.name || 'N/A',
       subtitle: summary.mostActiveUser ? `${summary.mostActiveUser.count} actions` : undefined,
       icon: User,
-      color: 'text-emerald-600 dark:text-emerald-400',
-      bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+      color: 'text-muted-foreground',
+      bg: 'bg-muted',
     },
     {
       title: 'Most Changed Entity',
       value: summary.mostChangedEntity?.entity || 'N/A',
       subtitle: summary.mostChangedEntity ? `${summary.mostChangedEntity.count} changes` : undefined,
       icon: Shield,
-      color: 'text-amber-600 dark:text-amber-400',
-      bg: 'bg-amber-100 dark:bg-amber-900/30',
+      color: 'text-muted-foreground',
+      bg: 'bg-muted',
     },
   ] : []
 
@@ -253,19 +255,17 @@ export function AuditLogPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight flex items-center gap-2">
-            <FileText className="size-5 text-primary" />
-            Audit Log
-          </h1>
-          <p className="text-muted-foreground text-sm">Track all system activities and changes</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={exportCSV} className="shrink-0 gap-2">
-          <Download className="size-4" />
-          Export CSV
-        </Button>
-      </div>
+      <PageHeader
+        icon={<FileText />}
+        title="Audit Log"
+        subtitle="Track all system activities and changes"
+        actions={
+          <Button variant="outline" size="sm" onClick={exportCSV} className="shrink-0 gap-2">
+            <Download className="size-4" />
+            Export CSV
+          </Button>
+        }
+      />
 
       {/* Summary Cards */}
       {summaryCards.length > 0 && (

@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   ShoppingCart, Plus, Filter, Send, CheckCircle, Package,
@@ -175,7 +177,8 @@ export function PurchaseOrdersPage() {
       })))
       setSuppliers(suppliersData.suppliers.map(s => ({ id: s.id, name: s.name })))
     } catch {
-      // silently fail
+      // Without products/suppliers the create-PO form is unusable — tell the user
+      toast.error('Could not load products and suppliers. Close and reopen the form to retry.')
     } finally {
       setLoadingDropdowns(false)
     }
@@ -393,21 +396,17 @@ export function PurchaseOrdersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <ShoppingCart className="size-6" />
-            Purchase Orders
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage purchase orders and track incoming stock
-          </p>
-        </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-          <Plus className="size-4" />
-          New Purchase Order
-        </Button>
-      </div>
+      <PageHeader
+        icon={<ShoppingCart />}
+        title="Purchase Orders"
+        subtitle="Manage purchase orders and track incoming stock"
+        actions={
+          <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+            <Plus className="size-4" />
+            New Purchase Order
+          </Button>
+        }
+      />
 
       {/* Low Stock Alert */}
       {lowStockProducts.length > 0 && (
@@ -824,7 +823,7 @@ export function PurchaseOrdersPage() {
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
                         onClick={() => removeFormItem(index)}
-                      >
+                       aria-label="Delete">
                         <Trash2 className="size-4" />
                       </Button>
                     )}

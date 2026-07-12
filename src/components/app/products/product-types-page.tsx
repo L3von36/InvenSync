@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -422,7 +424,7 @@ function ProductTypeCard({
                 variant="ghost"
                 size="icon"
                 className="size-10 md:size-8 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-              >
+               aria-label="More options">
                 <MoreVertical className="size-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -554,24 +556,23 @@ export function ProductTypesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Product Types</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Define product categories with custom attributes
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditingType(null)
-            setDialogOpen(true)
-          }}
-          className="gap-2"
-        >
-          <Plus className="size-4" />
-          Add Product Type
-        </Button>
-      </div>
+      <PageHeader
+        icon={<Package />}
+        title="Product Types"
+        subtitle="Define product categories with custom attributes"
+        actions={
+          <Button
+            onClick={() => {
+              setEditingType(null)
+              setDialogOpen(true)
+            }}
+            className="gap-2"
+          >
+            <Plus className="size-4" />
+            Add Product Type
+          </Button>
+        }
+      />
 
       {/* Search */}
       <div className="relative w-full sm:max-w-sm">

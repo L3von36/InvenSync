@@ -102,14 +102,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Only organization owner can change plan' }, { status: 403 })
     }
 
-    // TODO: Integrate with payment gateway (Chapa/Stripe)
-    // For now, only allow plan changes from admin endpoint
-    // Direct subscription upgrades without payment verification are blocked
-    if (body.plan === 'premium' || body.plan === 'enterprise') {
-      // Check if this request came from an admin or has a valid payment reference
-      if (!body.paymentReference && user.role !== 'admin') {
-        return NextResponse.json({ 
-          error: 'Payment verification required for premium plans. Please complete payment first.' 
+    // Payment gate — ALL paid plans require a verified payment, not just
+    // premium. (Previously growth/professional could be self-assigned free.)
+    // Admins may set plans directly for support/manual-billing cases.
+    const PAID_PLANS = ['growth', 'professional', 'premium', 'enterprise']
+    if (PAID_PLANS.includes(plan) && user.role !== 'admin') {
+      if (!body.paymentReference) {
+        return NextResponse.json({
+          error: 'Payment verification required for paid plans. Please complete payment first.'
+        }, { status: 402 })
+      }
+
+      // Never trust a client-supplied reference — verify it with Chapa.
+      const { isChapaConfigured, verifyChapaTransaction } = await import('@/lib/chapa')
+      if (!isChapaConfigured()) {
+        return NextResponse.json({
+          error: 'Online payments are not available yet. Please contact support to upgrade your plan.'
+        }, { status: 402 })
+      }
+      const verification = await verifyChapaTransaction(String(body.paymentReference))
+      if (!verification.ok || verification.status !== 'success') {
+        return NextResponse.json({
+          error: 'Payment could not be verified. If you were charged, please contact support.'
         }, { status: 402 })
       }
     }

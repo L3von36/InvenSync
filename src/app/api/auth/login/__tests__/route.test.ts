@@ -29,6 +29,7 @@ vi.mock('@/lib/auth', async (importOriginal) => {
     ...actual,
     comparePassword: (...args: any[]) => mockComparePassword(...args),
     generateToken: (...args: any[]) => mockGenerateToken(...args),
+    createSession: async (...args: any[]) => mockGenerateToken(...args),
     hashPassword: (...args: any[]) => mockHashPassword(...args),
   }
 })
@@ -47,7 +48,7 @@ const mockUpdate = vi.fn()
 const mockDeviceFindFirst = vi.fn()
 const mockDeviceCreate = vi.fn()
 const mockDeviceUpdate = vi.fn()
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   db: {
     user: {
       findUnique: (...args: any[]) => mockFindUnique(...args),

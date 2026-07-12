@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -347,37 +349,33 @@ export function PriceOptimizationPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight flex items-center gap-2">
-            <DollarSign className="size-6 text-primary" />
-            AI Price Optimization
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Get AI-powered pricing suggestions to maximize revenue and optimize margins.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {result && (
-            <span className="text-xs text-muted-foreground">
-              Last: {formatTimestamp(result.analyzedAt)}
-            </span>
-          )}
-          <Button
-            onClick={runAnalysis}
-            disabled={isLoading || !currentOrg}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
-            size="sm"
-          >
-            {isLoading ? (
-              <Loader2 className="size-4 animate-spin mr-1" />
-            ) : (
-              <Sparkles className="size-4 mr-1" />
+      <PageHeader
+        icon={<DollarSign />}
+        title="AI Price Optimization"
+        subtitle="Get AI-powered pricing suggestions to maximize revenue and optimize margins."
+        actions={
+          <>
+            {result && (
+              <span className="text-xs text-muted-foreground">
+                Last: {formatTimestamp(result.analyzedAt)}
+              </span>
             )}
-            {isLoading ? 'Analyzing...' : 'Analyze All'}
-          </Button>
-        </div>
-      </div>
+            <Button
+              onClick={runAnalysis}
+              disabled={isLoading || !currentOrg}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
+              size="sm"
+            >
+              {isLoading ? (
+                <Loader2 className="size-4 animate-spin mr-1" />
+              ) : (
+                <Sparkles className="size-4 mr-1" />
+              )}
+              {isLoading ? 'Analyzing...' : 'Analyze All'}
+            </Button>
+          </>
+        }
+      />
 
       {/* Summary Cards */}
       {result && (

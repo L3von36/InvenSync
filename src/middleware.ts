@@ -1,7 +1,42 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
+import { checkDistributedRateLimit } from '@/lib/rate-limit-edge'
 
 export async function middleware(request: NextRequest) {
+  // 0. Distributed rate limiting for auth endpoints — enforced at the edge,
+  //    before the serverless function even starts. The in-memory limiter in
+  //    the route handlers resets on cold starts, so brute-force protection
+  //    for login/register must live in shared storage (Upstash Redis).
+  //    No-op when UPSTASH_REDIS_REST_URL is not configured.
+  //    Scoped to credential-guessing surfaces only — logout/session routes
+  //    are authenticated actions and shouldn't consume the shared-IP budget
+  //    (many Ethiopian businesses sit behind one NAT IP).
+  const BRUTE_FORCE_PATHS = [
+    '/api/auth/login',
+    '/api/auth/register',
+    '/api/auth/reset-password',
+    '/api/auth/forgot-password',
+    '/api/auth/2fa',
+  ]
+  if (
+    request.method === 'POST' &&
+    BRUTE_FORCE_PATHS.some(p => request.nextUrl.pathname.startsWith(p))
+  ) {
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      'unknown'
+    const result = await checkDistributedRateLimit('auth', ip, 30, 15 * 60)
+    if (!result.allowed) {
+      return NextResponse.json(
+        { error: 'Too many attempts. Please try again later.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(result.retryAfterSec) },
+        },
+      )
+    }
+  }
   // 1. Refresh Supabase Auth session cookies (if Supabase is configured).
   //    This ensures httpOnly session tokens are refreshed on every request,
   //    preventing silent session expiry for Supabase-authenticated users.

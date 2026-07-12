@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
   // Check database connectivity regardless of Supabase config
   try {
-    const { db } = await import('@/lib/db')
+    const { db } = await import('@/lib/prisma')
     await db.$queryRaw`SELECT 1`
 
     let tableCount = 0

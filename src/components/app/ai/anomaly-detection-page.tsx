@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useCallback } from 'react'
 import {
   ShieldAlert,
@@ -151,37 +153,33 @@ export function AnomalyDetectionPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ShieldAlert className="size-6" />
-            Anomaly Detection
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            AI-powered detection of unusual patterns in your business data
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {lastAnalyzed && (
-            <span className="text-xs text-muted-foreground">
-              Last analyzed: {new Date(lastAnalyzed).toLocaleTimeString()}
-            </span>
-          )}
-          <Button onClick={runAnalysis} disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="size-4 animate-spin mr-2" />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="size-4 mr-2" />
-                Run Analysis
-              </>
+      <PageHeader
+        icon={<ShieldAlert />}
+        title="Anomaly Detection"
+        subtitle="AI-powered detection of unusual patterns in your business data"
+        actions={
+          <>
+            {lastAnalyzed && (
+              <span className="text-xs text-muted-foreground">
+                Last analyzed: {new Date(lastAnalyzed).toLocaleTimeString()}
+              </span>
             )}
-          </Button>
-        </div>
-      </div>
+            <Button onClick={runAnalysis} disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="size-4 mr-2" />
+                  Run Analysis
+                </>
+              )}
+            </Button>
+          </>
+        }
+      />
 
       {/* Summary Cards */}
       {anomalies.length > 0 && (

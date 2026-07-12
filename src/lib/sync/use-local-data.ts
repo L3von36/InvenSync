@@ -73,7 +73,7 @@ export function useLocalProducts(orgId: string, shopId?: string): UseLocalDataRe
           id: p.id,
           productTypeId: p.productTypeId || '',
           organizationId: p.organizationId,
-          shopId: p.shopId || null,
+          shopId: ((p as unknown as Record<string, unknown>).shopId as string | null) || null,
           sku: p.sku || null,
           name: p.name,
           description: p.description || null,
@@ -240,7 +240,7 @@ export function useLocalSales(orgId: string, shopId?: string): UseLocalDataResul
         const localSales: LocalSale[] = sales.map((s) => ({
           id: s.id,
           organizationId: s.organizationId,
-          shopId: (s as Record<string, unknown>).shopId as string | null || null,
+          shopId: (s as unknown as Record<string, unknown>).shopId as string | null || null,
           customerId: s.customerId || null,
           invoiceNumber: s.invoiceNumber || '',
           status: s.status || '',

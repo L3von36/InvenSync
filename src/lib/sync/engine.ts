@@ -21,17 +21,18 @@ import {
 // Types
 // ============================================
 
+// Field types mirror LocalOutbox in @/lib/db (Dexie rows use null, not undefined)
 export interface OutboxItem {
   id: string
   entity: string
   operation: 'create' | 'update' | 'delete'
   payload: string
-  localId?: string
-  serverId?: string
+  localId?: string | null
+  serverId?: string | null
   createdAt: string
   retryCount: number
   status: 'pending' | 'syncing' | 'synced' | 'failed' | 'conflict'
-  error?: string
+  error?: string | null
   lastAttemptAt?: string | null
 }
 
@@ -101,6 +102,25 @@ const ENTITY_TABLES: Record<string, string> = {
   shops: 'shops',
 }
 
+// Key under which each list endpoint returns its records
+// (e.g. GET /api/products -> { products: [...] }). saleItems have no
+// standalone endpoint — they're extracted from the embedded items on
+// each sale during the sales pull.
+const ENTITY_RESPONSE_KEYS: Record<string, string> = {
+  products: 'products',
+  categories: 'productTypes',
+  customers: 'customers',
+  suppliers: 'suppliers',
+  sales: 'sales',
+  stockMovements: 'recentMovements',
+  debts: 'debts',
+  expenses: 'expenses',
+  purchaseOrders: 'purchaseOrders',
+  serviceBookings: 'bookings',
+  serviceTypes: 'serviceTypes',
+  shops: 'shops',
+}
+
 const ALL_ENTITIES = Object.keys(ENTITY_ENDPOINTS)
 
 // Exponential backoff delays: 2s, 8s, 30s, 2m, 10m
@@ -139,6 +159,28 @@ function getMethodForOperation(operation: OutboxItem['operation']): string {
   }
 }
 
+/**
+ * Extracts the record array from a list-endpoint response.
+ * Returns null when the response doesn't contain a recognizable array,
+ * so callers can distinguish "no changes" from "unexpected shape".
+ */
+function extractEntityItems(
+  entity: string,
+  data: unknown
+): Record<string, unknown>[] | null {
+  if (Array.isArray(data)) return data as Record<string, unknown>[]
+  if (!data || typeof data !== 'object') return null
+
+  const obj = data as Record<string, unknown>
+  const candidates = [ENTITY_RESPONSE_KEYS[entity], 'data', 'items']
+  for (const key of candidates) {
+    if (key && Array.isArray(obj[key])) {
+      return obj[key] as Record<string, unknown>[]
+    }
+  }
+  return null
+}
+
 // ============================================
 // Connectivity Service Interface
 // ============================================
@@ -147,8 +189,8 @@ function getMethodForOperation(operation: OutboxItem['operation']): string {
 // the module hasn't been created yet.
 
 interface ConnectivityService {
-  isOnline: boolean
-  subscribe(callback: (online: boolean) => void): () => void
+  readonly isOnline: boolean
+  subscribe(callback: (state: { isOnline: boolean; isConnected: boolean }) => void): () => void
 }
 
 let connectivityService: ConnectivityService | null = null
@@ -157,7 +199,7 @@ async function getConnectivityService(): Promise<ConnectivityService | null> {
   if (connectivityService) return connectivityService
   try {
     const mod = await import('@/lib/sync/connectivity')
-    connectivityService = mod.connectivityService ?? mod.default ?? null
+    connectivityService = mod.connectivityService ?? null
     return connectivityService
   } catch {
     console.log('[Sync] Connectivity service not available, assuming online')
@@ -178,6 +220,73 @@ function getDexieDb(): typeof db | null {
   }
 }
 
+/**
+ * Upserts pulled records into the local table. Sales arrive with their line
+ * items embedded — those are stored in the saleItems table and stripped from
+ * the sale record itself.
+ */
+async function upsertEntityRecords(
+  dexieDb: NonNullable<ReturnType<typeof getDexieDb>>,
+  entity: string,
+  tableName: string,
+  records: Record<string, unknown>[]
+): Promise<void> {
+  let toStore = records
+
+  if (entity === 'sales') {
+    const embeddedItems: Record<string, unknown>[] = []
+    const salesWithItems: string[] = []
+    toStore = records.map((sale) => {
+      const { items, ...rest } = sale as { items?: unknown } & Record<string, unknown>
+      if (Array.isArray(items)) {
+        const saleId = String(rest.id ?? '')
+        if (saleId) salesWithItems.push(saleId)
+        for (const si of items) {
+          const item = si as Record<string, unknown>
+          if (!item.id) continue
+          embeddedItems.push({
+            id: String(item.id),
+            saleId: String(item.saleId ?? rest.id ?? ''),
+            productId: String(item.productId ?? ''),
+            quantity: Number(item.quantity ?? 0),
+            unitPrice: Number(item.unitPrice ?? 0),
+            costPrice: Number(item.costPrice ?? 0),
+            total: Number(item.total ?? 0),
+            createdAt: item.createdAt,
+          })
+        }
+      }
+      return rest
+    })
+
+    if (embeddedItems.length > 0) {
+      try {
+        // The server's embedded items are authoritative for these sales —
+        // clear any locally-written items first (offline sale items get
+        // client-generated ids that differ from the server's item ids)
+        await dexieDb.table('saleItems').where('saleId').anyOf(salesWithItems).delete()
+        await dexieDb.table('saleItems').bulkPut(embeddedItems)
+      } catch (err) {
+        console.error('[Sync] bulkPut failed for saleItems:', err)
+      }
+    }
+  }
+
+  try {
+    await dexieDb.table(tableName).bulkPut(toStore)
+  } catch (err) {
+    console.error(`[Sync] bulkPut failed for ${tableName}:`, err)
+    // Try individual puts as fallback
+    for (const item of toStore) {
+      try {
+        await dexieDb.table(tableName).put(item)
+      } catch {
+        // Skip individual failures
+      }
+    }
+  }
+}
+
 // ============================================
 // SyncEngine Class
 // ============================================
@@ -194,6 +303,8 @@ class SyncEngine {
   private abortController: AbortController | null = null
   // Org/shop context for auto-pull (set when startAutoSync is called with context)
   private syncContext: { orgId: string; shopId?: string } | null = null
+  // Guards the once-only service-worker message listener
+  private swMessageListenerAttached = false
 
   constructor() {
     if (typeof window === 'undefined') return
@@ -232,14 +343,21 @@ class SyncEngine {
   }
 
   private notifyListeners(): void {
-    const status = this.getStatus()
-    for (const listener of this.listeners) {
-      try {
-        listener(status)
-      } catch (err) {
-        console.error('[Sync] Listener error:', err)
-      }
-    }
+    // getStatus() is async — resolve it before notifying so listeners
+    // receive a SyncStatus, not a Promise
+    void this.getStatus()
+      .then((status) => {
+        for (const listener of this.listeners) {
+          try {
+            listener(status)
+          } catch (err) {
+            console.error('[Sync] Listener error:', err)
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('[Sync] Failed to compute sync status:', err)
+      })
   }
 
   // ------------------------------------------
@@ -700,6 +818,12 @@ class SyncEngine {
       return { pulled: 0, deleted: 0 }
     }
 
+    // saleItems have no standalone endpoint — they're synced from the
+    // embedded items on each sale during the sales pull
+    if (entity === 'saleItems') {
+      return { pulled: 0, deleted: 0 }
+    }
+
     const endpoint = ENTITY_ENDPOINTS[entity]
     const tableName = ENTITY_TABLES[entity]
 
@@ -739,13 +863,12 @@ class SyncEngine {
       }
 
       const data = await response.json()
-      const items: Record<string, unknown>[] = Array.isArray(data)
-        ? data
-        : Array.isArray(data.data)
-          ? data.data
-          : Array.isArray(data.items)
-            ? data.items
-            : []
+      const items = extractEntityItems(entity, data)
+      if (items === null) {
+        // Unexpected response shape — bail WITHOUT advancing syncMeta so
+        // the next pull retries the same window instead of losing changes
+        throw new Error(`Pull failed for ${entity}: unexpected response shape`)
+      }
 
       let pulled = 0
       let deleted = 0
@@ -754,7 +877,9 @@ class SyncEngine {
       const toDelete: string[] = []
 
       for (const item of items) {
-        const isDeleted = item._deleted === true || item.isActive === false
+        // Only explicit tombstones are deletions — inactive records
+        // (isActive: false) are upserted so local mirrors the server
+        const isDeleted = item._deleted === true
         const itemId = String(item.id ?? item._id ?? '')
 
         if (isDeleted) {
@@ -768,21 +893,9 @@ class SyncEngine {
         }
       }
 
-      // Upsert items into local Dexie table
+      // Upsert items into local Dexie table (sales also carry embedded items)
       if (toUpsert.length > 0) {
-        try {
-          await dexieDb.table(tableName).bulkPut(toUpsert)
-        } catch (err) {
-          console.error(`[Sync] bulkPut failed for ${tableName}:`, err)
-          // Try individual puts as fallback
-          for (const item of toUpsert) {
-            try {
-              await dexieDb.table(tableName).put(item)
-            } catch {
-              // Skip individual failures
-            }
-          }
-        }
+        await upsertEntityRecords(dexieDb, entity, tableName, toUpsert)
       }
 
       // Delete items marked as deleted
@@ -794,11 +907,13 @@ class SyncEngine {
         }
       }
 
-      // Update syncMeta with current timestamp
-      const now = new Date().toISOString()
+      // Update syncMeta — prefer the server's clock (returned as serverTime)
+      // so client clock skew can't skip a window of changes on the next pull
+      const serverTime = (data as { serverTime?: unknown })?.serverTime
+      const cursor = typeof serverTime === 'string' ? serverTime : new Date().toISOString()
       await dexieDb.syncMeta.put({
         id: entity,
-        lastSyncedAt: now,
+        lastSyncedAt: cursor,
         entityCount: 0,
       })
 
@@ -882,6 +997,9 @@ class SyncEngine {
 
     for (let i = 0; i < ALL_ENTITIES.length; i++) {
       const entity = ALL_ENTITIES[i]
+      // saleItems are extracted from the embedded items on each sale
+      if (entity === 'saleItems') continue
+
       const endpoint = ENTITY_ENDPOINTS[entity]
       const tableName = ENTITY_TABLES[entity]
 
@@ -909,41 +1027,29 @@ class SyncEngine {
         }
 
         const data = await response.json()
-        const items: Record<string, unknown>[] = Array.isArray(data)
-          ? data
-          : Array.isArray(data.data)
-            ? data.data
-            : Array.isArray(data.items)
-              ? data.items
-              : []
-
-        // Filter out deleted items for bootstrap
-        const activeItems = items.filter(
-          (item) => item._deleted !== true && item.isActive !== false
-        )
-
-        // Write everything to Dexie tables using bulkPut
-        if (activeItems.length > 0) {
-          try {
-            await db.table(tableName).bulkPut(activeItems)
-          } catch (err) {
-            console.error(`[Sync] bulkPut failed for ${tableName}:`, err)
-            // Fallback: individual puts
-            for (const item of activeItems) {
-              try {
-                await db.table(tableName).put(item)
-              } catch {
-                // Skip individual failures
-              }
-            }
-          }
+        const items = extractEntityItems(entity, data)
+        if (items === null) {
+          console.error(`[Sync] Bootstrap failed for ${entity}: unexpected response shape`)
+          results[entity] = { pulled: 0 }
+          continue
         }
 
-        // Set syncMeta with current timestamp
-        const now = new Date().toISOString()
+        // Filter out deleted items for bootstrap (inactive records are kept
+        // so local mirrors the server)
+        const activeItems = items.filter((item) => item._deleted !== true)
+
+        // Write everything to Dexie tables (sales also carry embedded items)
+        if (activeItems.length > 0) {
+          await upsertEntityRecords(db, entity, tableName, activeItems)
+        }
+
+        // Set syncMeta — prefer the server's clock (serverTime) so client
+        // clock skew can't skip a window of changes on the next delta pull
+        const serverTime = (data as { serverTime?: unknown })?.serverTime
+        const cursor = typeof serverTime === 'string' ? serverTime : new Date().toISOString()
         await db.syncMeta.put({
           id: entity,
-          lastSyncedAt: now,
+          lastSyncedAt: cursor,
           entityCount: 0,
         })
 
@@ -994,6 +1100,17 @@ class SyncEngine {
       this.syncContext = context
     }
 
+    // Refresh sync UI when the service worker's background replay reports in
+    if ('serviceWorker' in navigator && !this.swMessageListenerAttached) {
+      this.swMessageListenerAttached = true
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'OUTBOX_REPLAYED') {
+          console.log('[Sync] Background replay reported:', event.data)
+          this.notifyListeners()
+        }
+      })
+    }
+
     console.log(
       `[Sync] Starting auto sync with interval ${intervalMs}ms` +
       (context ? ` (push + pull, orgId=${context.orgId})` : ' (push only — no org context)')
@@ -1035,25 +1152,32 @@ class SyncEngine {
       }, pullInterval)
     }
 
-    // Listen for connectivity changes — sync when coming back online
+    // Listen for connectivity changes — sync when coming back online.
+    // The service notifies on EVERY state change (including heartbeats),
+    // so track the previous state and only fire on the offline -> online
+    // transition.
     const connService = await getConnectivityService()
     if (connService) {
-      this.connectivityCleanup = connService.subscribe(async (online) => {
-        if (online) {
-          console.log('[Sync] Back online, triggering push + pull')
-          // Small delay to let connection stabilize
-          setTimeout(async () => {
-            await this.push()
-            // Also pull remote changes so this device is current
-            if (this.syncContext) {
-              try {
-                await this.pullAll(this.syncContext.orgId, this.syncContext.shopId)
-              } catch (err) {
-                console.error('[Sync] Back-online pull failed:', err)
-              }
+      let wasOnline = connService.isOnline
+      this.connectivityCleanup = connService.subscribe((state) => {
+        const online = state.isOnline && state.isConnected
+        const cameBackOnline = online && !wasOnline
+        wasOnline = online
+        if (!cameBackOnline) return
+
+        console.log('[Sync] Back online, triggering push + pull')
+        // Small delay to let connection stabilize
+        setTimeout(async () => {
+          await this.push()
+          // Also pull remote changes so this device is current
+          if (this.syncContext) {
+            try {
+              await this.pullAll(this.syncContext.orgId, this.syncContext.shopId)
+            } catch (err) {
+              console.error('[Sync] Back-online pull failed:', err)
             }
-          }, 1000)
-        }
+          }
+        }, 1000)
       })
     } else {
       // Fallback: listen for browser online events
@@ -1154,7 +1278,27 @@ class SyncEngine {
     console.log(`[Sync] Added to outbox: ${item.operation} ${item.entity}`)
     this.notifyListeners()
 
+    // Progressive enhancement: ask the browser to fire a background 'sync'
+    // event when connectivity returns (Chromium only), so the outbox drains
+    // even if the tab closes before reconnecting. Foreground replay remains
+    // the baseline for Firefox/Safari.
+    this.registerBackgroundSync()
+
     return outboxItem
+  }
+
+  private registerBackgroundSync(): void {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+    navigator.serviceWorker.ready
+      .then((registration) => {
+        const sync = (registration as unknown as {
+          sync?: { register(tag: string): Promise<void> }
+        }).sync
+        return sync?.register('invensync-outbox')
+      })
+      .catch(() => {
+        // Unsupported or permission denied — foreground replay covers it
+      })
   }
 
   /**
