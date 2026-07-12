@@ -81,7 +81,9 @@ npx prisma db push --accept-data-loss
 
 echo ""
 echo "🚀 Building Next.js..."
-npx next build
+# --webpack: @serwist/next injects the service-worker precache manifest via a
+# webpack plugin, which Next 16's default Turbopack builds don't support
+npx next build --webpack
 
 echo ""
 echo "✅ Build complete!"

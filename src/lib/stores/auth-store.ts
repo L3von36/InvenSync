@@ -158,6 +158,8 @@ export const useAuthStore = create<AuthState>()(subscribeWithSelector((set, get)
       organizations: JSON.stringify(orgs),
       currentOrgId: currentOrg?.id || null,
       currentShopId: null,
+      // Mirrored for the service worker's background outbox replay
+      token: typeof window !== 'undefined' ? localStorage.getItem('sb_token') : null,
       cachedAt: new Date().toISOString(),
     }).catch(err => console.warn('[Auth] Failed to cache profile:', err))
     // Fetch shops and modules for the current org (with current abort signal)
@@ -200,6 +202,8 @@ export const useAuthStore = create<AuthState>()(subscribeWithSelector((set, get)
       organizations: JSON.stringify(orgs),
       currentOrgId: currentOrg?.id || null,
       currentShopId: null,
+      // Mirrored for the service worker's background outbox replay
+      token: typeof window !== 'undefined' ? localStorage.getItem('sb_token') : null,
       cachedAt: new Date().toISOString(),
     }).catch(err => console.warn('[Auth] Failed to cache profile:', err))
     if (currentOrg) {
@@ -272,6 +276,8 @@ export const useAuthStore = create<AuthState>()(subscribeWithSelector((set, get)
       organizations: JSON.stringify([org]),
       currentOrgId: org.id,
       currentShopId: null,
+      // Mirrored for the service worker's background outbox replay
+      token: typeof window !== 'undefined' ? localStorage.getItem('sb_token') : null,
       cachedAt: new Date().toISOString(),
     }).catch(err => console.warn('[Auth] Failed to cache profile:', err))
   },
@@ -483,6 +489,8 @@ export const useAuthStore = create<AuthState>()(subscribeWithSelector((set, get)
         organizations: JSON.stringify(orgs),
         currentOrgId: currentOrg?.id || null,
         currentShopId: null,
+        // Mirrored for the service worker's background outbox replay
+        token: typeof window !== 'undefined' ? localStorage.getItem('sb_token') : null,
         cachedAt: new Date().toISOString(),
       }).catch(err => console.warn('[Auth] Failed to cache profile:', err))
 
@@ -523,7 +531,11 @@ export const useAuthStore = create<AuthState>()(subscribeWithSelector((set, get)
       if (isNetworkError || isDbUnreachable) {
         try {
           const token = typeof window !== 'undefined' ? localStorage.getItem('sb_token') : null
-          if (token && get().isTokenValid()) {
+          // Offline-tolerant: accept an expired token for LOCAL access — the
+          // data is already on this device, and gating local reads on JWT
+          // expiry only locks legitimate users out of their own records.
+          // Server requests still 401 until they re-authenticate online.
+          if (token) {
             // Try to load cached profile from IndexedDB
             const profiles = await db.userProfile.toArray()
             if (profiles.length > 0) {

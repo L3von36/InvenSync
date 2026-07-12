@@ -41,7 +41,7 @@ const mockProductCreate = vi.fn()
 const mockProductTypeFindFirst = vi.fn()
 const mockTransaction = vi.fn()
 
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   db: {
     product: {
       findMany: (...args: any[]) => mockProductFindMany(...args),

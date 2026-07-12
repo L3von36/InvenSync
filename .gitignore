@@ -55,3 +55,11 @@ server.log
 # Skills directory
 /skills/tool-results/
 tool-results/
+
+# Serwist-generated service worker (built from src/sw.ts)
+public/sw.js
+public/sw.js.map
+
+# Local SQLite dev databases (never commit real data)
+prisma/*.db
+prisma/*.db-journal

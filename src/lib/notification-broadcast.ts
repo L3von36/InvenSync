@@ -53,7 +53,7 @@ export async function broadcastNotification(params: BroadcastNotificationParams)
   // 1. Persist to database (unless ephemeral)
   if (!ephemeral) {
     try {
-      const { db } = await import('@/lib/db')
+      const { db } = await import('@/lib/prisma')
       const record = await db.notification.create({
         data: {
           organizationId,

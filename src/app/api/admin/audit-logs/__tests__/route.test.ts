@@ -15,7 +15,7 @@ const mockLogFindMany = vi.fn()
 const mockLogCount = vi.fn()
 const mockLogGroupBy = vi.fn()
 const mockUserFindUnique = vi.fn()
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   db: {
     auditLog: {
       findMany: (...args: any[]) => mockLogFindMany(...args),

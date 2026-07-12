@@ -20,7 +20,7 @@ const mockFindFirst = vi.fn()
 const mockFindUnique = vi.fn()
 const mockCreate = vi.fn()
 const mockUpdate = vi.fn()
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   db: {
     creditLimit: {
       findMany: (...args: any[]) => mockFindMany(...args),

@@ -89,7 +89,7 @@ const ENTITY_CONFIGS: EntitySyncConfig[] = [
         id: p.id,
         productTypeId: p.productTypeId,
         organizationId: p.organizationId,
-        shopId: (p as Record<string, unknown>).shopId as string | null ?? null,
+        shopId: (p as unknown as Record<string, unknown>).shopId as string | null ?? null,
         sku: p.sku ?? null,
         name: p.name,
         description: p.description ?? null,
@@ -196,7 +196,7 @@ const ENTITY_CONFIGS: EntitySyncConfig[] = [
       return {
         id: s.id,
         organizationId: s.organizationId,
-        shopId: (s as Record<string, unknown>).shopId as string | null ?? null,
+        shopId: (s as unknown as Record<string, unknown>).shopId as string | null ?? null,
         customerId: s.customerId ?? null,
         invoiceNumber: s.invoiceNumber,
         status: s.status,
@@ -314,7 +314,7 @@ const ENTITY_CONFIGS: EntitySyncConfig[] = [
       return {
         id: sb.id,
         organizationId: sb.organizationId,
-        shopId: (sb as Record<string, unknown>).shopId as string | null ?? null,
+        shopId: (sb as unknown as Record<string, unknown>).shopId as string | null ?? null,
         serviceTypeId: sb.serviceTypeId ?? null,
         customerId: sb.customerId ?? null,
         customerName: sb.customerName,
@@ -374,7 +374,7 @@ const ENTITY_CONFIGS: EntitySyncConfig[] = [
         longitude: s.longitude ?? null,
         phone: s.phone ?? null,
         isActive: s.isActive,
-        createdAt: s.createdAt ?? new Date().toISOString(),
+        createdAt: ((s as unknown as Record<string, unknown>).createdAt as string | undefined) ?? new Date().toISOString(),
       } satisfies LocalShop
     },
   },
@@ -392,7 +392,7 @@ const ENTITY_CONFIGS: EntitySyncConfig[] = [
       return {
         id: m.id,
         organizationId: m.organizationId,
-        shopId: (m as Record<string, unknown>).shopId as string | null ?? null,
+        shopId: (m as unknown as Record<string, unknown>).shopId as string | null ?? null,
         productId: m.productId,
         type: m.type,
         quantity: m.quantity,
@@ -474,10 +474,15 @@ export async function bootstrapLocalData(
       await table.bulkPut(mappedData)
 
       // --- Write sync metadata ---
+      // The typed api methods don't expose the server clock, so back-date
+      // the cursor by 5 minutes: a client clock running ahead of the server
+      // would otherwise make the first delta pull skip recent changes.
+      // Re-pulling a few minutes of data is harmless (upserts are idempotent).
       const now = new Date().toISOString()
+      const cursor = new Date(Date.now() - 5 * 60_000).toISOString()
       const syncMeta: LocalSyncMeta = {
         id: config.entity,
-        lastSyncedAt: now,
+        lastSyncedAt: cursor,
         entityCount: mappedData.length,
         lastFullSyncAt: now,
       }
@@ -543,7 +548,7 @@ export async function bootstrapLocalData(
             unitPrice: si.unitPrice,
             costPrice: si.costPrice,
             total: si.total,
-            createdAt: si.createdAt,
+            createdAt: (si as unknown as { createdAt?: string }).createdAt,
           })
         }
       }

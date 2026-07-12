@@ -17,7 +17,7 @@ const mockPOFindMany = vi.fn()
 const mockPOCount = vi.fn()
 const mockPOCreate = vi.fn()
 const mockProductFindMany = vi.fn()
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   db: {
     purchaseOrder: {
       findMany: (...args: any[]) => mockPOFindMany(...args),

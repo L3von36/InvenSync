@@ -47,7 +47,7 @@ const mockSaleItemGroupBy = vi.fn()
 const mockExpenseFindMany = vi.fn()
 const mockExpenseAggregate = vi.fn()
 const mockProductFindMany = vi.fn()
-vi.mock('@/lib/db', () => ({
+vi.mock('@/lib/prisma', () => ({
   db: {
     sale: {
       findMany: (...args: any[]) => mockSaleFindMany(...args),

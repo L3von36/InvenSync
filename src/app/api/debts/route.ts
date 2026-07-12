@@ -4,6 +4,7 @@ import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
+import { isValidClientId } from '@/lib/client-id'
 
 // GET /api/debts?orgId=xxx&status=xxx&type=xxx
 export async function GET(request: Request) {
@@ -86,6 +87,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       debts,
+      serverTime: new Date().toISOString(),
       summary: {
         totalCustomerDebt,
         totalSupplierDebt,
@@ -149,6 +151,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid debt type' }, { status: 400 })
     }
 
+    // Optional client-generated ID (offline-first creates)
+    const clientId = body.id
+    if (clientId !== undefined && !isValidClientId(clientId)) {
+      return NextResponse.json({ error: 'Invalid id format' }, { status: 400 })
+    }
+
     const hasAccess = await verifyOrgAccess(user, orgId)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -160,8 +168,26 @@ export async function POST(request: Request) {
       if (moduleError) return moduleError
     }
 
+    // Idempotent replay: return the existing record if this ID was already created
+    if (clientId) {
+      const existingById = await db.debt.findUnique({
+        where: { id: clientId },
+        include: {
+          customer: { select: { id: true, name: true, phone: true } },
+          supplier: { select: { id: true, name: true, phone: true } },
+        },
+      })
+      if (existingById) {
+        if (existingById.organizationId !== orgId) {
+          return NextResponse.json({ error: 'ID already in use' }, { status: 409 })
+        }
+        return NextResponse.json({ debt: existingById }, { status: 200 })
+      }
+    }
+
     const debt = await db.debt.create({
       data: {
+        ...(clientId ? { id: clientId } : {}),
         organizationId: orgId,
         shopId: shopId || null,
         customerId: customerId || null,
