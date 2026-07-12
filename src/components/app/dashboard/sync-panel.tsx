@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 // ============================================
 // Sync Panel & Status Chip
 // ============================================
@@ -27,6 +29,7 @@ import {
   Trash2,
   RotateCcw,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -70,6 +73,7 @@ export function SyncStatusChip() {
       await engine.manualSync(currentOrg.id, currentShop?.id)
     } catch (err) {
       console.error('[SyncStatusChip] Manual sync failed:', err)
+      toast.error('Sync failed — your changes are still saved locally and will retry automatically.')
     }
   }, [currentOrg, currentShop])
 
@@ -190,24 +194,115 @@ function OutboxItemRow({ item, onRetry, onCancel }: {
           <Button
             variant="ghost"
             size="icon"
-            className="size-7"
+            className="size-9 md:size-7"
             onClick={() => onRetry(item.id)}
             title="Retry"
+            aria-label="Retry sync item"
           >
             <RotateCcw className="size-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 text-destructive hover:text-destructive"
+            className="size-9 md:size-7 text-destructive hover:text-destructive"
             onClick={() => onCancel(item.id)}
             title="Discard"
-          >
+           aria-label="Discard sync item">
             <Trash2 className="size-3.5" />
           </Button>
         </div>
       )}
     </div>
+  )
+}
+
+// ============================================
+// StorageCard — persistent storage status & usage
+// ============================================
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${bytes} B`
+}
+
+function StorageCard() {
+  const [persisted, setPersisted] = useState<boolean | null>(null)
+  const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null)
+  const [requesting, setRequesting] = useState(false)
+
+  const refresh = useCallback(async () => {
+    const { isStoragePersisted, getDatabaseSize } = await import('@/lib/db')
+    const [p, size] = await Promise.all([isStoragePersisted(), getDatabaseSize()])
+    setPersisted(p)
+    setEstimate(size)
+  }, [])
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  const handleRequestPersist = useCallback(async () => {
+    setRequesting(true)
+    try {
+      const { requestPersistentStorage } = await import('@/lib/db')
+      await requestPersistentStorage()
+      await refresh()
+    } finally {
+      setRequesting(false)
+    }
+  }, [refresh])
+
+  const usagePct = estimate && estimate.quota > 0
+    ? Math.min(100, (estimate.usage / estimate.quota) * 100)
+    : 0
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Database className="size-4" />
+            Local Storage
+          </CardTitle>
+          <CardDescription>
+            {persisted === true
+              ? 'Protected — the browser will not evict your offline data'
+              : persisted === false
+                ? 'Not protected — the browser may evict offline data under storage pressure'
+                : 'Storage protection status unavailable in this browser'}
+          </CardDescription>
+        </div>
+        {persisted === true ? (
+          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 gap-1">
+            <CheckCircle2 className="size-3" />
+            Protected
+          </Badge>
+        ) : persisted === false ? (
+          <Button size="sm" variant="outline" onClick={handleRequestPersist} disabled={requesting} className="gap-1.5">
+            {requesting ? <Loader2 className="size-3.5 animate-spin" /> : <Database className="size-3.5" />}
+            Protect Data
+          </Button>
+        ) : null}
+      </CardHeader>
+      {estimate && estimate.quota > 0 && (
+        <CardContent>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{formatBytes(estimate.usage)} used</span>
+              <span>{formatBytes(estimate.quota)} available</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all"
+                style={{ width: `${Math.max(usagePct, 1)}%` }}
+              />
+            </div>
+          </div>
+        </CardContent>
+      )}
+    </Card>
   )
 }
 
@@ -257,16 +352,22 @@ export function SyncPanel({ defaultOpen = false, fullPage = false }: SyncPanelPr
       await engine.manualSync(currentOrg.id, currentShop?.id)
     } catch (err) {
       console.error('[SyncPanel] Manual sync failed:', err)
+      toast.error('Sync failed — your changes are still saved locally and will retry automatically.')
     } finally {
       setIsManualSyncing(false)
     }
   }, [currentOrg, currentShop, isManualSyncing])
 
   const handleRetryItem = useCallback(async (id: string) => {
-    const engine = getSyncEngine()
-    await engine.retryOutboxItem(id)
-    const items = await engine.getOutboxItems()
-    setOutboxItems(items)
+    try {
+      const engine = getSyncEngine()
+      await engine.retryOutboxItem(id)
+      const items = await engine.getOutboxItems()
+      setOutboxItems(items)
+    } catch (err) {
+      console.error('[SyncPanel] Retry failed:', err)
+      toast.error('Retry failed — the item stays queued and will retry automatically.')
+    }
   }, [])
 
   const handleCancelItem = useCallback(async (id: string) => {
@@ -375,6 +476,9 @@ export function SyncPanel({ defaultOpen = false, fullPage = false }: SyncPanelPr
             </CardContent>
           </Card>
         </div>
+
+        {/* Local Storage */}
+        <StorageCard />
 
         {/* Outbox Queue */}
         <Card>
@@ -618,12 +722,11 @@ export function SyncPanel({ defaultOpen = false, fullPage = false }: SyncPanelPr
 export function SyncOfflinePage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Sync & Offline</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Manage offline data, sync status, and pending changes.
-        </p>
-      </div>
+      <PageHeader
+        icon={<RefreshCw />}
+        title="Sync & Offline"
+        subtitle="Manage offline data, sync status, and pending changes."
+      />
       <SyncPanel fullPage />
     </div>
   )

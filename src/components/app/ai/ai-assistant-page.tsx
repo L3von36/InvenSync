@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -166,23 +168,20 @@ export function AIAssistantPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight flex items-center gap-2">
-            <Bot className="size-6 text-primary" />
-            AI Business Assistant
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Ask questions about your inventory, sales, and business data.
-          </p>
-        </div>
-        {messages.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleClear} className="shrink-0">
-            <Trash2 className="size-4 mr-1" />
-            Clear Chat
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        className="mb-4"
+        icon={<Bot />}
+        title="AI Business Assistant"
+        subtitle="Ask questions about your inventory, sales, and business data."
+        actions={
+          messages.length > 0 ? (
+            <Button variant="outline" size="sm" onClick={handleClear} className="shrink-0">
+              <Trash2 className="size-4 mr-1" />
+              Clear Chat
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Chat Area */}
       <Card className="flex-1 flex flex-col overflow-hidden">

@@ -174,19 +174,19 @@ function StatsSection() {
     <section className="bg-background pb-16 sm:pb-20 px-4 z-10 relative">
       <div className="max-w-5xl mx-auto bg-primary rounded-xl py-8 sm:py-10 px-6 sm:px-8 grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-4 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)]">
         <div className="w-full text-center group">
-          <div className="text-xl sm:text-2xl font-bold text-primary-foreground tracking-tight mb-1 group-hover:scale-105 transition-transform origin-center">&lt; 30s</div>
+          <div className="text-xl sm:text-2xl font-semibold tabular-nums text-primary-foreground tracking-tight mb-1 group-hover:scale-105 transition-transform origin-center">&lt; 30s</div>
           <div className="text-xs sm:text-sm font-medium text-primary-foreground/70">To record a sale</div>
         </div>
         <div className="w-full text-center group">
-          <div className="text-xl sm:text-2xl font-bold text-primary-foreground tracking-tight mb-1 group-hover:scale-105 transition-transform origin-center">AI</div>
+          <div className="text-xl sm:text-2xl font-semibold tabular-nums text-primary-foreground tracking-tight mb-1 group-hover:scale-105 transition-transform origin-center">AI</div>
           <div className="text-xs sm:text-sm font-medium text-primary-foreground/70">Powered insights</div>
         </div>
         <div className="w-full text-center group">
-          <div className="text-xl sm:text-2xl font-bold text-primary-foreground tracking-tight mb-1 group-hover:scale-105 transition-transform origin-center">150 ETB</div>
+          <div className="text-xl sm:text-2xl font-semibold tabular-nums text-primary-foreground tracking-tight mb-1 group-hover:scale-105 transition-transform origin-center">150 ETB</div>
           <div className="text-xs sm:text-sm font-medium text-primary-foreground/70">Monthly flat rate</div>
         </div>
         <div className="w-full text-center group">
-          <div className="text-xl sm:text-2xl font-bold text-primary-foreground tracking-tight mb-1 group-hover:scale-105 transition-transform origin-center">14 Days</div>
+          <div className="text-xl sm:text-2xl font-semibold tabular-nums text-primary-foreground tracking-tight mb-1 group-hover:scale-105 transition-transform origin-center">14 Days</div>
           <div className="text-xs sm:text-sm font-medium text-primary-foreground/70">Free trial included</div>
         </div>
       </div>
@@ -257,7 +257,7 @@ function FeaturesSection() {
     <section id="features" className="py-16 md:py-20 px-5 bg-background">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12 max-w-2xl mx-auto">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-4 px-4">Complete control, beautifully simple.</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold tabular-nums text-foreground tracking-tight mb-4 px-4">Complete control, beautifully simple.</h2>
           <p className="text-base sm:text-lg text-muted-foreground px-6">All the powerful tools you need to run your business gracefully.</p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -290,7 +290,7 @@ function BusinessTypesSection() {
     <section id="business-types" className="py-16 md:py-20 px-5 bg-muted/50">
       <div className="max-w-5xl mx-auto text-center">
         <div className="mb-10 sm:mb-12">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-4 px-4">Fits any business</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold tabular-nums text-foreground tracking-tight mb-4 px-4">Fits any business</h2>
           <p className="font-medium text-muted-foreground tracking-wide text-base">ለሁሉም ዓይነት ስራ ተስማሚ</p>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
@@ -430,7 +430,7 @@ function FAQSection() {
     <section className="py-16 md:py-20 px-5 bg-muted/50">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-4">Frequently asked questions</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold tabular-nums text-foreground tracking-tight mb-4">Frequently asked questions</h2>
           <p className="text-base text-muted-foreground">Everything you need to know about InvenSync.</p>
         </div>
         <Accordion type="single" collapsible className="w-full">

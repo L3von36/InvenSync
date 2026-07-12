@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   MapPin, Building2, Users, DollarSign, Store, Plus, Search,
@@ -16,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from '@/components/ui/recharts-exports'
@@ -133,6 +135,11 @@ function RegionFormDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{mode === 'edit' ? 'Edit Region' : 'Add Region'}</DialogTitle>
+          <DialogDescription>
+            {mode === 'edit'
+              ? 'Update the details of this region.'
+              : 'Add a new region for organizing organizations and sales reps.'}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -242,6 +249,9 @@ function DeleteRegionDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Delete Region</DialogTitle>
+          <DialogDescription className="sr-only">
+            Confirm deleting this region
+          </DialogDescription>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
           Are you sure you want to delete <strong>{region?.name}</strong>? Organizations and sales reps in this region will be unlinked. This action cannot be undone.
@@ -383,22 +393,23 @@ export function AdminRegionsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight">Regions & Cities</h1>
-          <p className="text-muted-foreground text-sm">Manage cities where InvenSync operates</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleRefresh}>
-            <RefreshCw className="size-4" />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
-          <Button size="sm" className="gap-1.5" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="size-4" />
-            Add Region
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<MapPin />}
+        title="Regions & Cities"
+        subtitle="Manage cities where InvenSync operates"
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleRefresh}>
+              <RefreshCw className="size-4" />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            <Button size="sm" className="gap-1.5" onClick={() => setAddDialogOpen(true)}>
+              <Plus className="size-4" />
+              Add Region
+            </Button>
+          </>
+        }
+      />
 
       {/* Region Selector Bar */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">

@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -713,10 +715,11 @@ export function ServicesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Services</h1>
-        <p className="text-muted-foreground text-sm">Manage service types and bookings</p>
-      </div>
+      <PageHeader
+        icon={<Wrench />}
+        title="Services"
+        subtitle="Manage service types and bookings"
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

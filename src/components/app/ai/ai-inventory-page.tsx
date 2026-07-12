@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useCallback, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -338,26 +340,22 @@ export function AIInventoryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight flex items-center gap-2">
-            <Sparkles className="size-6 text-primary" />
-            AI Inventory Assistant
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Upload a product image and let AI identify it, suggest details, and auto-fill product information.
-          </p>
-        </div>
-        {showResults && (
-          <Button variant="outline" size="sm" onClick={handleReset} className="shrink-0">
-            <RotateCcw className="size-4 mr-1" />
-            Analyze Another
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        icon={<Sparkles />}
+        title="AI Inventory Assistant"
+        subtitle="Upload a product image and let AI identify it, suggest details, and auto-fill product information."
+        actions={
+          showResults ? (
+            <Button variant="outline" size="sm" onClick={handleReset} className="shrink-0">
+              <RotateCcw className="size-4 mr-1" />
+              Analyze Another
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Two-panel layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Left Panel: Upload Area */}
         <div className="space-y-4">
           <Card>
@@ -423,7 +421,7 @@ export function AIInventoryPage() {
                   <Button
                     variant="destructive"
                     size="icon"
-                    className="absolute top-2 right-2 size-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-2 right-2 size-9 md:size-8 opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={handleReset}
                   >
                     <X className="size-4" />
@@ -691,9 +689,9 @@ export function AIInventoryPage() {
                                       type="button"
                                       variant="ghost"
                                       size="icon"
-                                      className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                                      className="size-9 md:size-8 shrink-0 text-muted-foreground hover:text-destructive"
                                       onClick={() => removeAttribute(index)}
-                                    >
+                                     aria-label="Delete">
                                       <Trash2 className="size-3.5" />
                                     </Button>
                                   </motion.div>

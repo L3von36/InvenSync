@@ -1,12 +1,14 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch } from '@/lib/auth-fetch'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
 import {
   Plus, Trash2, Loader2, RefreshCw, Clock, Send,
-  CalendarDays, FileText, Mail, MessageCircle, Phone,
+  CalendarDays, CalendarClock, FileText, Mail, MessageCircle, Phone,
   ToggleLeft, ToggleRight, AlertCircle,
 } from 'lucide-react'
 import { api } from '@/lib/api-client'
@@ -300,23 +302,22 @@ export function ScheduledReportsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Scheduled Reports</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Automate your business reports delivery
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={fetchReports} disabled={isLoading}>
-            <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button onClick={openCreateDialog} className="gap-2">
-            <Plus className="size-4" />
-            New Report
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<CalendarClock />}
+        title="Scheduled Reports"
+        subtitle="Automate your business reports delivery"
+        actions={
+          <>
+            <Button variant="outline" size="icon" onClick={fetchReports} disabled={isLoading} aria-label="Refresh">
+              <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button onClick={openCreateDialog} className="gap-2">
+              <Plus className="size-4" />
+              New Report
+            </Button>
+          </>
+        }
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
@@ -325,7 +326,7 @@ export function ScheduledReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium">Total Reports</p>
-                <p className="text-xl sm:text-2xl font-bold">
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">
                   {isLoading ? <Skeleton className="h-7 w-10 inline-block" /> : reports.length}
                 </p>
               </div>
@@ -340,7 +341,7 @@ export function ScheduledReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium">Active</p>
-                <p className="text-xl sm:text-2xl font-bold text-emerald-600">
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums text-emerald-600">
                   {isLoading ? <Skeleton className="h-7 w-10 inline-block" /> : activeCount}
                 </p>
               </div>
@@ -355,7 +356,7 @@ export function ScheduledReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium">Inactive</p>
-                <p className="text-xl sm:text-2xl font-bold text-muted-foreground">
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums text-muted-foreground">
                   {isLoading ? <Skeleton className="h-7 w-10 inline-block" /> : reports.length - activeCount}
                 </p>
               </div>

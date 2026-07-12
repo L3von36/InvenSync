@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { api, type Sale, type SaleItem, type Product, type Customer } from '@/lib/api-client'
 import { db, type LocalSale, type LocalCustomer, type LocalProduct, type LocalSaleItem } from '@/lib/db'
+import { newClientId } from '@/lib/client-id'
 import { getSyncEngine } from '@/lib/sync/engine'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -27,6 +28,7 @@ import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { saleSchema, type SaleFormData } from '@/lib/validations'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
+import { PageHeader } from '@/components/shared/design-system'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { FormInputField, FormTextareaField } from '@/components/shared/form-fields'
 
@@ -77,14 +79,15 @@ function SalesStatsCards({ sales }: { sales: Sale[] }) {
   const avgSale = sales.length > 0 ? sales.reduce((acc, s) => acc + s.total, 0) / sales.length : 0
 
   const cards = [
-    { title: "Today's Sales", value: formatETB(todayTotal), icon: ShoppingCart, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
-    { title: 'This Week', value: formatETB(weekTotal), icon: Calendar, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
-    { title: 'This Month', value: formatETB(monthTotal), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
-    { title: 'Avg Sale Value', value: formatETB(avgSale), icon: DollarSign, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    // Design rule: one brand-toned card (the primary metric); the rest neutral.
+    { title: "Today's Sales", value: formatETB(todayTotal), icon: ShoppingCart, color: 'text-primary', bg: 'bg-primary/10' },
+    { title: 'This Week', value: formatETB(weekTotal), icon: Calendar, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { title: 'This Month', value: formatETB(monthTotal), icon: TrendingUp, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { title: 'Avg Sale Value', value: formatETB(avgSale), icon: DollarSign, color: 'text-muted-foreground', bg: 'bg-muted' },
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {cards.map((card) => (
         <Card key={card.title}>
           <CardContent className="p-4">
@@ -94,7 +97,7 @@ function SalesStatsCards({ sales }: { sales: Sale[] }) {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground truncate">{card.title}</p>
-                <p className="text-xl sm:text-2xl font-bold truncate">{card.value}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums truncate">{card.value}</p>
               </div>
             </div>
           </CardContent>
@@ -641,52 +644,70 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
       // Create customer inline if needed
       let finalCustomerId = data.customerId
       if (showNewCustomer && data.newCustomerName?.trim()) {
-        try {
-          const custRes = await api.createCustomer(orgId, {
-            name: data.newCustomerName.trim(),
-            phone: data.newCustomerPhone?.trim() || undefined,
-            shopId,
-          })
-          finalCustomerId = custRes.customer.id
-        } catch {
-          // Offline: create customer locally and queue in outbox
-          const localCustId = `local_cust_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+        const newCustomerName = data.newCustomerName.trim()
+        const newCustomerPhone = data.newCustomerPhone?.trim() || null
+        // Client-generated ID — the server accepts it as canonical, so the
+        // same ID is valid locally and remotely with no remapping after sync
+        const newCustomerId = newClientId()
+
+        // Writes the customer to the local DB so it shows up immediately.
+        // queueOutbox=false when the api-client already queued the POST
+        // itself — queueing again would create a duplicate on sync.
+        const writeOfflineCustomer = async (queueOutbox: boolean) => {
           const localCustomer: LocalCustomer = {
-            id: localCustId,
+            id: newCustomerId,
             organizationId: orgId,
             shopId: shopId ?? null,
-            name: data.newCustomerName.trim(),
-            phone: data.newCustomerPhone?.trim() || null,
+            name: newCustomerName,
+            phone: newCustomerPhone,
             email: null,
             address: null,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           }
           await db.customers.add(localCustomer)
-          await getSyncEngine().addToOutbox({
-            entity: 'customers',
-            operation: 'create',
-            payload: JSON.stringify(localCustomer),
-            localId: localCustId,
+          if (queueOutbox) {
+            await getSyncEngine().addToOutbox({
+              entity: 'customers',
+              operation: 'create',
+              payload: JSON.stringify(localCustomer),
+              localId: newCustomerId,
+            })
+          }
+          return newCustomerId
+        }
+
+        try {
+          const custRes = await api.createCustomer(orgId, {
+            id: newCustomerId,
+            name: newCustomerName,
+            phone: newCustomerPhone || undefined,
+            shopId,
           })
-          finalCustomerId = localCustId
+          if ((custRes as unknown as { offline?: boolean }).offline) {
+            // Offline: the api-client queued the request and returned a
+            // sentinel instead of a customer — write locally, don't re-queue
+            finalCustomerId = await writeOfflineCustomer(false)
+          } else {
+            finalCustomerId = custRes.customer.id
+          }
+        } catch {
+          // Request failed outright (couldn't even queue) — write locally and queue
+          finalCustomerId = await writeOfflineCustomer(true)
         }
       }
 
-      try {
-        await api.createSale(orgId, {
-          customerId: finalCustomerId || undefined,
-          items: data.items,
-          paymentMethod: data.paymentMethod,
-          discount: data.discount ?? 0,
-          tax: data.tax ?? 0,
-          amountPaid: data.paymentMethod === 'credit' ? (data.amountPaid ?? 0) : grandTotal,
-          notes: data.notes?.trim() || undefined,
-          shopId,
-        })
-      } catch {
-        // Offline: write sale to local DB and queue in outbox
-        const localSaleId = `local_sale_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+      // Client-generated ID shared by the API call and the local write — the
+      // server accepts it as canonical, so the offline record and the synced
+      // record are the same row (no duplicates after the next pull)
+      const newSaleId = newClientId()
+
+      // Writes the sale + items to the local DB and decrements local stock so
+      // the sale shows up immediately. queueOutbox=false when the api-client
+      // already queued the POST itself — queueing again would create a
+      // duplicate sale on the server when the outbox syncs.
+      const writeOfflineSale = async (queueOutbox: boolean) => {
+        const localSaleId = newSaleId
         const invoiceNumber = `INV-OFFLINE-${Date.now()}`
 
         const localSale: LocalSale = {
@@ -709,35 +730,27 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
         }
         await db.sales.add(localSale)
 
-        // Store sale items locally
+        // Store sale items locally and decrement local product stock
         for (const item of data.items) {
+          let product: LocalProduct | undefined
+          try {
+            product = await db.products.get(item.productId)
+          } catch {
+            // Best effort — don't block sale creation
+          }
+
           const localSaleItem: LocalSaleItem = {
-            id: `local_si_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+            id: newClientId(),
             saleId: localSaleId,
             productId: item.productId,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            costPrice: 0,
+            costPrice: product?.costPrice ?? 0,
             total: item.quantity * item.unitPrice,
           }
           await db.saleItems.add(localSaleItem)
-        }
 
-        // Queue in outbox for later sync
-        await getSyncEngine().addToOutbox({
-          entity: 'sales',
-          operation: 'create',
-          payload: JSON.stringify({
-            ...localSale,
-            items: data.items,
-          }),
-          localId: localSaleId,
-        })
-
-        // Decrement local product stock
-        for (const item of data.items) {
           try {
-            const product = await db.products.get(item.productId)
             if (product) {
               await db.products.update(item.productId, {
                 quantity: Math.max(0, product.quantity - item.quantity),
@@ -747,6 +760,40 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
             // Best effort — don't block sale creation
           }
         }
+
+        if (queueOutbox) {
+          await getSyncEngine().addToOutbox({
+            entity: 'sales',
+            operation: 'create',
+            payload: JSON.stringify({
+              ...localSale,
+              items: data.items,
+            }),
+            localId: localSaleId,
+          })
+        }
+      }
+
+      try {
+        const saleRes = await api.createSale(orgId, {
+          id: newSaleId,
+          customerId: finalCustomerId || undefined,
+          items: data.items,
+          paymentMethod: data.paymentMethod,
+          discount: data.discount ?? 0,
+          tax: data.tax ?? 0,
+          amountPaid: data.paymentMethod === 'credit' ? (data.amountPaid ?? 0) : grandTotal,
+          notes: data.notes?.trim() || undefined,
+          shopId,
+        })
+        if ((saleRes as unknown as { offline?: boolean }).offline) {
+          // Offline: the api-client queued the request and returned a sentinel
+          // instead of a sale — write locally, don't re-queue
+          await writeOfflineSale(false)
+        }
+      } catch {
+        // Request failed outright (couldn't even queue) — write locally and queue
+        await writeOfflineSale(true)
       }
 
       toast.success('Sale completed successfully!')
@@ -950,7 +997,7 @@ function CreateSaleTab({ orgId, shopId, onSaleCreated }: { orgId: string; shopId
                           <p className="text-sm font-bold py-2 truncate">{formatETB(itemTotal)}</p>
                         </div>
                         <div className="col-span-1 flex justify-end">
-                          <Button type="button" size="icon" variant="ghost" className="text-destructive size-9 min-w-9 min-h-9" onClick={() => remove(index)}>
+                          <Button type="button" size="icon" variant="ghost" className="text-destructive size-9 min-w-9 min-h-9" onClick={() => remove(index)} aria-label="Delete">
                             <Trash2 className="size-4" />
                           </Button>
                         </div>
@@ -1151,7 +1198,7 @@ export function SalesPage() {
       <div className="space-y-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Sales</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight">Sales</h1>
             <p className="text-muted-foreground text-sm mt-1">Record sales, view transactions, and manage invoices.</p>
           </div>
         </div>
@@ -1163,12 +1210,11 @@ export function SalesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Sales</h1>
-          <p className="text-muted-foreground text-sm mt-1">Record sales, view transactions, and manage invoices.</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<ShoppingCart />}
+        title="Sales"
+        subtitle="Record sales, view transactions, and manage invoices."
+      />
 
       {/* Stats */}
       <SalesStatsCards sales={allSales} />

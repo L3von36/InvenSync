@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Building2, Search, MapPin, Users, Store, CreditCard,
@@ -915,14 +917,11 @@ export function AdminOrganizationsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight">
-            Organizations
-          </h1>
-          <p className="text-muted-foreground text-sm">Manage organizations, subscriptions, and modules</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<Building2 />}
+        title="Organizations"
+        subtitle="Manage organizations, subscriptions, and modules"
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

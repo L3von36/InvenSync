@@ -1166,6 +1166,16 @@ class ApiClient {
     })
   }
 
+  async regenerateBackupCodes(code: string): Promise<{
+    success: boolean
+    backupCodes: string[]
+  }> {
+    return this.request('/api/auth/2fa/backup-codes', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    })
+  }
+
   async verify2faLogin(tempToken: string, code: string): Promise<{
     token: string
     user: User
@@ -1337,6 +1347,7 @@ class ApiClient {
   }
 
   async createProduct(orgId: string, data: {
+    id?: string
     productTypeId: string
     name: string
     sku?: string
@@ -1435,6 +1446,7 @@ class ApiClient {
   }
 
   async createCustomer(orgId: string, data: {
+    id?: string
     name: string
     email?: string
     phone?: string
@@ -1489,6 +1501,7 @@ class ApiClient {
   }
 
   async createSupplier(orgId: string, data: {
+    id?: string
     name: string
     email?: string
     phone?: string
@@ -1542,6 +1555,7 @@ class ApiClient {
   }
 
   async createSale(orgId: string, data: {
+    id?: string
     customerId?: string
     items: Array<{ productId: string; quantity: number; unitPrice?: number }>
     paymentMethod?: string
@@ -1597,6 +1611,7 @@ class ApiClient {
   }
 
   async createDebt(orgId: string, data: {
+    id?: string
     customerId?: string
     supplierId?: string
     type: string
@@ -1646,6 +1661,7 @@ class ApiClient {
   }
 
   async createExpense(orgId: string, data: {
+    id?: string
     category: string
     amount: number
     description?: string | null

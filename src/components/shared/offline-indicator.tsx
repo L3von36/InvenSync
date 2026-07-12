@@ -84,7 +84,7 @@ export function OfflineIndicator() {
           <button
             onClick={handleSyncNow}
             disabled={isSyncing}
-            className="ml-2 inline-flex items-center gap-1 rounded bg-amber-700/30 hover:bg-amber-700/50 px-2 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
+            className="ml-2 inline-flex items-center gap-1 rounded bg-amber-700/30 hover:bg-amber-700/50 px-2.5 py-1.5 md:py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-50"
             aria-label="Sync now"
           >
             {isSyncing ? (

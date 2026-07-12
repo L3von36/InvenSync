@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -390,19 +392,20 @@ export function CustomersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Customers</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage your customer database and track purchase history</p>
-        </div>
-        <Button onClick={openAddDialog} className="gap-2">
-          <UserPlus className="size-4" />
-          Add Customer
-        </Button>
-      </div>
+      <PageHeader
+        icon={<Users />}
+        title="Customers"
+        subtitle="Manage your customer database and track purchase history"
+        actions={
+          <Button onClick={openAddDialog} className="gap-2">
+            <UserPlus className="size-4" />
+            Add Customer
+          </Button>
+        }
+      />
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -411,7 +414,7 @@ export function CustomersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Customers</p>
-                <p className="text-xl sm:text-2xl font-bold">{total}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{total}</p>
               </div>
             </div>
           </CardContent>
@@ -424,7 +427,7 @@ export function CustomersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Active This Month</p>
-                <p className="text-xl sm:text-2xl font-bold">{activeThisMonth}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{activeThisMonth}</p>
               </div>
             </div>
           </CardContent>
@@ -437,7 +440,7 @@ export function CustomersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Debt</p>
-                <p className="text-xl sm:text-2xl font-bold">{formatETB(totalDebt)}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(totalDebt)}</p>
               </div>
             </div>
           </CardContent>
@@ -450,7 +453,7 @@ export function CustomersPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">New This Month</p>
-                <p className="text-xl sm:text-2xl font-bold">{newThisMonth}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{newThisMonth}</p>
               </div>
             </div>
           </CardContent>

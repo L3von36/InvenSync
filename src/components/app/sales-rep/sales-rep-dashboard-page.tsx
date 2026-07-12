@@ -33,6 +33,7 @@ import { LocationPicker } from '@/components/app/shared/location-picker'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { registerBusinessSchema, type RegisterBusinessFormData } from '@/lib/validations'
 import { ErrorState } from '@/components/shared/error-states'
+import { PageHeader, StatCard, StatCardSkeleton } from '@/components/shared/design-system'
 import { formatETB, formatDate } from '@/lib/format'
 import { Form } from '@/components/ui/form'
 import { FormInputField, FormSelectField, FormSubmitButton } from '@/components/shared/form-fields'
@@ -173,49 +174,8 @@ function commissionStatusBadge(status: string) {
 }
 
 // ============================================
-// Stat Card
+// Stat Card — shared design-system component (see DESIGN_SYSTEM.md)
 // ============================================
-
-interface StatCardProps {
-  title: string
-  value: string
-  subtitle: string
-  icon: React.ReactNode
-  iconBgClass: string
-  iconTextClass: string
-}
-
-function StatCard({ title, value, subtitle, icon, iconBgClass, iconTextClass }: StatCardProps) {
-  return (
-    <Card className="gap-4">
-      <CardHeader className="flex flex-row items-center justify-between pb-0">
-        <CardDescription className="text-xs sm:text-sm font-medium truncate">{title}</CardDescription>
-        <div className={`flex items-center justify-center size-8 sm:size-10 rounded-lg ${iconBgClass} shrink-0`}>
-          <div className={iconTextClass}>{icon}</div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="text-base sm:text-lg font-semibold tracking-tight truncate">{value}</div>
-        <p className="text-[11px] sm:text-xs text-muted-foreground mt-1 truncate">{subtitle}</p>
-      </CardContent>
-    </Card>
-  )
-}
-
-function StatCardSkeleton() {
-  return (
-    <Card className="gap-4">
-      <CardHeader className="flex flex-row items-center justify-between pb-0">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="size-10 rounded-lg" />
-      </CardHeader>
-      <CardContent className="pt-0">
-        <Skeleton className="h-8 w-36 mb-1" />
-        <Skeleton className="h-3 w-28" />
-      </CardContent>
-    </Card>
-  )
-}
 
 // ============================================
 // Circular Progress Indicator
@@ -290,7 +250,7 @@ function DashboardLoadingSkeleton() {
       </div>
 
       {/* Stats cards skeleton */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <StatCardSkeleton key={i} />
         ))}
@@ -612,54 +572,53 @@ export function SalesRepDashboardPage() {
       {/* ================================================
           Section 1: Welcome Header
           ================================================ */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight">
-            Welcome back, {repName}!
-          </h1>
-          <p className="text-muted-foreground text-sm">Your sales performance at a glance</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            className="gap-1.5"
-            onClick={() => setRegisterDialogOpen(true)}
-          >
-            <Plus className="size-4" />
-            Register Business
-          </Button>
-          {/* Referral Code */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-muted/30 text-sm">
-            <span className="text-muted-foreground text-xs">Referral Code:</span>
-            <code className="font-mono font-semibold text-primary">{data.salesRep?.id?.slice(0, 12) || '—'}</code>
-            <button
-              className="ml-1 text-muted-foreground hover:text-primary transition-colors"
-              onClick={() => {
-                const code = data.salesRep?.id?.slice(0, 12) || ''
-                navigator.clipboard.writeText(code)
-                setCopiedReferral(true)
-                toast.success('Referral code copied!')
-                setTimeout(() => setCopiedReferral(false), 2000)
-              }}
-              title="Copy referral code"
+      <PageHeader
+        icon={<Trophy />}
+        title={`Welcome back, ${repName}!`}
+        subtitle="Your sales performance at a glance"
+        actions={
+          <>
+            <Button
+              className="gap-1.5"
+              onClick={() => setRegisterDialogOpen(true)}
             >
-              <Copy className={`size-3.5 ${copiedReferral ? 'text-primary' : ''}`} />
-            </button>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="size-4" />
-            <span className="hidden sm:inline">{getCurrentDateString()}</span>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`size-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
-      </div>
+              <Plus className="size-4" />
+              Register Business
+            </Button>
+            {/* Referral Code */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-muted/30 text-sm">
+              <span className="text-muted-foreground text-xs">Referral Code:</span>
+              <code className="font-mono font-semibold text-primary">{data.salesRep?.id?.slice(0, 12) || '—'}</code>
+              <button
+                className="ml-1 text-muted-foreground hover:text-primary transition-colors"
+                onClick={() => {
+                  const code = data.salesRep?.id?.slice(0, 12) || ''
+                  navigator.clipboard.writeText(code)
+                  setCopiedReferral(true)
+                  toast.success('Referral code copied!')
+                  setTimeout(() => setCopiedReferral(false), 2000)
+                }}
+                title="Copy referral code"
+              >
+                <Copy className={`size-3.5 ${copiedReferral ? 'text-primary' : ''}`} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="size-4" />
+              <span className="hidden sm:inline">{getCurrentDateString()}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`size-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </>
+        }
+      />
 
       {/* Register Business Dialog */}
       <RegisterBusinessDialog
@@ -672,38 +631,33 @@ export function SalesRepDashboardPage() {
       {/* ================================================
           Section 2: Stats Cards
           ================================================ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Total Registrations"
           value={stats.totalRegistrations.toLocaleString()}
           subtitle="All time organizations registered"
           icon={<Building2 className="size-5" />}
-          iconBgClass="bg-brand-50 dark:bg-brand-900/20"
-          iconTextClass="text-primary"
+          tone="brand"
         />
         <StatCard
           title="This Month"
           value={stats.currentMonthRegistrations.toLocaleString()}
           subtitle="Registrations this month"
           icon={<TrendingUp className="size-5" />}
-          iconBgClass="bg-emerald-100 dark:bg-emerald-900/30"
-          iconTextClass="text-emerald-600 dark:text-emerald-400"
+          tone="success"
         />
         <StatCard
           title="Pending Commissions"
           value={formatETB(stats.commissions.pending, { decimals: 0 })}
           subtitle="Awaiting payment"
           icon={<Clock className="size-5" />}
-          iconBgClass="bg-amber-100 dark:bg-amber-900/30"
-          iconTextClass="text-amber-600 dark:text-amber-400"
+          tone="warning"
         />
         <StatCard
           title="Total Earned"
           value={formatETB(stats.commissions.paid, { decimals: 0 })}
           subtitle="Paid commissions"
           icon={<Wallet className="size-5" />}
-          iconBgClass="bg-violet-100 dark:bg-violet-900/30"
-          iconTextClass="text-violet-600 dark:text-violet-400"
         />
       </div>
 

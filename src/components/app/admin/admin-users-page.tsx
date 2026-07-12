@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Users, Search, Shield, UserCheck, UserCog, Mail,
@@ -155,11 +157,12 @@ export function AdminUsersPage() {
   }
 
   // Stats cards
+  // Role counts are informational, not signals — neutral except the primary metric.
   const statsCards = stats ? [
-    { title: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-primary', bg: 'bg-brand-50 dark:bg-brand-900/20' },
-    { title: 'Admins', value: stats.adminCount, icon: Shield, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/30' },
-    { title: 'Sales Reps', value: stats.salesRepCount, icon: UserCheck, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' },
-    { title: 'Business Users', value: stats.businessUserCount, icon: UserCog, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    { title: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
+    { title: 'Admins', value: stats.adminCount, icon: Shield, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { title: 'Sales Reps', value: stats.salesRepCount, icon: UserCheck, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { title: 'Business Users', value: stats.businessUserCount, icon: UserCog, color: 'text-muted-foreground', bg: 'bg-muted' },
   ] : []
 
   if (loading) {
@@ -192,21 +195,22 @@ export function AdminUsersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight">Users</h1>
-          <p className="text-muted-foreground text-sm">Manage platform users and permissions</p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() => { setLoading(true); fetchUsers() }}
-        >
-          <RefreshCw className="size-4" />
-          Refresh
-        </Button>
-      </div>
+      <PageHeader
+        icon={<Users />}
+        title="Users"
+        subtitle="Manage platform users and permissions"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => { setLoading(true); fetchUsers() }}
+          >
+            <RefreshCw className="size-4" />
+            Refresh
+          </Button>
+        }
+      />
 
       {/* Stats Cards */}
       {stats && (
@@ -312,13 +316,13 @@ export function AdminUsersPage() {
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(u.createdAt)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-primary" onClick={() => setSelectedUser(u)} title="View details">
+                        <Button variant="ghost" size="icon" className="size-9 md:size-7 text-muted-foreground hover:text-primary" onClick={() => setSelectedUser(u)} title="View details" aria-label="View details">
                           <Eye className="size-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(u)} title="Edit user">
+                        <Button variant="ghost" size="icon" className="size-9 md:size-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(u)} title="Edit user" aria-label="Edit">
                           <Pencil className="size-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-red-600" onClick={() => setDeleteUser(u)} title="Delete user">
+                        <Button variant="ghost" size="icon" className="size-9 md:size-7 text-muted-foreground hover:text-red-600" onClick={() => setDeleteUser(u)} title="Delete user" aria-label="Delete">
                           <Trash2 className="size-3.5" />
                         </Button>
                       </div>
@@ -358,13 +362,13 @@ export function AdminUsersPage() {
                       <span className="text-[10px] text-muted-foreground">{formatDate(u.createdAt)}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-primary" onClick={() => setSelectedUser(u)}>
+                      <Button variant="ghost" size="icon" className="size-9 md:size-7 text-muted-foreground hover:text-primary" onClick={() => setSelectedUser(u)} aria-label="View details">
                         <Eye className="size-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(u)}>
+                      <Button variant="ghost" size="icon" className="size-9 md:size-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(u)} aria-label="Edit">
                         <Pencil className="size-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-red-600" onClick={() => setDeleteUser(u)}>
+                      <Button variant="ghost" size="icon" className="size-9 md:size-7 text-muted-foreground hover:text-red-600" onClick={() => setDeleteUser(u)} aria-label="Delete">
                         <Trash2 className="size-3.5" />
                       </Button>
                     </div>

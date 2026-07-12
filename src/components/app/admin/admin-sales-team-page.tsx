@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -306,11 +308,11 @@ function SalesRepsTab() {
 
                   {/* Actions */}
                   <div className="flex gap-1 shrink-0">
-                    <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-primary" onClick={() => handleEdit(rep)}>
+                    <Button variant="ghost" size="icon" className="size-9 md:size-8 text-muted-foreground hover:text-primary" onClick={() => handleEdit(rep)} aria-label="Edit">
                       <Edit className="size-4" />
                     </Button>
                     {rep.isActive && (
-                      <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" onClick={() => setDeactivateTarget(rep)} disabled={deactivatingId === rep.id}>
+                      <Button variant="ghost" size="icon" className="size-9 md:size-8 text-muted-foreground hover:text-destructive" onClick={() => setDeactivateTarget(rep)} disabled={deactivatingId === rep.id}>
                         {deactivatingId === rep.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                       </Button>
                     )}
@@ -1139,12 +1141,11 @@ export function AdminSalesTeamPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-base font-semibold flex items-center gap-2">
-          <Users className="size-5" /> Sales Team Management
-        </h2>
-        <p className="text-muted-foreground mt-1">Manage sales representatives, goals, commissions, and track performance.</p>
-      </div>
+      <PageHeader
+        icon={<Users />}
+        title="Sales Team Management"
+        subtitle="Manage sales representatives, goals, commissions, and track performance."
+      />
 
       {/* Tabs */}
       <Tabs defaultValue="reps" className="w-full">

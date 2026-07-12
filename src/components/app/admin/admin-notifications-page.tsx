@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Megaphone, Search, Send, Eye, Clock, Info, AlertTriangle,
@@ -462,12 +464,11 @@ export function AdminNotificationsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight">Notifications & Announcements</h1>
-          <p className="text-muted-foreground text-sm">Send platform-wide or targeted announcements</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<Megaphone />}
+        title="Notifications & Announcements"
+        subtitle="Send platform-wide or targeted announcements"
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">

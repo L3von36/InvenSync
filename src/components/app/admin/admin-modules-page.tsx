@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -52,8 +54,8 @@ const CARD_ACCENT: Record<string, string> = {
 }
 
 const PRICE_COLORS: Record<string, { bg: string; text: string }> = {
-  free: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300' },
-  paid: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-300' },
+  free: { bg: 'bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-300' },
+  paid: { bg: 'bg-muted', text: 'text-foreground' },
 }
 
 function getModuleIcon(iconName: string) {
@@ -386,10 +388,10 @@ function ModuleCatalogTab() {
                       </div>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-sky-600" title="Quick Assign" onClick={() => handleOpenQuickAssign(mod.key)}>
+                      <Button variant="ghost" size="icon" className="size-9 md:size-7 text-muted-foreground hover:text-sky-600" title="Quick Assign" aria-label="Quick assign module" onClick={() => handleOpenQuickAssign(mod.key)}>
                         <PackageCheck className="size-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(mod)} disabled={deletingId === mod.id}>
+                      <Button variant="ghost" size="icon" className="size-9 md:size-7 text-muted-foreground hover:text-destructive" aria-label="Delete module" onClick={() => setDeleteTarget(mod)} disabled={deletingId === mod.id}>
                         {deletingId === mod.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
                       </Button>
                     </div>
@@ -423,10 +425,10 @@ function ModuleCatalogTab() {
                             className="w-24 h-7 text-xs"
                             autoFocus
                           />
-                          <Button variant="ghost" size="icon" className="size-6" onClick={() => handlePriceSave(mod)}>
+                          <Button variant="ghost" size="icon" className="size-8 md:size-6" aria-label="Save price" onClick={() => handlePriceSave(mod)}>
                             <CheckCircle2 className="size-3.5 text-emerald-600" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="size-6" onClick={() => setEditingPrice(null)}>
+                          <Button variant="ghost" size="icon" className="size-8 md:size-6" aria-label="Cancel price edit" onClick={() => setEditingPrice(null)}>
                             <XCircle className="size-3.5 text-red-500" />
                           </Button>
                         </div>
@@ -463,10 +465,10 @@ function ModuleCatalogTab() {
                             autoFocus
                           />
                           <span className="text-[10px]">days trial</span>
-                          <Button variant="ghost" size="icon" className="size-5" onClick={() => handleTrialSave(mod)}>
+                          <Button variant="ghost" size="icon" className="size-7 md:size-5" aria-label="Save trial period" onClick={() => handleTrialSave(mod)}>
                             <CheckCircle2 className="size-3 text-emerald-600" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="size-5" onClick={() => setEditingTrial(null)}>
+                          <Button variant="ghost" size="icon" className="size-7 md:size-5" aria-label="Cancel trial edit" onClick={() => setEditingTrial(null)}>
                             <XCircle className="size-3 text-red-500" />
                           </Button>
                         </div>
@@ -1120,11 +1122,12 @@ function RevenueSummaryTab() {
     .slice(0, 8)
     .map(m => ({ name: m.name.length > 15 ? m.name.slice(0, 15) + '...' : m.name, orgs: m.orgCount }))
 
+  // MRR is the primary metric of this tab; the rest are neutral counts.
   const stats = [
-    { title: 'Monthly Recurring Revenue', value: formatETB(monthlyRecurringRevenue), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
-    { title: 'Active Subscriptions', value: totalActiveSubs, icon: CheckCircle2, color: 'text-primary', bg: 'bg-brand-50 dark:bg-brand-900/20' },
-    { title: 'Trial Subscriptions', value: totalTrialSubs, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
-    { title: 'Trial→Active Rate', value: `${conversionRate}%`, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+    { title: 'Monthly Recurring Revenue', value: formatETB(monthlyRecurringRevenue), icon: DollarSign, color: 'text-primary', bg: 'bg-primary/10' },
+    { title: 'Active Subscriptions', value: totalActiveSubs, icon: CheckCircle2, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { title: 'Trial Subscriptions', value: totalTrialSubs, icon: Clock, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { title: 'Trial→Active Rate', value: `${conversionRate}%`, icon: TrendingUp, color: 'text-muted-foreground', bg: 'bg-muted' },
   ]
 
   return (
@@ -1272,10 +1275,11 @@ export function AdminModulesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-base font-semibold tracking-tight">Module Management</h1>
-        <p className="text-muted-foreground text-sm">Manage platform modules, pricing, and organization subscriptions</p>
-      </div>
+      <PageHeader
+        icon={<Puzzle />}
+        title="Module Management"
+        subtitle="Manage platform modules, pricing, and organization subscriptions"
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">

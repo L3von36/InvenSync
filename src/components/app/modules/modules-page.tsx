@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Puzzle, Clock, CheckCircle2, XCircle, Zap,
@@ -644,10 +646,11 @@ export function ModulesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-base font-semibold tracking-tight">My Modules</h1>
-        <p className="text-muted-foreground text-sm">Explore, request, and manage your InvenSync modules</p>
-      </div>
+      <PageHeader
+        icon={<Puzzle />}
+        title="My Modules"
+        subtitle="Explore, request, and manage your InvenSync modules"
+      />
 
       {/* Expiry Warning Banner */}
       {expiringModules.length > 0 && (

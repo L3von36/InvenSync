@@ -19,6 +19,7 @@ import { useAppStore } from '@/lib/stores/app-store'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { formatETB, businessTypeColor, CHART_COLORS, formatDateWithTime } from '@/lib/admin-utils'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
+import { PageHeader } from '@/components/shared/design-system'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -66,13 +67,14 @@ function MapSkeleton() {
 function QuickActionsPanel() {
   const { setPage } = useAppStore()
 
+  // Design rule: navigation actions are neutral — color is reserved for state.
   const actions = [
-    { label: 'Manage Organizations', icon: Building2, page: 'admin-organizations' as const, color: 'text-primary', bg: 'bg-brand-50 dark:bg-brand-900/20' },
-    { label: 'View Users', icon: Users, page: 'admin-users' as const, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
-    { label: 'Modules & Pricing', icon: Package, page: 'admin-modules' as const, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
-    { label: 'Sales Team', icon: DollarSign, page: 'admin-sales-team' as const, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
-    { label: 'Regions & Cities', icon: Globe2, page: 'admin-regions' as const, color: 'text-cyan-600', bg: 'bg-cyan-100 dark:bg-cyan-900/30' },
-    { label: 'Send Announcement', icon: Activity, page: 'admin-notifications' as const, color: 'text-rose-600', bg: 'bg-rose-100 dark:bg-rose-900/30' },
+    { label: 'Manage Organizations', icon: Building2, page: 'admin-organizations' as const, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'View Users', icon: Users, page: 'admin-users' as const, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { label: 'Modules & Pricing', icon: Package, page: 'admin-modules' as const, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { label: 'Sales Team', icon: DollarSign, page: 'admin-sales-team' as const, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { label: 'Regions & Cities', icon: Globe2, page: 'admin-regions' as const, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { label: 'Send Announcement', icon: Activity, page: 'admin-notifications' as const, color: 'text-muted-foreground', bg: 'bg-muted' },
   ]
 
   return (
@@ -236,11 +238,12 @@ function RecentActivityFeed({ data }: { data: AdminDashboardData }) {
 // ============================================
 function OverviewTab({ data }: { data: AdminDashboardData }) {
   const isMobile = useIsMobile()
+  // One brand card (primary metric); counts are neutral.
   const stats = [
-    { title: 'Organizations', value: data.totalOrganizations, icon: Building2, color: 'text-primary', bg: 'bg-brand-50 dark:bg-brand-900/20' },
-    { title: 'Total Users', value: data.totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
-    { title: 'Platform Revenue', value: formatETB(data.totalRevenue), icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
-    { title: 'Active Subscriptions', value: Object.values(data.activeSubscriptions).reduce((a, b) => a + b, 0), icon: CreditCard, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+    { title: 'Organizations', value: data.totalOrganizations, icon: Building2, color: 'text-primary', bg: 'bg-primary/10' },
+    { title: 'Total Users', value: data.totalUsers, icon: Users, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { title: 'Platform Revenue', value: formatETB(data.totalRevenue), icon: DollarSign, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { title: 'Active Subscriptions', value: Object.values(data.activeSubscriptions).reduce((a, b) => a + b, 0), icon: CreditCard, color: 'text-muted-foreground', bg: 'bg-muted' },
   ]
 
   // Revenue trend data
@@ -1444,10 +1447,11 @@ export function AdminDashboardPage() {
   if (!dashboardData) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight">Admin Dashboard</h1>
-          <p className="text-muted-foreground text-sm">Platform overview and market intelligence</p>
-        </div>
+        <PageHeader
+          icon={<ShieldCheck />}
+          title="Admin Dashboard"
+          subtitle="Platform overview and market intelligence"
+        />
         {error ? (
           <ErrorState
             title="Failed to load dashboard"
@@ -1467,33 +1471,34 @@ export function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-semibold tracking-tight flex items-center gap-2">
-            Admin Dashboard
+      <PageHeader
+        icon={<ShieldCheck />}
+        title="Admin Dashboard"
+        subtitle={selectedRegionId ? `Filtered to ${dashboardData.regionInfo?.name || 'selected region'}` : 'Platform overview and market intelligence'}
+        badges={
+          <>
             <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-[10px] px-1.5 py-0.5 gap-1">
               <Zap className="size-3" />
               Optimized
             </Badge>
             {dashboardData.regionInfo && (
-              <span className="text-primary"> · {dashboardData.regionInfo.name}</span>
+              <span className="text-primary text-sm font-medium">· {dashboardData.regionInfo.name}</span>
             )}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {selectedRegionId ? `Filtered to ${dashboardData.regionInfo?.name || 'selected region'}` : 'Platform overview and market intelligence'}
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() => fetchData(true)}
-          disabled={refreshing}
-        >
-          <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
+          </>
+        }
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        }
+      />
 
       {/* Region Selector Bar */}
       {regions.length > 0 && (

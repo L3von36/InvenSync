@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   CreditCard, Search, Eye, Pencil, Lock, Unlock, AlertTriangle,
@@ -229,15 +231,14 @@ export function CreditLimitsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Credit Limits</h1>
-          <p className="text-muted-foreground text-sm">Manage customer credit limits, usage tracking, and alerts</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<CreditCard />}
+        title="Credit Limits"
+        subtitle="Manage customer credit limits, usage tracking, and alerts"
+      />
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -246,7 +247,7 @@ export function CreditLimitsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Extended</p>
-                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalCreditExtended)}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(summary.totalCreditExtended)}</p>
               </div>
             </div>
           </CardContent>
@@ -259,7 +260,7 @@ export function CreditLimitsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Used</p>
-                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalUsed)}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(summary.totalUsed)}</p>
               </div>
             </div>
           </CardContent>
@@ -272,7 +273,7 @@ export function CreditLimitsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Available</p>
-                <p className="text-xl sm:text-2xl font-bold">{formatETB(summary.totalAvailable)}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{formatETB(summary.totalAvailable)}</p>
               </div>
             </div>
           </CardContent>
@@ -285,7 +286,7 @@ export function CreditLimitsPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Blocked Accounts</p>
-                <p className="text-xl sm:text-2xl font-bold">{summary.blockedAccounts}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums">{summary.blockedAccounts}</p>
               </div>
             </div>
           </CardContent>
@@ -409,16 +410,16 @@ export function CreditLimitsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8"
+                              className="size-9 md:size-8"
                               onClick={() => openSetLimit(cl)}
                               title="Edit credit limit"
-                            >
+                             aria-label="Edit">
                               <Pencil className="size-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8"
+                              className="size-9 md:size-8"
                               disabled={togglingBlock === cl.id}
                               onClick={() => handleToggleBlock(cl)}
                               title={cl.isBlocked ? 'Unblock credit' : 'Block credit'}

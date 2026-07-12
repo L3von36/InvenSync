@@ -297,6 +297,18 @@ export default function AppShell() {
     }
   }, [currentOrg, currentShop, user?.role, checkNeedsBootstrap, bootstrap, isBootstrapping])
 
+  // Request persistent storage once authenticated — exempts IndexedDB and
+  // the offline caches from browser eviction (and Safari's 7-day cap)
+  useEffect(() => {
+    import('@/lib/db').then(({ requestPersistentStorage }) =>
+      requestPersistentStorage().then((granted) => {
+        if (granted !== null) {
+          console.log(`[Storage] Persistent storage ${granted ? 'granted' : 'not granted'}`)
+        }
+      })
+    ).catch(() => {})
+  }, [])
+
   // Stop auto-sync when the shell unmounts (user navigates away / logs out)
   useEffect(() => {
     return () => {

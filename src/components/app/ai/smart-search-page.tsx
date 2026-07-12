@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -100,35 +102,37 @@ const entityConfig: Record<string, {
   color: string
   bgColor: string
 }> = {
+  // Design rule: entity types are distinguished by their icon, not by
+  // decorative colors — color is reserved for state (warnings, errors).
   Product: {
     icon: Package,
     label: 'Products',
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted',
   },
   Sale: {
     icon: DollarSign,
     label: 'Sales',
-    color: 'text-amber-600 dark:text-amber-400',
-    bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted',
   },
   Customer: {
     icon: Users,
     label: 'Customers',
-    color: 'text-sky-600 dark:text-sky-400',
-    bgColor: 'bg-sky-100 dark:bg-sky-900/30',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted',
   },
   Supplier: {
     icon: Truck,
     label: 'Suppliers',
-    color: 'text-purple-600 dark:text-purple-400',
-    bgColor: 'bg-purple-100 dark:bg-purple-900/30',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted',
   },
   Shop: {
     icon: Store,
     label: 'Shops',
-    color: 'text-rose-600 dark:text-rose-400',
-    bgColor: 'bg-rose-100 dark:bg-rose-900/30',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted',
   },
 }
 
@@ -230,15 +234,11 @@ export function SmartSearchPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-base font-semibold tracking-tight flex items-center gap-2">
-          <Sparkles className="size-5 text-primary" />
-          Smart Search
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Search anything using natural language
-        </p>
-      </div>
+      <PageHeader
+        icon={<Sparkles />}
+        title="Smart Search"
+        subtitle="Search anything using natural language"
+      />
 
       {/* Search Input */}
       <div className="relative">
@@ -263,7 +263,7 @@ export function SmartSearchPage() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-8"
+                  className="size-9 md:size-8"
                   onClick={() => {
                     setQuery('')
                     setResults(null)

@@ -34,6 +34,7 @@ import { getNetworkErrorMessage } from '@/lib/validation'
 import { formatETB, formatDate } from '@/lib/format'
 import { productSchema, type ProductFormData } from '@/lib/validations'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
+import { PageHeader } from '@/components/shared/design-system'
 import { FormInputField, FormTextareaField, FormSelectField } from '@/components/shared/form-fields'
 import { Form } from '@/components/ui/form'
 
@@ -121,7 +122,7 @@ function mapToLocalProduct(p: Product): LocalProduct {
     id: p.id,
     productTypeId: p.productTypeId,
     organizationId: p.organizationId,
-    shopId: (p as Record<string, unknown>).shopId as string | null ?? null,
+    shopId: (p as unknown as Record<string, unknown>).shopId as string | null ?? null,
     sku: p.sku ?? null,
     name: p.name,
     description: p.description ?? null,
@@ -782,11 +783,11 @@ function ProductDetailView({
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Current Stock</div>
-            <div className="text-xl sm:text-2xl font-bold mt-1">{currentProduct.quantity}</div>
+            <div className="text-xl sm:text-2xl font-semibold tabular-nums mt-1">{currentProduct.quantity}</div>
             <Badge variant={stockStatus.variant} className="mt-1 text-xs">
               {stockStatus.label}
             </Badge>
@@ -795,7 +796,7 @@ function ProductDetailView({
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Cost Price</div>
-            <div className="text-xl sm:text-2xl font-bold mt-1">
+            <div className="text-xl sm:text-2xl font-semibold tabular-nums mt-1">
               {formatETB(currentProduct.costPrice)}
             </div>
           </CardContent>
@@ -803,7 +804,7 @@ function ProductDetailView({
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Selling Price</div>
-            <div className="text-xl sm:text-2xl font-bold mt-1">
+            <div className="text-xl sm:text-2xl font-semibold tabular-nums mt-1">
               {formatETB(currentProduct.sellingPrice)}
             </div>
           </CardContent>
@@ -811,7 +812,7 @@ function ProductDetailView({
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Total Value</div>
-            <div className="text-xl sm:text-2xl font-bold mt-1">
+            <div className="text-xl sm:text-2xl font-semibold tabular-nums mt-1">
               {formatETB(currentProduct.quantity * currentProduct.sellingPrice)}
             </div>
           </CardContent>
@@ -1024,7 +1025,7 @@ export function ProductsPage() {
             id: p.id,
             productTypeId: p.productTypeId,
             organizationId: p.organizationId,
-            shopId: (p as Record<string, unknown>).shopId as string | null ?? null,
+            shopId: (p as unknown as Record<string, unknown>).shopId as string | null ?? null,
             sku: p.sku ?? null,
             name: p.name,
             description: p.description ?? null,
@@ -1195,34 +1196,33 @@ export function ProductsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Products</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Manage your product catalog • {total} product{total !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setImportDialogOpen(true)}
-            className="gap-2"
-          >
-            <FileDown className="size-4" />
-            Import CSV
-          </Button>
-          <Button
-            onClick={() => {
-              setEditingProduct(null)
-              handleDialogClose(true)
-            }}
-            className="gap-2"
-          >
-            <Plus className="size-4" />
-            Add Product
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<Package />}
+        title="Products"
+        subtitle={`Manage your product catalog • ${total} product${total !== 1 ? 's' : ''}`}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setImportDialogOpen(true)}
+              className="gap-2"
+            >
+              <FileDown className="size-4" />
+              Import CSV
+            </Button>
+            <Button
+              onClick={() => {
+                setEditingProduct(null)
+                handleDialogClose(true)
+              }}
+              className="gap-2"
+            >
+              <Plus className="size-4" />
+              Add Product
+            </Button>
+          </>
+        }
+      />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -1326,10 +1326,10 @@ export function ProductsPage() {
                           {product.productType?.name || 'Unknown'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {formatETB(product.sellingPrice)}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right font-medium tabular-nums">
                         {product.quantity}
                       </TableCell>
                       <TableCell>
@@ -1343,7 +1343,7 @@ export function ProductsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8 h-9 w-9 sm:h-8 sm:w-8"
+                              className="size-9 sm:size-8"
                               onClick={(e) => e.stopPropagation()}
                               aria-label={`Actions for ${product.name}`}
                             >

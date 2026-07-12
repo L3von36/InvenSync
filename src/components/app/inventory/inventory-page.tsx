@@ -1,5 +1,7 @@
 'use client'
 
+import { PageHeader } from '@/components/shared/design-system'
+
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@/lib/zod-resolver'
@@ -43,15 +45,16 @@ function getStockStatus(quantity: number, threshold: number): { label: string; v
 // ============================================
 function InventoryStatsCards({ stats }: { stats: InventoryStats['overview'] | null }) {
   const cards = [
+    // Design rule: color = meaning. Low/Out of Stock are signals; counts are neutral.
     { title: 'Total Products', value: stats?.totalProducts ?? 0, icon: Package, color: 'text-primary', bg: 'bg-primary/10' },
-    { title: 'In Stock', value: (stats?.totalProducts ?? 0) - (stats?.outOfStock ?? 0) - (stats?.lowStock ?? 0), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
-    { title: 'Low Stock', value: stats?.lowStock ?? 0, icon: AlertTriangle, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' },
-    { title: 'Out of Stock', value: stats?.outOfStock ?? 0, icon: XCircle, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/30' },
-    { title: 'Total Value', value: formatETB(stats?.totalRetailValue ?? 0), icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    { title: 'In Stock', value: (stats?.totalProducts ?? 0) - (stats?.outOfStock ?? 0) - (stats?.lowStock ?? 0), icon: TrendingUp, color: 'text-muted-foreground', bg: 'bg-muted' },
+    { title: 'Low Stock', value: stats?.lowStock ?? 0, icon: AlertTriangle, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10' },
+    { title: 'Out of Stock', value: stats?.outOfStock ?? 0, icon: XCircle, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10' },
+    { title: 'Total Value', value: formatETB(stats?.totalRetailValue ?? 0), icon: TrendingUp, color: 'text-muted-foreground', bg: 'bg-muted' },
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
       {cards.map((card) => (
         <Card key={card.title}>
           <CardContent className="p-4">
@@ -61,7 +64,7 @@ function InventoryStatsCards({ stats }: { stats: InventoryStats['overview'] | nu
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground truncate">{card.title}</p>
-                <p className="text-xl sm:text-2xl font-bold truncate">{card.value}</p>
+                <p className="text-xl sm:text-2xl font-semibold tabular-nums truncate">{card.value}</p>
               </div>
             </div>
           </CardContent>
@@ -810,7 +813,7 @@ export function InventoryPage() {
       <div className="space-y-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight">Inventory Management</h1>
             <p className="text-muted-foreground text-sm mt-1">Track stock levels, manage movements, and monitor alerts.</p>
           </div>
         </div>
@@ -822,12 +825,11 @@ export function InventoryPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Inventory Management</h1>
-          <p className="text-muted-foreground text-sm mt-1">Track stock levels, manage movements, and monitor alerts.</p>
-        </div>
-      </div>
+      <PageHeader
+        icon={<Package />}
+        title="Inventory Management"
+        subtitle="Track stock levels, manage movements, and monitor alerts."
+      />
 
       {/* Stats */}
       <InventoryStatsCards stats={inventoryStats?.overview ?? null} />
