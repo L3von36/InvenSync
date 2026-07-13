@@ -387,7 +387,7 @@ function RevenueTrendCard({ data, className }: {
         </div>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={revenueChartConfig} className="h-[220px] sm:h-[300px] w-full">
+        <ChartContainer config={revenueChartConfig} className="h-[180px] sm:h-[240px] lg:h-[300px] w-full">
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: isMobile ? -10 : 0, bottom: 0 }}>
             <defs>
               <linearGradient id="fillRevenueTrend" x1="0" y1="0" x2="0" y2="1">
@@ -701,7 +701,7 @@ const AnomalyAlertWidget = memo(function AnomalyAlertWidget({ anomalies }: { ano
 
 function DashboardLoading() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
           <StatCardSkeleton key={i} />
@@ -817,7 +817,7 @@ function OwnerDashboard({
   }, [shops, hasMultipleShops])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <DashboardHeader
         isRefreshing={isRefreshing}
         onRefresh={onRefresh}
@@ -1106,7 +1106,7 @@ function ManagerDashboard({
   const lowStockProducts = inventoryData?.lowStockProducts || []
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <DashboardHeader
         isRefreshing={isRefreshing}
         onRefresh={onRefresh}
@@ -1337,7 +1337,7 @@ function CashierDashboard({
   }, [productSearch, currentOrg, currentShop])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <DashboardHeader isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
 
       {/* Quick Actions */}
@@ -1515,7 +1515,7 @@ function WarehouseDashboard({
   }, [productSearch, currentOrg, currentShop])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <DashboardHeader isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
 
       {/* Quick Actions */}
@@ -1770,7 +1770,7 @@ function SalesDashboard({
   }, [currentOrg, currentShop])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <DashboardHeader isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
 
       {/* Quick Actions */}
