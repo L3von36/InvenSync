@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
-import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
+import { getUserFromRequest, verifyOrgAccess, canReadFinancials } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 
 // GET /api/purchase-orders?orgId=xxx&status=xxx
@@ -20,6 +20,11 @@ export async function GET(request: Request) {
     const hasAccess = await verifyOrgAccess(user, orgId)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Purchase orders (with cost prices) — org owners/managers only
+    if (!canReadFinancials(user, orgId)) {
+      return NextResponse.json({ error: 'Forbidden: purchase orders are available to owners and managers only' }, { status: 403 })
     }
 
     const status = searchParams.get('status')

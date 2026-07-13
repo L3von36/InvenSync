@@ -49,6 +49,9 @@ interface AppState {
   previousPage: Page | null
 
   setPage: (page: Page, params?: Record<string, unknown>) => void
+  /** Reset navigation to the default page — called on logout so the next
+   *  session never starts on the previous user's page. */
+  resetNavigation: () => void
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
   setNavigating: (navigating: boolean) => void
@@ -68,6 +71,15 @@ export const useAppStore = create<AppState>((set) => ({
       pageParams: params || {},
       isNavigating: true,
     }))
+  },
+
+  resetNavigation: () => {
+    set({
+      currentPage: 'dashboard',
+      pageParams: {},
+      previousPage: null,
+      isNavigating: false,
+    })
   },
 
   toggleSidebar: () => {

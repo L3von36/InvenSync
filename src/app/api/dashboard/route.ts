@@ -69,12 +69,28 @@ export async function GET(request: Request) {
       { ttl: CacheTTL.HOT, staleTtl: CacheTTL.WARM } // 15s fresh, 30s stale
     )
 
+    // Role-based redaction: employees only receive the data their dashboard
+    // is allowed to show. The cache stores the full payload (shared across
+    // roles); redaction happens after, on a copy, so owners/managers are
+    // unaffected and employees can't read financials from the network tab.
+    const orgRole = user.memberships.find(m => m.organizationId === orgId)?.role
+    let responseData = data
+    if (orgRole === 'employee') {
+      const shopMember = shopId
+        ? await db.shopMember.findUnique({ where: { userId_shopId: { userId: user.id, shopId } } })
+        : await db.shopMember.findFirst({ where: { userId: user.id, shop: { organizationId: orgId } } })
+      const shopRole = shopMember?.role ?? 'cashier'
+      if (shopRole !== 'manager') {
+        responseData = redactDashboardForRole(data, shopRole)
+      }
+    }
+
     // Add Cache-Control headers for browser/CDN caching
     const headers: Record<string, string> = {
       'Cache-Control': 'private, max-age=15, stale-while-revalidate=30',
     }
 
-    return NextResponse.json(data, { headers })
+    return NextResponse.json(responseData, { headers })
   } catch (error) {
     if (isDatabaseError(error)) {
       return NextResponse.json(
@@ -84,6 +100,97 @@ export async function GET(request: Request) {
     }
     console.error('Dashboard error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// ============================================
+// Role-based redaction
+// ============================================
+// Employees only get the slice of the dashboard their role is allowed to
+// see. Redacted numeric fields are zeroed (not removed) so the client
+// types stay intact; the role-specific dashboards never render them.
+
+type DashboardPayload = Awaited<ReturnType<typeof fetchDashboardData>>
+
+const ZERO_COMPARISON: DashboardPayload['comparison'] = {
+  revenueChange: 0,
+  expenseChange: 0,
+  netProfitChange: 0,
+  salesCountChange: 0,
+  prevRevenue: 0,
+  prevExpenses: 0,
+  prevNetProfit: 0,
+  prevSalesCount: 0,
+}
+
+function redactDashboardForRole(data: DashboardPayload, shopRole: string): DashboardPayload {
+  if (shopRole === 'warehouse') {
+    // Warehouse staff: stock data only — no revenue, sales, debts, or expenses
+    return {
+      ...data,
+      stats: {
+        ...data.stats,
+        todayRevenue: 0,
+        todaySalesCount: 0,
+        monthRevenue: 0,
+        totalCustomerDebt: 0,
+        periodRevenue: 0,
+        periodExpenses: 0,
+        periodCogs: 0,
+        periodNetProfit: 0,
+        periodSalesCount: 0,
+      },
+      comparison: ZERO_COMPARISON,
+      recentSales: [],
+      topProducts: [],
+      salesTrend: [],
+      anomalies: data.anomalies.filter(a => a.type !== 'large_expense'),
+    }
+  }
+
+  if (shopRole === 'sales') {
+    // Sales staff: revenue and customer data, but no expenses, profit,
+    // COGS, or inventory valuations
+    return {
+      ...data,
+      stats: {
+        ...data.stats,
+        totalStockCostValue: 0,
+        totalStockRetailValue: 0,
+        periodExpenses: 0,
+        periodCogs: 0,
+        periodNetProfit: 0,
+      },
+      comparison: {
+        ...ZERO_COMPARISON,
+        revenueChange: data.comparison.revenueChange,
+        salesCountChange: data.comparison.salesCountChange,
+        prevRevenue: data.comparison.prevRevenue,
+        prevSalesCount: data.comparison.prevSalesCount,
+      },
+      anomalies: data.anomalies.filter(a => a.type !== 'large_expense'),
+    }
+  }
+
+  // Cashier (and any unknown employee role): today's own activity only
+  return {
+    ...data,
+    stats: {
+      ...data.stats,
+      monthRevenue: 0,
+      totalCustomerDebt: 0,
+      totalStockCostValue: 0,
+      totalStockRetailValue: 0,
+      periodRevenue: 0,
+      periodExpenses: 0,
+      periodCogs: 0,
+      periodNetProfit: 0,
+      periodSalesCount: 0,
+    },
+    comparison: ZERO_COMPARISON,
+    topProducts: [],
+    salesTrend: [],
+    anomalies: [],
   }
 }
 

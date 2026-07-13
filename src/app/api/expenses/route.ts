@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
 import { getTombstones } from '@/lib/tombstones'
-import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
+import { getUserFromRequest, verifyOrgAccess, canReadFinancials } from '@/lib/auth'
 import { isDatabaseError } from '@/lib/api-error'
 import { sanitizeAndTruncate, validateSanitizedField } from '@/lib/sanitize'
 import { isValidClientId } from '@/lib/client-id'
@@ -25,6 +25,11 @@ export async function GET(request: Request) {
     const hasAccess = await verifyOrgAccess(user, organizationId)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Expenses are financial data — org owners/managers only
+    if (!canReadFinancials(user, organizationId)) {
+      return NextResponse.json({ error: 'Forbidden: expenses are available to owners and managers only' }, { status: 403 })
     }
 
     const category = searchParams.get('category')

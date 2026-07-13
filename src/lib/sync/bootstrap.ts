@@ -8,6 +8,8 @@
 
 import { db, isDatabaseReady, type LocalProduct, type LocalCategory, type LocalCustomer, type LocalSupplier, type LocalSale, type LocalSaleItem, type LocalDebt, type LocalExpense, type LocalServiceType, type LocalServiceBooking, type LocalPurchaseOrder, type LocalShop, type LocalStockMovement, type LocalSyncMeta } from '@/lib/db'
 import { api, type Product, type ProductType, type Customer, type Supplier, type Sale, type SaleItem, type Debt, type Expense, type ServiceType, type ServiceBooking, type Shop, type StockMovement } from '@/lib/api-client'
+import { isEntityAllowedForRole } from '@/lib/sync/restricted-entities'
+import { useAuthStore } from '@/lib/stores/auth-store'
 
 // ============================================
 // Types
@@ -424,7 +426,13 @@ export async function bootstrapLocalData(
   shopId: string | null,
   callbacks?: BootstrapCallbacks
 ): Promise<void> {
-  const totalEntities = ENTITY_CONFIGS.length
+  // Employees skip financially restricted entities (expenses, suppliers,
+  // purchase orders) — the server rejects those reads for their role, and
+  // the data must not be hydrated into their device's IndexedDB.
+  const orgRole = useAuthStore.getState().currentOrgRole
+  const entityConfigs = ENTITY_CONFIGS.filter(c => isEntityAllowedForRole(c.entity, orgRole))
+
+  const totalEntities = entityConfigs.length
   const completedEntities: string[] = []
   const stats: Record<string, number> = {}
   const errors: string[] = []
@@ -453,7 +461,7 @@ export async function bootstrapLocalData(
 
   emitProgress({ phase: 'fetching', currentEntity: null, percentComplete: 0 })
 
-  for (const config of ENTITY_CONFIGS) {
+  for (const config of entityConfigs) {
     try {
       // --- Fetch phase ---
       emitProgress({ phase: 'fetching', currentEntity: config.entity })

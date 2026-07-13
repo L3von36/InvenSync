@@ -40,6 +40,7 @@ import {
   ClipboardList,
   Award,
   Search,
+  Plus,
   CalendarClock,
   FileDown,
   DollarSign,
@@ -110,31 +111,58 @@ const serviceBusinessTypes = [
   'service', 'mixed', 'restaurant_cafe',
 ]
 
-const mainNavItems: Array<{
+interface NavItem {
   title: string
   page: Page
   icon: React.ElementType
   businessTypes?: string[]
   roles?: ('owner' | 'manager' | 'employee')[]
   moduleKey?: string
-}> = [
+}
+
+// Direction B: nav is grouped by job-to-be-done (Inventory / Sales /
+// Finance) instead of one flat list, with Dashboard + Create Sale on top.
+const overviewNavItems: NavItem[] = [
   { title: 'Dashboard', page: 'dashboard', icon: LayoutDashboard },
-  { title: 'Product Types', page: 'product-types', icon: Tags, businessTypes: retailBusinessTypes, roles: ['owner', 'manager'], moduleKey: 'inventory' },
-  { title: 'Products', page: 'products', icon: Package, businessTypes: retailBusinessTypes, moduleKey: 'inventory' },
-  { title: 'Inventory', page: 'inventory', icon: Warehouse, businessTypes: retailBusinessTypes, roles: ['owner', 'manager'], moduleKey: 'inventory' },
-  { title: 'Services', page: 'services', icon: Wrench, businessTypes: serviceBusinessTypes, moduleKey: 'services' },
-  { title: 'Sales', page: 'sales', icon: ShoppingCart, moduleKey: 'sales' },
-  { title: 'Customers', page: 'customers', icon: Users, moduleKey: 'customers' },
-  { title: 'Suppliers', page: 'suppliers', icon: Truck, roles: ['owner', 'manager'], moduleKey: 'suppliers' },
-  { title: 'Debts & Credits', page: 'debts', icon: CreditCard, roles: ['owner', 'manager'], moduleKey: 'debts' },
-  { title: 'Profit & Loss', page: 'profit-loss', icon: TrendingUp, roles: ['owner', 'manager'], moduleKey: 'reports' },
-  { title: 'Expenses', page: 'expenses', icon: Receipt, roles: ['owner', 'manager'], moduleKey: 'expenses' },
-  { title: 'Reports', page: 'reports', icon: BarChart3, roles: ['owner', 'manager'], moduleKey: 'reports' },
-  { title: 'Branches', page: 'branches', icon: GitBranch, roles: ['owner', 'manager'], moduleKey: 'multi-shop' },
-  { title: 'Stock Transfers', page: 'stock-transfers', icon: ArrowLeftRight, roles: ['owner', 'manager'], moduleKey: 'inventory' },
-  { title: 'Purchase Orders', page: 'purchase-orders', icon: ClipboardList, roles: ['owner', 'manager'], moduleKey: 'inventory' },
-  { title: 'Customer Loyalty', page: 'loyalty', icon: Award, moduleKey: 'customers' },
-  { title: 'Credit Limits', page: 'credit-limits', icon: CreditCard, roles: ['owner', 'manager'], moduleKey: 'debts' },
+]
+
+const navGroups: Array<{ label: string; items: NavItem[] }> = [
+  {
+    label: 'Inventory',
+    items: [
+      { title: 'Product Types', page: 'product-types', icon: Tags, businessTypes: retailBusinessTypes, roles: ['owner', 'manager'], moduleKey: 'inventory' },
+      { title: 'Products', page: 'products', icon: Package, businessTypes: retailBusinessTypes, moduleKey: 'inventory' },
+      { title: 'Inventory', page: 'inventory', icon: Warehouse, businessTypes: retailBusinessTypes, roles: ['owner', 'manager'], moduleKey: 'inventory' },
+      { title: 'Stock Transfers', page: 'stock-transfers', icon: ArrowLeftRight, roles: ['owner', 'manager'], moduleKey: 'inventory' },
+      { title: 'Purchase Orders', page: 'purchase-orders', icon: ClipboardList, roles: ['owner', 'manager'], moduleKey: 'inventory' },
+      { title: 'Suppliers', page: 'suppliers', icon: Truck, roles: ['owner', 'manager'], moduleKey: 'suppliers' },
+    ],
+  },
+  {
+    label: 'Sales',
+    items: [
+      { title: 'Sales', page: 'sales', icon: ShoppingCart, moduleKey: 'sales' },
+      { title: 'Services', page: 'services', icon: Wrench, businessTypes: serviceBusinessTypes, moduleKey: 'services' },
+      { title: 'Customers', page: 'customers', icon: Users, moduleKey: 'customers' },
+      { title: 'Customer Loyalty', page: 'loyalty', icon: Award, moduleKey: 'customers' },
+      { title: 'Credit Limits', page: 'credit-limits', icon: CreditCard, roles: ['owner', 'manager'], moduleKey: 'debts' },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { title: 'Debts & Credits', page: 'debts', icon: CreditCard, roles: ['owner', 'manager'], moduleKey: 'debts' },
+      { title: 'Profit & Loss', page: 'profit-loss', icon: TrendingUp, roles: ['owner', 'manager'], moduleKey: 'reports' },
+      { title: 'Expenses', page: 'expenses', icon: Receipt, roles: ['owner', 'manager'], moduleKey: 'expenses' },
+      { title: 'Reports', page: 'reports', icon: BarChart3, roles: ['owner', 'manager'], moduleKey: 'reports' },
+    ],
+  },
+  {
+    label: 'Organization',
+    items: [
+      { title: 'Branches', page: 'branches', icon: GitBranch, roles: ['owner', 'manager'], moduleKey: 'multi-shop' },
+    ],
+  },
 ]
 
 const aiNavItems: Array<{
@@ -174,17 +202,23 @@ export function AppSidebar() {
 
   // Admin users only see admin-specific nav items — hide all business-level nav
   // Business users see filtered items based on module, business type, and role
-  const filteredNavItems = isAdmin
+  const navItemVisible = (item: NavItem): boolean => {
+    // Module gate
+    if (!isModuleActive(item.moduleKey)) return false
+    // Business type filter
+    if (item.businessTypes && businessType && !item.businessTypes.includes(businessType)) return false
+    // Role filter
+    if (item.roles && currentOrgRole && !item.roles.includes(currentOrgRole)) return false
+    return true
+  }
+
+  const filteredOverviewItems = isAdmin ? [] : overviewNavItems.filter(navItemVisible)
+  const filteredNavGroups = isAdmin
     ? []
-    : mainNavItems.filter(item => {
-        // Module gate
-        if (!isModuleActive(item.moduleKey)) return false
-        // Business type filter
-        if (item.businessTypes && businessType && !item.businessTypes.includes(businessType)) return false
-        // Role filter
-        if (item.roles && currentOrgRole && !item.roles.includes(currentOrgRole)) return false
-        return true
-      })
+    : navGroups
+        .map(group => ({ ...group, items: group.items.filter(navItemVisible) }))
+        .filter(group => group.items.length > 0)
+  const canCreateSale = !isAdmin && isModuleActive('sales')
 
   const filteredAiItems = isAdmin
     ? []
@@ -298,13 +332,48 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Main Navigation — only for business users */}
-        {!isAdmin && filteredNavItems.length > 0 && (
+        {/* Overview: Dashboard + Create Sale action — only for business users */}
+        {!isAdmin && (filteredOverviewItems.length > 0 || canCreateSale) && (
           <SidebarGroup>
-            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {filteredNavItems.map((item) => (
+                {filteredOverviewItems.map((item) => (
+                  <SidebarMenuItem key={item.page}>
+                    <SidebarMenuButton
+                      isActive={currentPage === item.page}
+                      onClick={() => setPage(item.page)}
+                      tooltip={item.title}
+                      aria-current={currentPage === item.page ? 'page' : undefined}
+                    >
+                      <item.icon className="size-4" aria-hidden="true" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                {canCreateSale && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      onClick={() => setPage('sales')}
+                      tooltip="Create Sale"
+                      className="text-primary hover:text-primary font-medium"
+                    >
+                      <Plus className="size-4" aria-hidden="true" />
+                      <span>Create Sale</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Grouped navigation — Inventory / Sales / Finance / Organization */}
+        {filteredNavGroups.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => (
                   <SidebarMenuItem key={item.page}>
                     <SidebarMenuButton
                       isActive={currentPage === item.page}
@@ -323,7 +392,7 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        )}
+        ))}
 
         {/* AI Features — only for business users */}
         {!isAdmin && filteredAiItems.length > 0 && (

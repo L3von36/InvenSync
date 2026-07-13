@@ -24,7 +24,7 @@ import { useNotificationStore } from '@/lib/stores/notification-store'
 import { NotificationBell } from '@/components/shared/notification-bell'
 import { SyncStatusChip } from '@/components/app/dashboard/sync-panel'
 import { useTheme } from 'next-themes'
-import { Sun, Moon } from 'lucide-react'
+import { Sun, Moon, Search, Plus } from 'lucide-react'
 
 // ============================================
 // Theme Toggle
@@ -87,7 +87,7 @@ const pageBreadcrumbs: Record<Page, string[]> = {
 }
 
 export function AppHeader() {
-  const { currentPage } = useAppStore()
+  const { currentPage, setPage } = useAppStore()
   const { user, logout, currentOrg, currentShop } = useAuthStore()
   const { fetchNotifications } = useNotificationStore()
 
@@ -138,6 +138,30 @@ export function AppHeader() {
       <span className="text-sm font-medium sm:hidden">{title}</span>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* AI search — opens Smart Search (Direction B) */}
+        {user?.role !== 'admin' && (
+          <button
+            onClick={() => setPage('smart-search')}
+            className="hidden md:flex items-center gap-2 h-9 w-56 lg:w-64 rounded-md border bg-muted/40 px-3 text-sm text-muted-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+            aria-label="Open smart search"
+          >
+            <Search className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">Ask AI to search anything...</span>
+          </button>
+        )}
+
+        {/* Create Sale quick action (Direction B flat accent) */}
+        {user?.role !== 'admin' && (
+          <Button
+            size="icon"
+            className="size-9"
+            onClick={() => setPage('sales')}
+            aria-label="Create sale"
+          >
+            <Plus className="size-4" aria-hidden="true" />
+          </Button>
+        )}
+
         {/* Theme toggle */}
         <ThemeToggle />
 

@@ -260,6 +260,26 @@ export async function verifyOrgAccess(user: AuthUser | null, orgId: string): Pro
 }
 
 /**
+ * Get the user's role within an organization ('owner' | 'manager' |
+ * 'employee'), or null if they are not a member.
+ */
+export function getOrgRole(user: AuthUser | null, orgId: string): string | null {
+  return user?.memberships.find(m => m.organizationId === orgId)?.role ?? null
+}
+
+/**
+ * True when the user may read org-level financial data (expenses,
+ * suppliers, purchase orders, reports): platform admins and org
+ * owners/managers.
+ */
+export function canReadFinancials(user: AuthUser | null, orgId: string): boolean {
+  if (!user) return false
+  if (user.role === 'admin') return true
+  const orgRole = getOrgRole(user, orgId)
+  return orgRole === 'owner' || orgRole === 'manager'
+}
+
+/**
  * Check if Supabase Auth is configured and active
  */
 export function isSupabaseAuth(): boolean {

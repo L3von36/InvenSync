@@ -313,17 +313,26 @@ export const useAuthStore = create<AuthState>()(subscribeWithSelector((set, get)
       isAuthenticated: false,
       isLoading: false,
     })
-    // 4. Fire-and-forget server-side logout (after state is cleared so it doesn't interfere)
+    // 4. Reset UI stores so the next login never starts on the previous
+    //    user's page (e.g. admin dashboard flashing for a business user)
+    //    or shows their notifications
+    import('./app-store').then(({ useAppStore }) => {
+      useAppStore.getState().resetNavigation()
+    }).catch(() => {})
+    import('./notification-store').then(({ useNotificationStore }) => {
+      useNotificationStore.getState().reset()
+    }).catch(() => {})
+    // 5. Fire-and-forget server-side logout (after state is cleared so it doesn't interfere)
     authFetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
-    // 5. Stop auto-sync engine before clearing local data
+    // 6. Stop auto-sync engine before clearing local data
     import('@/lib/sync/engine').then(({ getSyncEngine }) => {
       getSyncEngine().stopAutoSync()
     }).catch(() => {})
-    // 6. Clear offline data from IndexedDB
+    // 7. Clear offline data from IndexedDB
     import('@/lib/db/index').then(({ clearLocalDatabase }) => {
       clearLocalDatabase().catch(err => console.error('[Auth] Failed to clear local DB:', err))
     }).catch(() => {})
-    // 7. Clear bootstrap flags for all orgs
+    // 8. Clear bootstrap flags for all orgs
     if (typeof window !== 'undefined') {
       const keys = Object.keys(localStorage).filter(k => k.startsWith('invensync_bootstrapped_'))
       keys.forEach(k => localStorage.removeItem(k))
