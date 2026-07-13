@@ -19,6 +19,15 @@ const withSerwist = withSerwistInit({
   // No service worker in dev: Turbopack recompiles chunks on every edit,
   // and a SW would pin stale bundles and mask code changes.
   disable: process.env.NODE_ENV === "development",
+  // Precache the app shell and the offline fallback document. Without
+  // "/" here only the hashed JS/CSS chunks are precached — an offline
+  // reload has no HTML document to boot from and lands on the "/~offline"
+  // fallback instead of the app rendering local IndexedDB data. The
+  // revision changes every build so a new deploy refreshes both.
+  additionalPrecacheEntries: [
+    { url: "/", revision: crypto.randomUUID() },
+    { url: "/~offline", revision: crypto.randomUUID() },
+  ],
 });
 
 const nextConfig: NextConfig = {
