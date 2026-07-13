@@ -91,16 +91,26 @@ export function AppHeader() {
   const { user, logout, currentOrg, currentShop } = useAuthStore()
   const { fetchNotifications } = useNotificationStore()
 
-  // Auto-fetch notifications and trigger expiry check
+  // Auto-fetch notifications and trigger expiry check.
+  // Skipped while offline: each attempt would wait out the service
+  // worker's network timeout for nothing. The 'online' listener refreshes
+  // immediately when connectivity returns instead.
   useEffect(() => {
     if (!currentOrg) return
-    fetchNotifications(currentOrg.id, currentShop?.id)
-    // Trigger expiry check on mount (authFetch sends JWT token)
-    authFetch('/api/cron/check-expiries', { method: 'GET' }).catch(() => {})
-    const interval = setInterval(() => {
+    if (navigator.onLine) {
       fetchNotifications(currentOrg.id, currentShop?.id)
+      // Trigger expiry check on mount (authFetch sends JWT token)
+      authFetch('/api/cron/check-expiries', { method: 'GET' }).catch(() => {})
+    }
+    const interval = setInterval(() => {
+      if (navigator.onLine) fetchNotifications(currentOrg.id, currentShop?.id)
     }, 60000)
-    return () => clearInterval(interval)
+    const onOnline = () => fetchNotifications(currentOrg.id, currentShop?.id)
+    window.addEventListener('online', onOnline)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('online', onOnline)
+    }
   }, [currentOrg, currentShop, fetchNotifications])
 
   const title = pageTitles[currentPage]
