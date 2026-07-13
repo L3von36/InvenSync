@@ -21,7 +21,6 @@ import {
   Store,
   UserPlus,
   Phone,
-  DollarSign,
   BarChart3,
   Box,
   AlertCircle,
@@ -45,7 +44,7 @@ import { api, type DashboardData, type InventoryStats, type Sale, type Product, 
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { db } from '@/lib/db'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
-import { PageHeader, StatCard, StatCardSkeleton, STAT_TONE_CLASSES, type StatTone } from '@/components/shared/design-system'
+import { GreetingHeader, StatCard, StatCardSkeleton, STAT_TONE_CLASSES, type StatTone } from '@/components/shared/design-system'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useAppStore } from '@/lib/stores/app-store'
 import { SyncPanel } from '@/components/app/dashboard/sync-panel'
@@ -166,13 +165,6 @@ const revenueChartConfig = {
   },
 } satisfies ChartConfig
 
-const topProductsChartConfig = {
-  revenue: {
-    label: 'Revenue',
-    color: '#ea580c',
-  },
-} satisfies ChartConfig
-
 const shopComparisonChartConfig = {
   revenue: {
     label: 'Revenue',
@@ -264,19 +256,21 @@ function QuickActionCard({ icon, label, tone = 'neutral', onClick, prominent }: 
   )
 }
 
-function DashboardHeader({ title, subtitle, isRefreshing, onRefresh, dateRangePicker, isOfflineData }: {
-  title: string
-  subtitle: string
+// Direction B: dashboards open with a personal greeting instead of a titled
+// PageHeader — the date + active shop is the context line.
+function DashboardHeader({ isRefreshing, onRefresh, dateRangePicker, isOfflineData }: {
   isRefreshing: boolean
   onRefresh: () => void
   dateRangePicker?: React.ReactNode
   isOfflineData?: boolean
 }) {
+  const { user, currentOrg, currentShop } = useAuthStore()
+  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  const shopLabel = currentShop?.name || currentOrg?.name
   return (
-    <PageHeader
-      icon={<BarChart3 />}
-      title={title}
-      subtitle={subtitle}
+    <GreetingHeader
+      name={user?.name}
+      subtitle={shopLabel ? `${dateLabel} · ${shopLabel}` : dateLabel}
       badges={
         isOfflineData ? (
           <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2.5 py-1 rounded-full">
@@ -300,6 +294,180 @@ function DashboardHeader({ title, subtitle, isRefreshing, onRefresh, dateRangePi
         </>
       }
     />
+  )
+}
+
+// ============================================
+// Direction B — Revenue KPI row
+// ============================================
+// Today's Sales / This Week / This Month / Avg Sale Value, with small
+// sparklines derived from the 30-day revenue trend.
+
+function RevenueKpiRow({ stats, revenueChartData, comparisonBadge }: {
+  stats: EnhancedDashboardData['stats']
+  revenueChartData: Array<{ date: string; revenue: number }>
+  comparisonBadge?: React.ReactNode
+}) {
+  const weekData = revenueChartData.slice(-7).map((d) => d.revenue)
+  const monthData = revenueChartData.map((d) => d.revenue)
+  const weekRevenue = weekData.reduce((sum, v) => sum + v, 0)
+  const periodSalesCount = stats.periodSalesCount ?? 0
+  const avgSaleValue = periodSalesCount > 0
+    ? (stats.periodRevenue ?? stats.monthRevenue) / periodSalesCount
+    : 0
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <StatCard
+        title="Today's Sales"
+        value={formatETB(stats.todayRevenue)}
+        subtitle={`${formatNumber(stats.todaySalesCount)} transaction${stats.todaySalesCount !== 1 ? 's' : ''}`}
+        icon={<ShoppingCart className="size-5" />}
+        tone="brand"
+      />
+      <StatCard
+        title="This Week"
+        value={formatETB(weekRevenue)}
+        subtitle="Last 7 days"
+        icon={<Calendar className="size-5" />}
+        sparkline={weekData}
+      />
+      <StatCard
+        title="This Month"
+        value={formatETB(stats.monthRevenue)}
+        subtitle="Month to date"
+        icon={<TrendingUp className="size-5" />}
+        sparkline={monthData}
+        comparisonBadge={comparisonBadge}
+      />
+      <StatCard
+        title="Avg Sale Value"
+        value={formatETB(avgSaleValue)}
+        subtitle={periodSalesCount > 0 ? `Across ${formatNumber(periodSalesCount)} sales` : 'No sales in period'}
+        icon={<BarChart3 className="size-5" />}
+      />
+    </div>
+  )
+}
+
+// ============================================
+// Direction B — Revenue chart with range toggle
+// ============================================
+
+function RevenueTrendCard({ data, className }: {
+  data: Array<{ date: string; revenue: number }>
+  className?: string
+}) {
+  const isMobile = useIsMobile()
+  const [range, setRange] = useState<'weekly' | 'monthly'>('monthly')
+  const chartData = range === 'weekly' ? data.slice(-7) : data
+
+  return (
+    <Card className={`overflow-hidden ${className ?? ''}`}>
+      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+        <div className="min-w-0">
+          <CardTitle className="text-sm">Revenue</CardTitle>
+          <CardDescription>{range === 'weekly' ? 'Daily revenue, last 7 days' : 'Daily revenue, last 30 days'}</CardDescription>
+        </div>
+        <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 shrink-0" role="group" aria-label="Revenue chart range">
+          {(['weekly', 'monthly'] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              aria-pressed={range === r}
+              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                range === r
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {r === 'weekly' ? 'Weekly' : 'Monthly'}
+            </button>
+          ))}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={revenueChartConfig} className="h-[220px] sm:h-[300px] w-full">
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: isMobile ? -10 : 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="fillRevenueTrend" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ea580c" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#ea580c" stopOpacity={0.05} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} interval="preserveStartEnd" fontSize={isMobile ? 10 : 12} />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              fontSize={isMobile ? 10 : 12}
+              width={isMobile ? 35 : 50}
+              tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
+            />
+            <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatETB(Number(value))} />} />
+            <Area type="monotone" dataKey="revenue" stroke="#ea580c" fill="url(#fillRevenueTrend)" strokeWidth={2} />
+          </AreaChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ============================================
+// Direction B — Top Products ranked list
+// ============================================
+
+function TopProductsCard({ products, className }: {
+  products: EnhancedDashboardData['topProducts']
+  className?: string
+}) {
+  const top = products.slice(0, 5)
+  const maxRevenue = Math.max(...top.map((p) => p.totalRevenue), 1)
+
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle className="text-sm">Top Products</CardTitle>
+        <CardDescription>By revenue, last 30 days</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {top.length > 0 ? (
+          <ol className="space-y-4">
+            {top.map((product, index) => (
+              <li key={product.id} className="flex items-center gap-3">
+                <span className="flex items-center justify-center size-6 rounded-md bg-muted text-xs font-semibold text-muted-foreground tabular-nums shrink-0">
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm font-medium truncate">{product.name}</p>
+                    <p className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                      {formatNumber(product.totalQuantity)} sold
+                    </p>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${Math.max((product.totalRevenue / maxRevenue) * 100, 4)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium tabular-nums shrink-0">{formatETB(product.totalRevenue)}</span>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <EmptyState
+            title="No sales data yet"
+            message="Start recording sales to see your top products."
+            icon={<Package className="size-7 text-muted-foreground" />}
+          />
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -621,7 +789,6 @@ function OwnerDashboard({
 }) {
   const { currentOrg, currentShop } = useAuthStore()
   const { setPage } = useAppStore()
-  const isMobile = useIsMobile()
   const [shops, setShops] = useState<ShopData[]>([])
   const [shopsLoading, setShopsLoading] = useState(true)
 
@@ -639,14 +806,6 @@ function OwnerDashboard({
   const lowStockProducts = inventoryData?.lowStockProducts || []
   const hasMultipleShops = shops.length > 1
 
-  const topProductsChartData = [...topProducts]
-    .slice(0, 5)
-    .reverse()
-    .map((p) => ({
-      name: p.name.length > (isMobile ? 10 : 18) ? p.name.slice(0, isMobile ? 10 : 18) + '...' : p.name,
-      revenue: p.totalRevenue,
-    }))
-
   // Build shop comparison data
   const shopComparisonData = useMemo(() => {
     if (!hasMultipleShops) return []
@@ -660,8 +819,6 @@ function OwnerDashboard({
   return (
     <div className="space-y-6">
       <DashboardHeader
-        title="Owner Dashboard"
-        subtitle={hasMultipleShops ? `Overview across ${shops.length} shops` : 'Overview of your business performance and inventory'}
         isRefreshing={isRefreshing}
         onRefresh={onRefresh}
         isOfflineData={isOfflineData}
@@ -682,29 +839,15 @@ function OwnerDashboard({
         <AnomalyAlertWidget anomalies={anomalies} />
       )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
-        <StatCard
-          title="Period Revenue"
-          value={formatETB(stats.periodRevenue ?? stats.monthRevenue)}
-          subtitle={`Today: ${formatETB(stats.todayRevenue)}`}
-          icon={<TrendingUp className="size-5" />}
-          tone="brand"
-          comparisonBadge={comparison ? <ComparisonBadge value={comparison.revenueChange} /> : undefined}
-        />
-        <StatCard
-          title="Total Products"
-          value={formatNumber(stats.totalProducts)}
-          subtitle={`${stats.outOfStockCount} out of stock`}
-          icon={<Package className="size-5" />}
-        />
-        <StatCard
-          title="Expenses"
-          value={formatETB(stats.periodExpenses ?? 0)}
-          subtitle="Period expenses"
-          icon={<Receipt className="size-5" />}
-          comparisonBadge={comparison ? <ComparisonBadge value={comparison.expenseChange} /> : undefined}
-        />
+      {/* Revenue KPIs — Direction B */}
+      <RevenueKpiRow
+        stats={stats}
+        revenueChartData={revenueChartData}
+        comparisonBadge={comparison ? <ComparisonBadge value={comparison.revenueChange} /> : undefined}
+      />
+
+      {/* Business health */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           title="Net Profit"
           value={formatETB(stats.periodNetProfit ?? 0)}
@@ -714,10 +857,11 @@ function OwnerDashboard({
           comparisonBadge={comparison ? <ComparisonBadge value={comparison.netProfitChange} /> : undefined}
         />
         <StatCard
-          title="Active Shops"
-          value={hasMultipleShops ? formatNumber(shops.filter(s => s.isActive).length) : '1'}
-          subtitle={hasMultipleShops ? `${shops.length} total shops` : 'Single shop'}
-          icon={<Store className="size-5" />}
+          title="Expenses"
+          value={formatETB(stats.periodExpenses ?? 0)}
+          subtitle="Period expenses"
+          icon={<Receipt className="size-5" />}
+          comparisonBadge={comparison ? <ComparisonBadge value={comparison.expenseChange} /> : undefined}
         />
         <StatCard
           title="Customer Debts"
@@ -725,6 +869,12 @@ function OwnerDashboard({
           subtitle={stats.totalCustomerDebt > 0 ? 'Outstanding balance' : 'No outstanding debts'}
           icon={<CreditCard className="size-5" />}
           tone={stats.totalCustomerDebt > 0 ? 'danger' : 'neutral'}
+        />
+        <StatCard
+          title="Active Shops"
+          value={hasMultipleShops ? formatNumber(shops.filter(s => s.isActive).length) : '1'}
+          subtitle={hasMultipleShops ? `${shops.length} total shops` : 'Single shop'}
+          icon={<Store className="size-5" />}
         />
       </div>
 
@@ -804,71 +954,10 @@ function OwnerDashboard({
         </div>
       )}
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
-        <Card className="overflow-hidden">
-          <CardHeader>
-            <CardTitle className="text-sm">Revenue Trend</CardTitle>
-            <CardDescription>Daily revenue for the last 30 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={revenueChartConfig} className="h-[220px] sm:h-[300px] w-full">
-              <AreaChart data={revenueChartData} margin={{ top: 10, right: 10, left: isMobile ? -10 : 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ea580c" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#ea580c" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} interval="preserveStartEnd" fontSize={isMobile ? 10 : 12} />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  fontSize={isMobile ? 10 : 12}
-                  width={isMobile ? 35 : 50}
-                  tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
-                />
-                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatETB(Number(value))} />} />
-                <Area type="monotone" dataKey="revenue" stroke="#ea580c" fill="url(#fillRevenue)" strokeWidth={2} />
-              </AreaChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Top Products by Revenue</CardTitle>
-            <CardDescription>Best performing products in the last 30 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {topProductsChartData.length > 0 ? (
-              <ChartContainer config={topProductsChartConfig} className="h-[220px] sm:h-[300px] w-full">
-                <BarChart data={topProductsChartData} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis
-                    type="number"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    fontSize={isMobile ? 10 : 12}
-                    tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()}
-                  />
-                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={isMobile ? 60 : 120} fontSize={isMobile ? 9 : 12} />
-                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatETB(Number(value))} />} />
-                  <Bar dataKey="revenue" fill="#ea580c" radius={[0, 4, 4, 0]} maxBarSize={32} />
-                </BarChart>
-              </ChartContainer>
-            ) : (
-              <EmptyState
-                title="No sales data yet"
-                message="Start recording sales to see your top products."
-                icon={<Package className="size-7 text-muted-foreground" />}
-              />
-            )}
-          </CardContent>
-        </Card>
+      {/* Revenue chart + Top Products — Direction B */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 min-w-0">
+        <RevenueTrendCard data={revenueChartData} className="lg:col-span-2" />
+        <TopProductsCard products={topProducts} />
       </div>
 
       {/* Recent Sales */}
@@ -1013,23 +1102,12 @@ function ManagerDashboard({
   isOfflineData?: boolean
 }) {
   const { setPage } = useAppStore()
-  const isMobile = useIsMobile()
   const { stats, recentSales, topProducts, comparison, anomalies } = dashboardData
   const lowStockProducts = inventoryData?.lowStockProducts || []
-
-  const topProductsChartData = [...topProducts]
-    .slice(0, 5)
-    .reverse()
-    .map((p) => ({
-      name: p.name.length > (isMobile ? 10 : 18) ? p.name.slice(0, isMobile ? 10 : 18) + '...' : p.name,
-      revenue: p.totalRevenue,
-    }))
 
   return (
     <div className="space-y-6">
       <DashboardHeader
-        title="Dashboard"
-        subtitle="Overview of your business performance and inventory"
         isRefreshing={isRefreshing}
         onRefresh={onRefresh}
         isOfflineData={isOfflineData}
@@ -1050,34 +1128,15 @@ function ManagerDashboard({
         <AnomalyAlertWidget anomalies={anomalies} />
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
-        <StatCard
-          title="Period Revenue"
-          value={formatETB(stats.periodRevenue ?? stats.monthRevenue)}
-          subtitle={`Today: ${formatETB(stats.todayRevenue)}`}
-          icon={<TrendingUp className="size-5" />}
-          tone="brand"
-          comparisonBadge={comparison ? <ComparisonBadge value={comparison.revenueChange} /> : undefined}
-        />
-        <StatCard
-          title="Total Products"
-          value={formatNumber(stats.totalProducts)}
-          subtitle={`${stats.outOfStockCount} out of stock`}
-          icon={<Package className="size-5" />}
-        />
-        <StatCard
-          title="Inventory Value"
-          value={formatETB(stats.totalStockRetailValue)}
-          subtitle={`Cost: ${formatETB(stats.totalStockCostValue)}`}
-          icon={<WarehouseIcon className="size-5" />}
-        />
-        <StatCard
-          title="Expenses"
-          value={formatETB(stats.periodExpenses ?? 0)}
-          subtitle="Period expenses"
-          icon={<Receipt className="size-5" />}
-          comparisonBadge={comparison ? <ComparisonBadge value={comparison.expenseChange} /> : undefined}
-        />
+      {/* Revenue KPIs — Direction B */}
+      <RevenueKpiRow
+        stats={stats}
+        revenueChartData={revenueChartData}
+        comparisonBadge={comparison ? <ComparisonBadge value={comparison.revenueChange} /> : undefined}
+      />
+
+      {/* Business health */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
           title="Net Profit"
           value={formatETB(stats.periodNetProfit ?? 0)}
@@ -1087,64 +1146,31 @@ function ManagerDashboard({
           comparisonBadge={comparison ? <ComparisonBadge value={comparison.netProfitChange} /> : undefined}
         />
         <StatCard
+          title="Expenses"
+          value={formatETB(stats.periodExpenses ?? 0)}
+          subtitle="Period expenses"
+          icon={<Receipt className="size-5" />}
+          comparisonBadge={comparison ? <ComparisonBadge value={comparison.expenseChange} /> : undefined}
+        />
+        <StatCard
           title="Customer Debts"
           value={formatETB(stats.totalCustomerDebt)}
           subtitle={stats.totalCustomerDebt > 0 ? 'Outstanding balance' : 'No outstanding debts'}
           icon={<CreditCard className="size-5" />}
           tone={stats.totalCustomerDebt > 0 ? 'danger' : 'neutral'}
         />
+        <StatCard
+          title="Inventory Value"
+          value={formatETB(stats.totalStockRetailValue)}
+          subtitle={`Cost: ${formatETB(stats.totalStockCostValue)}`}
+          icon={<WarehouseIcon className="size-5" />}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
-        <Card className="overflow-hidden">
-          <CardHeader>
-            <CardTitle className="text-sm">Revenue Trend</CardTitle>
-            <CardDescription>Daily revenue for the last 30 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={revenueChartConfig} className="h-[220px] sm:h-[300px] w-full">
-              <AreaChart data={revenueChartData} margin={{ top: 10, right: 10, left: isMobile ? -10 : 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="fillRevenueMgr" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ea580c" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#ea580c" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} interval="preserveStartEnd" fontSize={isMobile ? 10 : 12} />
-                <YAxis tickLine={false} axisLine={false} tickMargin={8} fontSize={isMobile ? 10 : 12} width={isMobile ? 35 : 50} tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()} />
-                <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatETB(Number(value))} />} />
-                <Area type="monotone" dataKey="revenue" stroke="#ea580c" fill="url(#fillRevenueMgr)" strokeWidth={2} />
-              </AreaChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-hidden">
-          <CardHeader>
-            <CardTitle className="text-sm">Top Products by Revenue</CardTitle>
-            <CardDescription>Best performing products in the last 30 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {topProductsChartData.length > 0 ? (
-              <ChartContainer config={topProductsChartConfig} className="h-[220px] sm:h-[300px] w-full">
-                <BarChart data={topProductsChartData} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" tickLine={false} axisLine={false} tickMargin={8} fontSize={isMobile ? 10 : 12} tickFormatter={(value: number) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toString()} />
-                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={isMobile ? 60 : 120} fontSize={isMobile ? 9 : 12} />
-                  <ChartTooltip content={<ChartTooltipContent formatter={(value) => formatETB(Number(value))} />} />
-                  <Bar dataKey="revenue" fill="#ea580c" radius={[0, 4, 4, 0]} maxBarSize={32} />
-                </BarChart>
-              </ChartContainer>
-            ) : (
-              <EmptyState
-                title="No sales data yet"
-                message="Start recording sales to see your top products."
-                icon={<Package className="size-7 text-muted-foreground" />}
-              />
-            )}
-          </CardContent>
-        </Card>
+      {/* Revenue chart + Top Products — Direction B */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 min-w-0">
+        <RevenueTrendCard data={revenueChartData} className="lg:col-span-2" />
+        <TopProductsCard products={topProducts} />
       </div>
 
       {/* Recent Sales */}
@@ -1261,6 +1287,8 @@ function ManagerDashboard({
 // CASHIER DASHBOARD — Sales-focused
 // ============================================
 
+// Cashiers see today's activity only — no month totals, trends, or
+// business-wide analytics.
 function CashierDashboard({
   dashboardData,
   isRefreshing,
@@ -1274,16 +1302,10 @@ function CashierDashboard({
 }) {
   const { setPage } = useAppStore()
   const { stats, recentSales } = dashboardData
-  const isMobile = useIsMobile()
   const [productSearch, setProductSearch] = useState('')
   const [searchResults, setSearchResults] = useState<Product[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const { currentOrg, currentShop } = useAuthStore()
-
-  // Use server-provided today stats (accurate even when recentSales is capped at 10)
-  const todaySalesCount = stats.todaySalesCount
-  const todayRevenue = stats.todayRevenue
-  const avgTransaction = todaySalesCount > 0 ? todayRevenue / todaySalesCount : 0
 
   // Product search
   useEffect(() => {
@@ -1316,7 +1338,7 @@ function CashierDashboard({
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Cashier Dashboard" subtitle="Record sales and manage transactions" isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
+      <DashboardHeader isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1390,25 +1412,24 @@ function CashierDashboard({
         </CardContent>
       </Card>
 
-      {/* Today's Summary */}
+      {/* Today's Summary — today-only, no business-wide analytics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <StatCard
           title="Today's Sales"
-          value={formatNumber(todaySalesCount)}
-          subtitle="transactions"
+          value={formatETB(stats.todayRevenue)}
+          subtitle={`${formatNumber(stats.todaySalesCount)} transaction${stats.todaySalesCount !== 1 ? 's' : ''}`}
           icon={<ShoppingCart className="size-5" />}
           tone="brand"
         />
         <StatCard
-          title="Today's Revenue"
-          value={formatETB(todayRevenue)}
-          subtitle={`${recentSales.length} total recent`}
-          icon={<DollarSign className="size-5" />}
-          tone="success"
+          title="Transactions"
+          value={formatNumber(stats.todaySalesCount)}
+          subtitle="sales today"
+          icon={<Receipt className="size-5" />}
         />
         <StatCard
           title="Avg. Transaction"
-          value={formatETB(avgTransaction)}
+          value={formatETB(stats.todaySalesCount > 0 ? stats.todayRevenue / stats.todaySalesCount : 0)}
           subtitle="per sale today"
           icon={<BarChart3 className="size-5" />}
         />
@@ -1438,6 +1459,8 @@ function CashierDashboard({
 // WAREHOUSE DASHBOARD — Inventory-focused
 // ============================================
 
+// Warehouse staff manage stock — they see inventory data only, never
+// revenue or sales analytics.
 function WarehouseDashboard({
   dashboardData,
   inventoryData,
@@ -1493,7 +1516,7 @@ function WarehouseDashboard({
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Warehouse Dashboard" subtitle="Manage inventory and stock levels" isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
+      <DashboardHeader isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1701,18 +1724,20 @@ function WarehouseDashboard({
 
 function SalesDashboard({
   dashboardData,
+  revenueChartData,
   isRefreshing,
   onRefresh,
   isOfflineData,
 }: {
   dashboardData: EnhancedDashboardData
+  revenueChartData: Array<{ date: string; revenue: number }>
   isRefreshing: boolean
   onRefresh: () => void
   isOfflineData?: boolean
 }) {
   const { setPage } = useAppStore()
   const { currentOrg, currentShop } = useAuthStore()
-  const { stats, recentSales } = dashboardData
+  const { stats, recentSales, topProducts, comparison } = dashboardData
   const [recentCustomers, setRecentCustomers] = useState<Customer[]>([])
   const [outstandingDebts, setOutstandingDebts] = useState<Debt[]>([])
 
@@ -1744,13 +1769,9 @@ function SalesDashboard({
     })
   }, [currentOrg, currentShop])
 
-  // Today's sales (use server-provided stats for accuracy)
-  const todaySalesCount = stats.todaySalesCount
-  const todayRevenue = stats.todayRevenue
-
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Sales Dashboard" subtitle="Track sales and manage customer relationships" isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
+      <DashboardHeader isRefreshing={isRefreshing} onRefresh={onRefresh} isOfflineData={isOfflineData} />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1774,35 +1795,17 @@ function SalesDashboard({
         />
       </div>
 
-      {/* Sales Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard
-          title="Today's Sales"
-          value={formatNumber(todaySalesCount)}
-          subtitle="transactions today"
-          icon={<ShoppingCart className="size-5" />}
-          tone="brand"
-        />
-        <StatCard
-          title="Today's Revenue"
-          value={formatETB(todayRevenue)}
-          subtitle="total today"
-          icon={<DollarSign className="size-5" />}
-          tone="success"
-        />
-        <StatCard
-          title="Month Revenue"
-          value={formatETB(stats.monthRevenue)}
-          subtitle="this month"
-          icon={<TrendingUp className="size-5" />}
-        />
-        <StatCard
-          title="Customer Debts"
-          value={formatETB(stats.totalCustomerDebt)}
-          subtitle="outstanding"
-          icon={<CreditCard className="size-5" />}
-          tone="danger"
-        />
+      {/* Revenue KPIs — Direction B */}
+      <RevenueKpiRow
+        stats={stats}
+        revenueChartData={revenueChartData}
+        comparisonBadge={comparison ? <ComparisonBadge value={comparison.revenueChange} /> : undefined}
+      />
+
+      {/* Revenue chart + Top Products — Direction B */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 min-w-0">
+        <RevenueTrendCard data={revenueChartData} className="lg:col-span-2" />
+        <TopProductsCard products={topProducts} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -1961,18 +1964,30 @@ export function DashboardPage() {
       const results = await Promise.allSettled([
         api.getDashboard(currentOrg.id, currentShop?.id, range.from, range.to),
         api.getInventory(currentOrg.id, currentShop?.id),
-        api.getReports(currentOrg.id, {
-          startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          endDate: new Date().toISOString().split('T')[0],
-          period: 'daily',
-          shopId: currentShop?.id,
-        }),
       ])
 
       // Process dashboard data (critical - if this fails, fall back to local DB)
       if (results[0].status === 'fulfilled') {
-        setDashboardData(results[0].value as EnhancedDashboardData)
+        const dash = results[0].value as EnhancedDashboardData
+        setDashboardData(dash)
         setIsOfflineData(false)
+
+        // Build the 30-day chart from the dashboard's own salesTrend — it is
+        // role-redacted server-side, unlike /api/reports which is
+        // owner/manager only
+        const salesMap = new Map(
+          (dash.salesTrend || []).map((s) => [String(s.date).split('T')[0], s.revenue])
+        )
+        const chartData: Array<{ date: string; revenue: number }> = []
+        for (let i = 29; i >= 0; i--) {
+          const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
+          const dateKey = d.toISOString().split('T')[0]
+          chartData.push({
+            date: formatDateShort(dateKey),
+            revenue: salesMap.get(dateKey) || 0,
+          })
+        }
+        setRevenueChartData(chartData)
       } else {
         // API call failed — try computing dashboard data from local IndexedDB
         try {
@@ -2167,25 +2182,6 @@ export function DashboardPage() {
       } else {
         setInventoryData(null)
       }
-
-      // Process reports data (non-critical - show empty chart)
-      if (results[2].status === 'fulfilled') {
-        const reports = results[2].value
-        const salesByDate = (reports as { salesByPeriod?: Array<{ period: string; revenue: number }> }).salesByPeriod || []
-        const salesMap = new Map(salesByDate.map((s) => [s.period, s.revenue]))
-        const chartData: Array<{ date: string; revenue: number }> = []
-        for (let i = 29; i >= 0; i--) {
-          const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
-          const dateKey = d.toISOString().split('T')[0]
-          chartData.push({
-            date: formatDateShort(dateKey),
-            revenue: salesMap.get(dateKey) || 0,
-          })
-        }
-        setRevenueChartData(chartData)
-      } else {
-        setRevenueChartData([])
-      }
     } catch (err) {
       setError(getNetworkErrorMessage(err))
     } finally {
@@ -2301,6 +2297,7 @@ export function DashboardPage() {
         <>
           <SalesDashboard
             dashboardData={dashboardData}
+            revenueChartData={revenueChartData}
             isRefreshing={isRefreshing}
             onRefresh={fetchDashboardData}
             isOfflineData={isOfflineData}

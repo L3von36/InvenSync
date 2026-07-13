@@ -16,6 +16,8 @@ import {
   type ConflictInfo,
   BASE_VALUES_KEY,
 } from '@/lib/sync/conflict'
+import { isEntityAllowedForRole } from '@/lib/sync/restricted-entities'
+import { useAuthStore } from '@/lib/stores/auth-store'
 
 // ============================================
 // Types
@@ -821,6 +823,21 @@ class SyncEngine {
     // saleItems have no standalone endpoint — they're synced from the
     // embedded items on each sale during the sales pull
     if (entity === 'saleItems') {
+      return { pulled: 0, deleted: 0 }
+    }
+
+    // Employees can't read financially restricted entities (expenses,
+    // suppliers, purchase orders) — the server would 403; skip silently.
+    // Also purge anything hydrated before the role gate existed (or after
+    // a role downgrade) so it doesn't linger in the device's IndexedDB.
+    const orgRole = useAuthStore.getState().currentOrgRole
+    if (!isEntityAllowedForRole(entity, orgRole)) {
+      try {
+        const restrictedTable = ENTITY_TABLES[entity]
+        if (restrictedTable) await dexieDb.table(restrictedTable).clear()
+      } catch {
+        // Table may not exist — nothing to purge
+      }
       return { pulled: 0, deleted: 0 }
     }
 

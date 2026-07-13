@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/prisma'
-import { getUserFromRequest, verifyOrgAccess } from '@/lib/auth'
+import { getUserFromRequest, verifyOrgAccess, canReadFinancials } from '@/lib/auth'
 import { requireModule } from '@/lib/module-guard'
 import { isDatabaseError } from '@/lib/api-error'
 import { cache, CacheNamespaces, CacheTTL } from '@/lib/cache'
@@ -32,6 +32,11 @@ export async function GET(request: Request) {
     const hasAccess = await verifyOrgAccess(user, orgId)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Reports contain full financials — org owners/managers only
+    if (!canReadFinancials(user, orgId)) {
+      return NextResponse.json({ error: 'Forbidden: reports are available to owners and managers only' }, { status: 403 })
     }
 
     // Module access check (admin bypasses)

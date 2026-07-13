@@ -257,6 +257,22 @@ export default function AppShell() {
     // Only run when user.role changes
   }, [user?.role, currentPage, setPage])
 
+  // Role guard: never render a page that belongs to another role. Protects
+  // against stale navigation state surviving an account switch (e.g. admin
+  // logs out, business user logs in and would briefly see the admin page).
+  useEffect(() => {
+    if (!user) return
+    const isAdminPage = currentPage.startsWith('admin-') || currentPage === 'audit-log' || currentPage === 'scheduled-reports'
+    const isSalesRepPage = currentPage === 'sales-rep-dashboard'
+    if (user.role === 'admin' && !isAdminPage) {
+      setPage('admin-dashboard')
+    } else if (user.role === 'sales_rep' && !isSalesRepPage) {
+      setPage('sales-rep-dashboard')
+    } else if (user.role !== 'admin' && user.role !== 'sales_rep' && (isAdminPage || isSalesRepPage)) {
+      setPage('dashboard')
+    }
+  }, [user, currentPage, setPage])
+
   // Bootstrap check: after user is authenticated, check if they need bootstrapping
   // Also start auto-sync if already bootstrapped
   useEffect(() => {

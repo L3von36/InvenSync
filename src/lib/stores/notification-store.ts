@@ -21,6 +21,9 @@ interface NotificationState {
   fetchNotifications: (orgId: string, shopId?: string) => Promise<void>
   markAsRead: (notificationId: string) => Promise<void>
   markAllAsRead: (orgId: string) => Promise<void>
+  /** Clear all notification state — called on logout so the next user
+   *  never sees the previous user's notifications. */
+  reset: () => void
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
@@ -69,5 +72,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     } catch {
       // Silently fail
     }
+  },
+
+  reset: () => {
+    set({ notifications: [], unreadCount: 0, isLoading: false })
   },
 }))

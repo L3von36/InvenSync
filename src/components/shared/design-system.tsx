@@ -113,6 +113,91 @@ export function PageHeader({ icon, title, subtitle, badges, actions, className }
 }
 
 // ============================================
+// GreetingHeader (Direction B)
+// ============================================
+
+interface GreetingHeaderProps {
+  /** User's display name — only the first name is shown */
+  name?: string | null
+  /** Context line, e.g. "Saturday, July 13 · Main Shop" */
+  subtitle?: React.ReactNode
+  badges?: React.ReactNode
+  actions?: React.ReactNode
+  className?: string
+}
+
+function timeOfDayGreeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
+/**
+ * Dashboard greeting header — flat, no icon tile: "Good afternoon, Wegene"
+ * with a muted date/shop context line. Non-dashboard pages keep PageHeader.
+ */
+export function GreetingHeader({ name, subtitle, badges, actions, className }: GreetingHeaderProps) {
+  const firstName = name?.trim().split(/\s+/)[0]
+  return (
+    <div className={cn('flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4', className)}>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+            {timeOfDayGreeting()}{firstName ? `, ${firstName}` : ''}
+          </h1>
+          {badges}
+        </div>
+        {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex items-center gap-2 flex-wrap shrink-0">{actions}</div>}
+    </div>
+  )
+}
+
+// ============================================
+// Sparkline
+// ============================================
+
+/**
+ * Tiny inline trend line for KPI cards (Direction B). Pure SVG — no chart
+ * library, no axes, no tooltip; it's a shape, not a chart. Decorative only
+ * (aria-hidden): the number and comparison badge carry the meaning.
+ */
+export function Sparkline({ data, className }: { data: number[]; className?: string }) {
+  if (data.length < 2) return null
+  const w = 64
+  const h = 20
+  const pad = 1.5
+  const max = Math.max(...data)
+  const min = Math.min(...data)
+  const range = max - min || 1
+  const points = data
+    .map((v, i) => {
+      const x = pad + (i / (data.length - 1)) * (w - pad * 2)
+      const y = pad + (1 - (v - min) / range) * (h - pad * 2)
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className={cn('h-5 w-16 shrink-0 text-primary/70', className)}
+      aria-hidden="true"
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+// ============================================
 // StatCard
 // ============================================
 
@@ -132,6 +217,8 @@ export interface StatCardProps {
   /** DEPRECATED — intentionally ignored, see iconBgClass. */
   iconTextClass?: string
   comparisonBadge?: React.ReactNode
+  /** Recent values for a small decorative trend line next to the value */
+  sparkline?: number[]
 }
 
 /**
@@ -147,6 +234,7 @@ export const StatCard = memo(function StatCard({
   icon,
   tone = 'neutral',
   comparisonBadge,
+  sparkline,
 }: StatCardProps) {
   const toneClasses = STAT_TONE_CLASSES[tone]
 
@@ -168,8 +256,11 @@ export const StatCard = memo(function StatCard({
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight leading-tight whitespace-nowrap">
-          {value}
+        <div className="flex items-end justify-between gap-2">
+          <div className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight leading-tight whitespace-nowrap">
+            {value}
+          </div>
+          {sparkline && <Sparkline data={sparkline} className="hidden sm:block mb-1" />}
         </div>
         {(subtitle || comparisonBadge) && (
           <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1">
