@@ -1,6 +1,6 @@
 'use client'
 
-import { PageHeader } from '@/components/shared/design-system'
+import { PageHeader, AvatarListRow } from '@/components/shared/design-system'
 
 import { useState, useEffect, useCallback } from 'react'
 import {
@@ -459,58 +459,37 @@ export function LoyaltyPage() {
             </Card>
           </div>
 
-          {/* Mobile Cards */}
-          <div className="md:hidden space-y-3">
+          {/* Mobile list — Direction B avatar rows; row opens detail,
+              add/deduct stay as compact icons */}
+          <div className="md:hidden divide-y">
             {accounts.map((account) => (
-              <Card key={account.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium truncate">{account.customer.name}</p>
-                        <TierBadge tier={account.tier} />
-                      </div>
-                      {account.customer.phone && (
-                        <p className="text-xs text-muted-foreground">{account.customer.phone}</p>
-                      )}
-                    </div>
-                    <p className="text-sm font-bold ml-2">{account.points.toLocaleString()}</p>
-                  </div>
-                  <div className="flex items-center gap-4 mt-3 text-xs">
-                    <span className="text-emerald-600">+{account.totalEarned.toLocaleString()} earned</span>
-                    <span className="text-red-600">-{account.totalRedeemed.toLocaleString()} redeemed</span>
-                  </div>
-                  <div className="flex items-center gap-1 mt-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs gap-1"
-                      onClick={() => openDetail(account)}
-                    >
-                      <Eye className="size-3.5" />
-                      View
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs gap-1 text-emerald-600"
+              <AvatarListRow
+                key={account.id}
+                name={account.customer.name}
+                caption={`${account.customer.phone ? `${account.customer.phone} · ` : ''}+${account.totalEarned.toLocaleString()} earned · -${account.totalRedeemed.toLocaleString()} redeemed`}
+                amount={`${account.points.toLocaleString()} pts`}
+                badge={
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <TierBadge tier={account.tier} />
+                    <button
                       onClick={() => openAdjust(account, 'add')}
+                      className="p-1 -m-1 text-emerald-600 hover:text-emerald-700"
+                      aria-label="Add points"
                     >
                       <Plus className="size-3.5" />
-                      Add
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs gap-1 text-red-600"
+                    </button>
+                    <button
                       onClick={() => openAdjust(account, 'deduct')}
+                      className="p-1 -m-1 text-red-600 hover:text-red-700"
+                      aria-label="Deduct points"
                     >
                       <Minus className="size-3.5" />
-                      Deduct
-                    </Button>
+                    </button>
                   </div>
-                </CardContent>
-              </Card>
+                }
+                onClick={() => openDetail(account)}
+                className="rounded-none px-0 mx-0"
+              />
             ))}
           </div>
 

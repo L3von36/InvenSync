@@ -1,6 +1,6 @@
 'use client'
 
-import { PageHeader } from '@/components/shared/design-system'
+import { PageHeader, AvatarListRow } from '@/components/shared/design-system'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
@@ -477,53 +477,27 @@ export function ExpensesPage() {
                 </Table>
               </div>
 
-              {/* Mobile Cards */}
-              <div className="md:hidden divide-y">
+              {/* Mobile list — Direction B avatar rows; tap opens edit,
+                  compact delete stays in the badge slot */}
+              <div className="md:hidden divide-y px-3">
                 {filteredExpenses.map((expense) => (
-                  <div key={expense.id} className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="secondary" className={CATEGORY_COLORS[expense.category] || ''}>
-                        {CATEGORY_LABELS[expense.category] || expense.category}
-                      </Badge>
-                      <span className="font-semibold">{formatETB(expense.amount)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>
-                        {new Date(expense.expenseDate).toLocaleDateString('en-US', {
-                          month: 'short', day: 'numeric',
-                        })}
-                      </span>
-                      {expense.isRecurring && (
-                        <Badge variant="outline" className="gap-1 text-xs">
-                          <Repeat className="size-3" />
-                          {expense.recurringPeriod || 'Recurring'}
-                        </Badge>
-                      )}
-                    </div>
-                    {expense.description && (
-                      <p className="text-xs text-muted-foreground">{expense.description}</p>
-                    )}
-                    <div className="flex gap-2 pt-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 gap-1"
-                        onClick={() => openEditDialog(expense)}
+                  <AvatarListRow
+                    key={expense.id}
+                    name={CATEGORY_LABELS[expense.category] || expense.category}
+                    caption={`${new Date(expense.expenseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${expense.isRecurring ? ` · ${expense.recurringPeriod || 'Recurring'}` : ''}${expense.description ? ` · ${expense.description}` : ''}`}
+                    amount={formatETB(expense.amount)}
+                    badge={
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(expense) }}
+                        className="p-1 -m-1 text-muted-foreground hover:text-destructive transition-colors"
+                        aria-label="Delete expense"
                       >
-                        <Pencil className="size-3" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 gap-1 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteTarget(expense)}
-                      >
-                        <Trash2 className="size-3" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    }
+                    onClick={() => openEditDialog(expense)}
+                    className="rounded-none px-0 mx-0"
+                  />
                 ))}
               </div>
             </>
