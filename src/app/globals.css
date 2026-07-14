@@ -140,6 +140,20 @@
   }
 
   /* ============================================
+     Fluid UI scale — tuned against 80% browser zoom
+     ============================================
+     Nearly all sizing (type, spacing, gaps, icons) is rem-based, so the
+     root font size scales the whole UI proportionally. The design was
+     judged at 80% Chrome zoom (16px -> 12.8px), so the root ramps
+     fluidly with the viewport instead of hardcoded breakpoint steps:
+     ~12.2px on a small phone up to 13px (~81%) from tablet width on.
+     Tailwind's media-query breakpoints resolve against the browser
+     default (16px), so layout switch points are unaffected. */
+  html {
+    font-size: clamp(12px, 11.5px + 0.2vw, 13px);
+  }
+
+  /* ============================================
      Accessibility: Focus-Visible Styles
      WCAG 2.4.7 — visible focus indicator for keyboard users
      ============================================ */
