@@ -79,7 +79,7 @@ export function ShopsMapComponent({ shops }: { shops: ShopData[] }) {
 
   return (
     <div>
-      <div ref={mapContainerRef} className="h-[300px] md:h-[450px] w-full rounded-lg border overflow-hidden z-0" />
+      <div ref={mapContainerRef} className="h-[23.077rem] md:h-[34.615rem] w-full rounded-lg border overflow-hidden z-0" />
       <div className="flex flex-wrap gap-3 mt-3">
         {[
           { type: 'retail', label: 'Retail', color: 'bg-brand-500' },

@@ -245,7 +245,7 @@ export function ProfitLossPage() {
           <>
             <CalendarDays className="size-4 text-muted-foreground" />
             <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[12.308rem]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -328,9 +328,9 @@ export function ProfitLossPage() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <Skeleton className="h-[350px] w-full" />
+                <Skeleton className="h-[26.923rem] w-full" />
               ) : (data?.monthlyBreakdown ?? []).length === 0 ? (
-                <div className="flex items-center justify-center h-[350px] text-muted-foreground text-sm">
+                <div className="flex items-center justify-center h-[26.923rem] text-muted-foreground text-sm">
                   No sales data available for this period
                 </div>
               ) : (
@@ -344,7 +344,7 @@ export function ProfitLossPage() {
                     <YAxis className="text-xs" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                     <Tooltip
                       formatter={(value: number) => formatETB(value)}
-                      contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+                      contentStyle={{ borderRadius: '8px', fontSize: '0.923rem' }}
                     />
                     <Legend />
                     <Bar dataKey="revenue" name="Revenue" fill="#ea580c" radius={[4, 4, 0, 0]} />
@@ -366,9 +366,9 @@ export function ProfitLossPage() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <Skeleton className="h-[350px] w-full" />
+                <Skeleton className="h-[26.923rem] w-full" />
               ) : (data?.expenseBreakdown ?? []).length === 0 ? (
-                <div className="flex items-center justify-center h-[350px] text-muted-foreground text-sm">
+                <div className="flex items-center justify-center h-[26.923rem] text-muted-foreground text-sm">
                   No expense data available for this period
                 </div>
               ) : (
@@ -429,9 +429,9 @@ export function ProfitLossPage() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <Skeleton className="h-[350px] w-full" />
+                <Skeleton className="h-[26.923rem] w-full" />
               ) : (data?.profitTrend ?? []).length === 0 ? (
-                <div className="flex items-center justify-center h-[350px] text-muted-foreground text-sm">
+                <div className="flex items-center justify-center h-[26.923rem] text-muted-foreground text-sm">
                   No profit data available for this period
                 </div>
               ) : (
@@ -445,7 +445,7 @@ export function ProfitLossPage() {
                     <YAxis className="text-xs" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                     <Tooltip
                       formatter={(value: number) => formatETB(value)}
-                      contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
+                      contentStyle={{ borderRadius: '8px', fontSize: '0.923rem' }}
                     />
                     <Legend />
                     <Line
@@ -529,11 +529,11 @@ export function ProfitLossPage() {
                 {(data?.topProducts ?? []).map((product, idx) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium text-muted-foreground">{idx + 1}</TableCell>
-                    <TableCell className="font-medium max-w-[160px] truncate">{product.name}</TableCell>
-                    <TableCell className="text-muted-foreground max-w-[100px] truncate">{product.sku || '—'}</TableCell>
-                    <TableCell className="text-right truncate max-w-[130px]">{formatETB(product.revenue)}</TableCell>
-                    <TableCell className="text-right truncate max-w-[130px]">{formatETB(product.cost)}</TableCell>
-                    <TableCell className="text-right font-semibold truncate max-w-[130px]">{formatETB(product.profit)}</TableCell>
+                    <TableCell className="font-medium max-w-[12.308rem] truncate">{product.name}</TableCell>
+                    <TableCell className="text-muted-foreground max-w-[7.692rem] truncate">{product.sku || '—'}</TableCell>
+                    <TableCell className="text-right truncate max-w-[10rem]">{formatETB(product.revenue)}</TableCell>
+                    <TableCell className="text-right truncate max-w-[10rem]">{formatETB(product.cost)}</TableCell>
+                    <TableCell className="text-right font-semibold truncate max-w-[10rem]">{formatETB(product.profit)}</TableCell>
                     <TableCell className="text-right">{product.quantity}</TableCell>
                     <TableCell className="text-right">
                       <Badge variant={product.margin > 30 ? 'default' : 'secondary'}>

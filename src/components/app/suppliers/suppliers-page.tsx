@@ -443,7 +443,7 @@ export function SuppliersPage() {
                       <TableCell className="hidden sm:table-cell text-muted-foreground">
                         {supplier.phone || '—'}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground max-w-[200px] truncate">
+                      <TableCell className="hidden lg:table-cell text-muted-foreground max-w-[15.385rem] truncate">
                         {supplier.address || '—'}
                       </TableCell>
                       <TableCell className="text-right">

@@ -195,7 +195,7 @@ function NotificationItem({
             {!notification.isRead && (
               <span className={cn('size-2 rounded-full', style.dotColor)} />
             )}
-            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+            <span className="text-[0.769rem] text-muted-foreground whitespace-nowrap">
               {timeAgo(notification.createdAt)}
             </span>
           </div>
@@ -327,7 +327,7 @@ export function NotificationBell() {
           <Bell className={cn('size-4 transition-transform', isOpen && 'scale-110')} aria-hidden="true" />
           {totalUnread > 0 && (
             <Badge
-              className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 flex items-center justify-center text-[10px] font-bold bg-red-500 text-white border-2 border-background hover:bg-red-500 animate-in fade-in zoom-in duration-200"
+              className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 flex items-center justify-center text-[0.769rem] font-bold bg-red-500 text-white border-2 border-background hover:bg-red-500 animate-in fade-in zoom-in duration-200"
               aria-hidden="true"
             >
               {totalUnread > 99 ? '99+' : totalUnread}
@@ -342,7 +342,7 @@ export function NotificationBell() {
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold">Notifications</h3>
             {totalUnread > 0 && (
-              <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-medium">
+              <Badge variant="secondary" className="h-5 px-1.5 text-[0.769rem] font-medium">
                 {totalUnread} new
               </Badge>
             )}
@@ -368,11 +368,11 @@ export function NotificationBell() {
                 <TabsTrigger
                   key={key}
                   value={key}
-                  className="h-7 text-[11px] px-2 gap-1 data-[state=active]:bg-background"
+                  className="h-7 text-[0.846rem] px-2 gap-1 data-[state=active]:bg-background"
                 >
                   {label}
                   {key !== 'all' && categoryCounts[key] > 0 && (
-                    <span className="size-3.5 rounded-full bg-primary text-primary-foreground text-[8px] flex items-center justify-center font-bold leading-none">
+                    <span className="size-3.5 rounded-full bg-primary text-primary-foreground text-[0.615rem] flex items-center justify-center font-bold leading-none">
                       {categoryCounts[key] > 9 ? '9' : categoryCounts[key]}
                     </span>
                   )}
@@ -399,7 +399,7 @@ export function NotificationBell() {
             </p>
           </div>
         ) : (
-          <ScrollArea className="max-h-[400px]">
+          <ScrollArea className="max-h-[30.769rem]">
             <div className="divide-y divide-border/50">
               {filteredNotifications.map((notification) => (
                 <NotificationItem
@@ -417,7 +417,7 @@ export function NotificationBell() {
           <>
             <Separator />
             <div className="px-4 py-2 text-center">
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-[0.769rem] text-muted-foreground">
                 Real-time updates via WebSocket • {notifications.length} total
               </p>
             </div>

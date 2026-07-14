@@ -434,7 +434,7 @@ export function PurchaseOrdersPage() {
             <Filter className="size-4 text-muted-foreground" />
             <Label className="text-sm font-medium whitespace-nowrap">Status:</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[13.846rem]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -662,7 +662,7 @@ export function PurchaseOrdersPage() {
         if (!open) resetForm()
         setShowCreateDialog(open)
       }}>
-        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[46.154rem] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Purchase Order</DialogTitle>
             <DialogDescription>
@@ -880,7 +880,7 @@ export function PurchaseOrdersPage() {
         }
         setShowDetailDialog(open)
       }}>
-        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[46.154rem] max-h-[85vh] overflow-y-auto">
           {selectedPO && (
             <>
               <DialogHeader>

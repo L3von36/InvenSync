@@ -310,7 +310,7 @@ function BookingDialog({
                       <Input type="time" value={field.value || ''} onChange={(e) => field.onChange(e.target.value)} />
                     </FormControl>
                     {selectedService && (
-                      <p className="text-[11px] text-muted-foreground">Auto-calculated from duration ({selectedService.duration} min)</p>
+                      <p className="text-[0.846rem] text-muted-foreground">Auto-calculated from duration ({selectedService.duration} min)</p>
                     )}
                     <FormMessage />
                   </FormItem>

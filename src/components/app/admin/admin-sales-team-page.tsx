@@ -293,15 +293,15 @@ function SalesRepsTab() {
                   {/* Stats */}
                   <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm sm:text-right flex-wrap">
                     <div className="flex flex-col items-center sm:items-end">
-                      <span className="text-[10px] sm:text-xs text-muted-foreground">Commission/Reg</span>
+                      <span className="text-[0.769rem] sm:text-xs text-muted-foreground">Commission/Reg</span>
                       <span className="font-semibold text-orange-600 dark:text-orange-400">{formatETB(rep.commissionPerReg)}</span>
                     </div>
                     <div className="flex flex-col items-center sm:items-end">
-                      <span className="text-[10px] sm:text-xs text-muted-foreground">Registrations</span>
+                      <span className="text-[0.769rem] sm:text-xs text-muted-foreground">Registrations</span>
                       <span className="font-semibold">{rep.totalRegistrations}</span>
                     </div>
                     <div className="flex flex-col items-center sm:items-end">
-                      <span className="text-[10px] sm:text-xs text-muted-foreground">Pending</span>
+                      <span className="text-[0.769rem] sm:text-xs text-muted-foreground">Pending</span>
                       <span className="font-semibold text-amber-600 dark:text-amber-400">{formatETB(rep.commissions.pending)}</span>
                     </div>
                   </div>
@@ -1089,7 +1089,7 @@ function OverviewLeaderboardTab() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-bold text-sm">{rep.currentMonthRegistrations}</p>
-                      <p className="text-[10px] text-muted-foreground">this month</p>
+                      <p className="text-[0.769rem] text-muted-foreground">this month</p>
                     </div>
                   </div>
                 ))}
@@ -1112,11 +1112,11 @@ function OverviewLeaderboardTab() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: '0.923rem' }} />
+                    <YAxis tick={{ fontSize: '0.923rem' }} allowDecimals={false} />
                     <Tooltip
                       formatter={(value: number) => [value, 'Registrations']}
-                      contentStyle={{ borderRadius: '8px', fontSize: '13px' }}
+                      contentStyle={{ borderRadius: '8px', fontSize: '1rem' }}
                     />
                     <Bar dataKey="registrations" fill="#ea580c" radius={[4, 4, 0, 0]} />
                   </BarChart>

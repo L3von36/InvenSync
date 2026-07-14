@@ -387,7 +387,7 @@ export function AppSidebar() {
                       <item.icon className="size-4" aria-hidden="true" />
                       <span>{item.title}</span>
                       {item.moduleKey && activeModules.length > 0 && !activeModules.includes(item.moduleKey) && (
-                        <Badge variant="outline" className="ml-auto text-[11px] px-1.5 py-0 text-amber-600 border-amber-300">Trial</Badge>
+                        <Badge variant="outline" className="ml-auto text-[0.846rem] px-1.5 py-0 text-amber-600 border-amber-300">Trial</Badge>
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -436,7 +436,7 @@ export function AppSidebar() {
                     <Puzzle className="size-4" />
                     <span>My Modules</span>
                     {activeModules.length > 0 && (
-                      <Badge variant="secondary" className="ml-auto text-[11px] px-1.5 py-0">
+                      <Badge variant="secondary" className="ml-auto text-[0.846rem] px-1.5 py-0">
                         {activeModules.length}
                       </Badge>
                     )}

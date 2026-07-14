@@ -526,7 +526,7 @@ function renderEntityDetails(entityType: string, item: SearchResult) {
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{p.name}</span>
             {p.lowStock && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+              <Badge variant="destructive" className="text-[0.769rem] px-1.5 py-0">
                 Low Stock
               </Badge>
             )}
@@ -538,7 +538,7 @@ function renderEntityDetails(entityType: string, item: SearchResult) {
             <span className="text-xs text-muted-foreground">Qty: {p.quantity}</span>
             <span className="text-xs font-medium">{formatETB(p.sellingPrice)}</span>
             {p.productType && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              <Badge variant="secondary" className="text-[0.769rem] px-1.5 py-0">
                 {p.productType}
               </Badge>
             )}
@@ -556,7 +556,7 @@ function renderEntityDetails(entityType: string, item: SearchResult) {
               {s.saleNumber || `Sale #${s.id.slice(-6)}`}
             </span>
             <Badge
-              className={`text-[10px] px-1.5 py-0 ${
+              className={`text-[0.769rem] px-1.5 py-0 ${
                 s.status === 'completed'
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
                   : s.status === 'pending'
@@ -591,7 +591,7 @@ function renderEntityDetails(entityType: string, item: SearchResult) {
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{c.name}</span>
             {c.hasDebt && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+              <Badge variant="destructive" className="text-[0.769rem] px-1.5 py-0">
                 Has Debt
               </Badge>
             )}
@@ -635,7 +635,7 @@ function renderEntityDetails(entityType: string, item: SearchResult) {
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{s.name}</span>
             <Badge
-              className={`text-[10px] px-1.5 py-0 ${
+              className={`text-[0.769rem] px-1.5 py-0 ${
                 s.isActive
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
                   : 'bg-gray-100 text-gray-800 dark:bg-gray-800/40 dark:text-gray-300'

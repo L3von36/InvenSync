@@ -680,7 +680,7 @@ function SessionsSection() {
                       {session.browser || 'Unknown browser'} on {session.os || 'Unknown OS'}
                     </p>
                     {session.isCurrent && (
-                      <Badge variant="default" className="text-[10px] px-1.5 py-0">Current</Badge>
+                      <Badge variant="default" className="text-[0.769rem] px-1.5 py-0">Current</Badge>
                     )}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">

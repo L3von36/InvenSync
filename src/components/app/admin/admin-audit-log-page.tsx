@@ -230,7 +230,7 @@ export function AuditLogPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
-        <Skeleton className="h-[400px]" />
+        <Skeleton className="h-[30.769rem]" />
       </div>
     )
   }
@@ -554,7 +554,7 @@ function AuditLogRow({
             {entityIcon(log.entity)} {log.entity}
           </span>
         </TableCell>
-        <TableCell className="text-xs font-mono text-muted-foreground max-w-[120px] truncate">
+        <TableCell className="text-xs font-mono text-muted-foreground max-w-[9.231rem] truncate">
           {log.entityId || '—'}
         </TableCell>
         <TableCell className="text-xs text-muted-foreground font-mono">

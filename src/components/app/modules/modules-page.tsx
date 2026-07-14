@@ -229,7 +229,7 @@ function ModuleCard({
               <Hourglass className="size-4 text-violet-600 shrink-0" />
               <div>
                 <p className="text-xs font-medium text-violet-800 dark:text-violet-300">Request Pending</p>
-                <p className="text-[11px] text-violet-700 dark:text-violet-400">Our team is reviewing your request. You&apos;ll be notified once approved.</p>
+                <p className="text-[0.846rem] text-violet-700 dark:text-violet-400">Our team is reviewing your request. You&apos;ll be notified once approved.</p>
               </div>
             </div>
           </>
@@ -275,14 +275,14 @@ function ModuleCard({
                   }`}
                 />
                 {mod.orgStatus?.expiresAt && (
-                  <p className={`text-[11px] ${
+                  <p className={`text-[0.846rem] ${
                     isCritical ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'
                   }`}>
                     Expires {new Date(mod.orgStatus.expiresAt).toLocaleDateString()}
                   </p>
                 )}
                 {(isCritical || isWarning) && (
-                  <p className={`text-[11px] font-medium ${
+                  <p className={`text-[0.846rem] font-medium ${
                     isCritical ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'
                   }`}>
                     {isCritical
@@ -296,7 +296,7 @@ function ModuleCard({
                 <AlertTriangle className="size-4 text-red-600 shrink-0" />
                 <div>
                   <p className="text-xs font-medium text-red-800 dark:text-red-300">Trial Expired</p>
-                  <p className="text-[11px] text-red-700 dark:text-red-400">Contact support to renew your subscription</p>
+                  <p className="text-[0.846rem] text-red-700 dark:text-red-400">Contact support to renew your subscription</p>
                 </div>
               </div>
             )}
@@ -328,7 +328,7 @@ function ModuleCard({
               <XCircle className="size-4 text-red-600 shrink-0" />
               <div>
                 <p className="text-xs font-medium text-red-800 dark:text-red-300">Module Expired</p>
-                <p className="text-[11px] text-red-700 dark:text-red-400">Contact support@invensync.com to renew</p>
+                <p className="text-[0.846rem] text-red-700 dark:text-red-400">Contact support@invensync.com to renew</p>
               </div>
             </div>
             <Button
@@ -463,7 +463,7 @@ function RequestDialog({
               <Info className="size-4 text-emerald-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">Free during Beta</p>
-                <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                <p className="text-[0.846rem] text-emerald-700 dark:text-emerald-400">
                   All modules are currently free while InvenSync is in beta. Request access and we&apos;ll activate it for you right away.
                 </p>
               </div>

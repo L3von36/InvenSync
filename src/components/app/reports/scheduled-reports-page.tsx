@@ -453,7 +453,7 @@ export function ScheduledReportsPage() {
 
       {/* Create Report Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-[36.923rem]">
           <DialogHeader>
             <DialogTitle>Create Scheduled Report</DialogTitle>
             <DialogDescription>

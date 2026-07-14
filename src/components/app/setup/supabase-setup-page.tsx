@@ -182,7 +182,7 @@ function StepCard({ stepNumber, title, description, icon, isCompleted, isActive,
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-muted-foreground">Step {stepNumber}</span>
             {isCompleted && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700">
+              <Badge variant="outline" className="text-[0.769rem] px-1.5 py-0 bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700">
                 Done
               </Badge>
             )}

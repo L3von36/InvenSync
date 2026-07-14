@@ -189,7 +189,7 @@ export function LocationPicker({ latitude, longitude, onChange }: LocationPicker
     return (
       <div className="space-y-3">
         <Skeleton className="h-9 w-48 rounded-md" />
-        <Skeleton className="h-[200px] md:h-[300px] w-full rounded-lg" />
+        <Skeleton className="h-[15.385rem] md:h-[23.077rem] w-full rounded-lg" />
         <Skeleton className="h-4 w-48 rounded" />
       </div>
     )
@@ -217,7 +217,7 @@ export function LocationPicker({ latitude, longitude, onChange }: LocationPicker
       {/* Map */}
       <div
         ref={mapRef}
-        className="h-[200px] md:h-[300px] w-full rounded-lg border overflow-hidden z-0"
+        className="h-[15.385rem] md:h-[23.077rem] w-full rounded-lg border overflow-hidden z-0"
       />
 
       {/* Location Info */}

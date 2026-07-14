@@ -451,13 +451,13 @@ export function ReportsPage() {
                           <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                           <XAxis
                             dataKey="date"
-                            tick={{ fontSize: 11 }}
+                            tick={{ fontSize: '0.846rem' }}
                             tickFormatter={(val: string) => {
                               const d = new Date(val)
                               return `${d.getMonth() + 1}/${d.getDate()}`
                             }}
                           />
-                          <YAxis tick={{ fontSize: 11 }} tickFormatter={(val: number) => formatShortETB(val)} />
+                          <YAxis tick={{ fontSize: '0.846rem' }} tickFormatter={(val: number) => formatShortETB(val)} />
                           <Tooltip
                             formatter={(value: number) => formatETB(value)}
                             labelFormatter={(label: string) => {
@@ -676,13 +676,13 @@ export function ReportsPage() {
                         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                         <XAxis
                           dataKey="date"
-                          tick={{ fontSize: 11 }}
+                          tick={{ fontSize: '0.846rem' }}
                           tickFormatter={(val: string) => {
                             const d = new Date(val)
                             return `${d.getMonth() + 1}/${d.getDate()}`
                           }}
                         />
-                        <YAxis tick={{ fontSize: 11 }} tickFormatter={(val: number) => formatShortETB(val)} />
+                        <YAxis tick={{ fontSize: '0.846rem' }} tickFormatter={(val: number) => formatShortETB(val)} />
                         <Tooltip
                           formatter={(value: number) => formatETB(value)}
                           labelFormatter={(label: string) => {
@@ -853,11 +853,11 @@ export function ReportsPage() {
                     <ResponsiveContainer width="100%" height={350}>
                       <BarChart data={bestSelling.slice(0, 10)} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                        <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(val: number) => formatShortETB(val)} />
+                        <XAxis type="number" tick={{ fontSize: '0.846rem' }} tickFormatter={(val: number) => formatShortETB(val)} />
                         <YAxis
                           type="category"
                           dataKey="name"
-                          tick={{ fontSize: 11 }}
+                          tick={{ fontSize: '0.846rem' }}
                           width={isMobile ? 70 : 120}
                         />
                         <Tooltip formatter={(value: number) => formatETB(value)} />
@@ -883,8 +883,8 @@ export function ReportsPage() {
                         layout="vertical"
                       >
                         <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                        <XAxis type="number" tick={{ fontSize: 11 }} />
-                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={isMobile ? 70 : 120} />
+                        <XAxis type="number" tick={{ fontSize: '0.846rem' }} />
+                        <YAxis type="category" dataKey="name" tick={{ fontSize: '0.846rem' }} width={isMobile ? 70 : 120} />
                         <Tooltip />
                         <Bar dataKey="totalQuantity" name="Quantity" fill="oklch(0.6 0.118 184.704)" radius={[0, 4, 4, 0]} />
                       </BarChart>

@@ -308,12 +308,12 @@ export function SalesForecastPage() {
                   <div className="size-7 rounded-full bg-primary/10 flex items-center justify-center">
                     <BarChart3 className="size-3.5 text-primary" />
                   </div>
-                  <span className="text-[10px] text-muted-foreground">Predicted Revenue</span>
+                  <span className="text-[0.769rem] text-muted-foreground">Predicted Revenue</span>
                 </div>
                 <p className="text-xl font-bold">
                   {formatETB(result.predictedTotalRevenue, { decimals: 0 })}
                 </p>
-                <p className="text-[10px] text-muted-foreground">{currency}</p>
+                <p className="text-[0.769rem] text-muted-foreground">{currency}</p>
               </CardContent>
             </Card>
 
@@ -327,10 +327,10 @@ export function SalesForecastPage() {
                   }`}>
                     <TrendIcon trend={result.trend} className="size-3.5" />
                   </div>
-                  <span className="text-[10px] text-muted-foreground">Trend Direction</span>
+                  <span className="text-[0.769rem] text-muted-foreground">Trend Direction</span>
                 </div>
                 <p className="text-xl font-bold capitalize">{result.trend}</p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[0.769rem] text-muted-foreground">
                   {result.trend === 'up' ? 'Revenue trending up' :
                    result.trend === 'down' ? 'Revenue trending down' :
                    'Revenue is stable'}
@@ -348,14 +348,14 @@ export function SalesForecastPage() {
                       <ArrowDownRight className="size-3.5 text-red-600 dark:text-red-400" />
                     )}
                   </div>
-                  <span className="text-[10px] text-muted-foreground">Growth Rate</span>
+                  <span className="text-[0.769rem] text-muted-foreground">Growth Rate</span>
                 </div>
                 <p className={`text-xl font-bold ${
                   result.growthRate >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                 }`}>
                   {result.growthRate >= 0 ? '+' : ''}{result.growthRate}%
                 </p>
-                <p className="text-[10px] text-muted-foreground">vs current period</p>
+                <p className="text-[0.769rem] text-muted-foreground">vs current period</p>
               </CardContent>
             </Card>
 
@@ -367,12 +367,12 @@ export function SalesForecastPage() {
                   }`}>
                     <Target className={`size-3.5 ${confidenceConfig[result.confidenceLevel].color}`} />
                   </div>
-                  <span className="text-[10px] text-muted-foreground">Confidence</span>
+                  <span className="text-[0.769rem] text-muted-foreground">Confidence</span>
                 </div>
                 <p className={`text-xl font-bold ${confidenceConfig[result.confidenceLevel].color}`}>
                   {confidenceConfig[result.confidenceLevel].label}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[0.769rem] text-muted-foreground">
                   {result.source === 'ai' ? '✨ AI-Powered' : '📊 Rule-Based'}
                 </p>
               </CardContent>
@@ -400,7 +400,7 @@ export function SalesForecastPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 10 }}
+                      tick={{ fontSize: '0.769rem' }}
                       tickFormatter={(val: string) => {
                         try {
                           return new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -411,12 +411,12 @@ export function SalesForecastPage() {
                       interval={Math.max(0, Math.floor(chartData.length / 7) - 1)}
                     />
                     <YAxis
-                      tick={{ fontSize: 10 }}
+                      tick={{ fontSize: '0.769rem' }}
                       tickFormatter={(val: number) => `${(val / 1000).toFixed(0)}k`}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend
-                      wrapperStyle={{ fontSize: 10 }}
+                      wrapperStyle={{ fontSize: '0.769rem' }}
                       formatter={(value: string) => {
                         if (value === 'predictedRevenue') return 'Predicted Revenue'
                         if (value === 'upperBound') return 'Upper Bound'
@@ -510,7 +510,7 @@ export function SalesForecastPage() {
                         className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
                       >
                         <div className="size-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                          <span className="text-[10px] font-bold text-primary">{i + 1}</span>
+                          <span className="text-[0.769rem] font-bold text-primary">{i + 1}</span>
                         </div>
                         <p className="text-sm">{factor}</p>
                       </motion.div>

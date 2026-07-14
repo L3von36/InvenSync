@@ -1006,7 +1006,7 @@ function ShopsTab({ orgId }: { orgId: string }) {
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <Select value={member.role} onValueChange={(role) => handleUpdateMemberRole(shop.id, member.id, role)}>
-                                <SelectTrigger className="h-7 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="h-7 w-[8.462rem] text-xs"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="manager">Manager</SelectItem>
                                   <SelectItem value="cashier">Cashier</SelectItem>
@@ -1343,7 +1343,7 @@ function ModulesTab({ orgId }: { orgId: string }) {
                     <div className="flex items-center gap-2">
                       <h4 className="font-semibold text-sm">{mod.name}</h4>
                       {mod.priceETB === 0 && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Included</Badge>
+                        <Badge variant="secondary" className="text-[0.769rem] px-1.5 py-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">Included</Badge>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{mod.description}</p>
@@ -1354,7 +1354,7 @@ function ModulesTab({ orgId }: { orgId: string }) {
                       </div>
                     )}
                     {mod.priceETB > 0 && !mod.isActive && (
-                      <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                      <p className="text-[0.846rem] text-muted-foreground mt-1 flex items-center gap-1">
                         <Sparkles className="size-3" />Upgrade to activate
                       </p>
                     )}

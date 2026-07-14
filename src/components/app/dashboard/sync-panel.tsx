@@ -121,7 +121,7 @@ export function SyncStatusChip() {
         <Cloud className={`size-3.5 ${chipColor}`} aria-hidden="true" />
       )}
       {pendingCount > 0 && (
-        <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-semibold">
+        <Badge variant="secondary" className="h-5 px-1.5 text-[0.769rem] font-semibold">
           {pendingCount}
         </Badge>
       )}
@@ -178,10 +178,10 @@ function OutboxItemRow({ item, onRetry, onCancel }: {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="font-medium capitalize">{item.entity}</span>
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
+          <Badge variant="outline" className="text-[0.769rem] px-1.5 py-0 capitalize">
             {item.operation}
           </Badge>
-          <Badge className={`text-[10px] px-1.5 py-0 ${statusColor}`}>
+          <Badge className={`text-[0.769rem] px-1.5 py-0 ${statusColor}`}>
             {item.status}
           </Badge>
         </div>
@@ -536,7 +536,7 @@ export function SyncPanel({ defaultOpen = false, fullPage = false }: SyncPanelPr
                         {event.entity && <span className="text-muted-foreground"> — {event.entity}</span>}
                       </p>
                     </div>
-                    <span className="text-[10px] text-muted-foreground shrink-0">
+                    <span className="text-[0.769rem] text-muted-foreground shrink-0">
                       {formatTimeAgo(event.timestamp)}
                     </span>
                   </div>
@@ -591,12 +591,12 @@ export function SyncPanel({ defaultOpen = false, fullPage = false }: SyncPanelPr
               {(pendingCount > 0 || failedCount > 0 || conflictCount > 0) && (
                 <div className="flex gap-1">
                   {pendingCount > 0 && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5">
+                    <Badge variant="secondary" className="text-[0.769rem] px-1.5">
                       {pendingCount} pending
                     </Badge>
                   )}
                   {failedCount > 0 && (
-                    <Badge variant="destructive" className="text-[10px] px-1.5">
+                    <Badge variant="destructive" className="text-[0.769rem] px-1.5">
                       {failedCount} failed
                     </Badge>
                   )}
@@ -659,7 +659,7 @@ export function SyncPanel({ defaultOpen = false, fullPage = false }: SyncPanelPr
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 text-[10px] gap-1"
+                      className="h-6 text-[0.769rem] gap-1"
                       onClick={handleClearSynced}
                     >
                       <Trash2 className="size-3" />
@@ -700,7 +700,7 @@ export function SyncPanel({ defaultOpen = false, fullPage = false }: SyncPanelPr
                         {event.details || event.type.replace(/_/g, ' ')}
                         {event.entity && <span className="text-muted-foreground"> — {event.entity}</span>}
                       </span>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
+                      <span className="text-[0.769rem] text-muted-foreground shrink-0">
                         {formatTimeAgo(event.timestamp)}
                       </span>
                     </div>

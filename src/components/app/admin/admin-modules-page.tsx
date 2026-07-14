@@ -405,7 +405,7 @@ function ModuleCatalogTab() {
                     <Badge className={categoryBadge(mod.category)} variant="outline">{mod.category}</Badge>
                     {mod.isFree && <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" variant="outline">Free</Badge>}
                     {!mod.isActive && <Badge className="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300" variant="outline">Inactive</Badge>}
-                    <Badge variant="outline" className="text-[10px]">{mod.billingCycle}</Badge>
+                    <Badge variant="outline" className="text-[0.769rem]">{mod.billingCycle}</Badge>
                   </div>
 
                   <Separator />
@@ -443,7 +443,7 @@ function ModuleCatalogTab() {
                           <Edit3 className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                         </button>
                       )}
-                      <span className="text-[10px] text-muted-foreground">/mo</span>
+                      <span className="text-[0.769rem] text-muted-foreground">/mo</span>
                     </div>
                     <span className="text-xs text-muted-foreground">{mod.orgCount} orgs</span>
                   </div>
@@ -464,7 +464,7 @@ function ModuleCatalogTab() {
                             className="w-16 h-6 text-xs"
                             autoFocus
                           />
-                          <span className="text-[10px]">days trial</span>
+                          <span className="text-[0.769rem]">days trial</span>
                           <Button variant="ghost" size="icon" className="size-7 md:size-5" aria-label="Save trial period" onClick={() => handleTrialSave(mod)}>
                             <CheckCircle2 className="size-3 text-emerald-600" />
                           </Button>
@@ -1165,8 +1165,8 @@ function RevenueSummaryTab() {
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={revenueByModule} layout="vertical" margin={{ left: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
+                  <XAxis type="number" tick={{ fontSize: '0.846rem' }} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: '0.846rem' }} width={100} />
                   <Tooltip formatter={(value: number) => formatETB(value)} />
                   <Bar dataKey="revenue" fill="#ea580c" radius={[0, 4, 4, 0]} name="Revenue (ETB)" />
                 </BarChart>
@@ -1222,8 +1222,8 @@ function RevenueSummaryTab() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={adoptionData}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={60} />
-                <YAxis tick={{ fontSize: 11 }} />
+                <XAxis dataKey="name" tick={{ fontSize: '0.769rem' }} angle={-20} textAnchor="end" height={60} />
+                <YAxis tick={{ fontSize: '0.846rem' }} />
                 <Tooltip />
                 <Bar dataKey="orgs" fill="#06b6d4" radius={[4, 4, 0, 0]} name="Organizations" />
               </BarChart>

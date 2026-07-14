@@ -261,7 +261,7 @@ export function StockTransfersPage() {
             <Filter className="size-4 text-muted-foreground" />
             <Label className="text-sm font-medium whitespace-nowrap">Status:</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[13.846rem]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -486,7 +486,7 @@ export function StockTransfersPage() {
         if (!open) resetForm()
         setShowCreateDialog(open)
       }}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[38.462rem]">
           <DialogHeader>
             <DialogTitle>Create Stock Transfer</DialogTitle>
             <DialogDescription>

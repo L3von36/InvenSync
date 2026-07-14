@@ -67,7 +67,7 @@ export default function Error({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center" role="alert">
+    <div className="flex flex-col items-center justify-center min-h-[30.769rem] p-8 text-center" role="alert">
       <div className="size-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
         <AlertTriangle className="size-8 text-destructive" aria-hidden="true" />
       </div>

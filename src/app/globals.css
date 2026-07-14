@@ -142,15 +142,19 @@
   /* ============================================
      Fluid UI scale — tuned against 80% browser zoom
      ============================================
-     Nearly all sizing (type, spacing, gaps, icons) is rem-based, so the
-     root font size scales the whole UI proportionally. The design was
-     judged at 80% Chrome zoom (16px -> 12.8px), so the root ramps
-     fluidly with the viewport instead of hardcoded breakpoint steps:
-     ~12.2px on a small phone up to 13px (~81%) from tablet width on.
+     Nearly all sizing (type, spacing, gaps, icons, card dimensions) is
+     rem-based, so the root font size scales the whole UI proportionally.
+     The design was judged at ~13px root (80% Chrome zoom), and the root
+     ramps fluidly with the viewport so no two screen widths render the
+     same physical sizes:
+       ~11.6px on a small phone (360px)
+       ~12.2px on a tablet (768px)
+       ~13.0px on a laptop (1366px) — matches the tuned design size
+       14px cap on large monitors (1920px+)
      Tailwind's media-query breakpoints resolve against the browser
      default (16px), so layout switch points are unaffected. */
   html {
-    font-size: clamp(12px, 11.5px + 0.2vw, 13px);
+    font-size: clamp(11.5px, 11px + 0.16vw, 14px);
   }
 
   /* ============================================

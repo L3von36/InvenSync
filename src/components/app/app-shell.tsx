@@ -223,7 +223,7 @@ function BootstrapOverlay({ progress }: { progress: import('@/lib/sync/bootstrap
               {progress.completedEntities.map((entity) => (
                 <span
                   key={entity}
-                  className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 text-[10px] font-medium text-emerald-800 dark:text-emerald-400"
+                  className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 text-[0.769rem] font-medium text-emerald-800 dark:text-emerald-400"
                 >
                   ✓ {entity}
                 </span>

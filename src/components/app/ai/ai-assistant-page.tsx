@@ -188,7 +188,7 @@ export function AIAssistantPage() {
         {/* Messages */}
         <ScrollArea ref={scrollRef} className="flex-1 p-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
+            <div className="flex flex-col items-center justify-center h-full min-h-[30.769rem] text-center">
               <div className="size-20 rounded-full bg-brand-50 dark:bg-brand-900/20 flex items-center justify-center mb-6">
                 <Sparkles className="size-10 text-primary" />
               </div>
@@ -265,12 +265,12 @@ export function AIAssistantPage() {
 
                       {/* Timestamp + retry */}
                       <div className={`flex items-center gap-2 mt-2 ${message.role === 'user' ? 'justify-end' : ''}`}>
-                        <span className={`text-[10px] ${message.role === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                        <span className={`text-[0.769rem] ${message.role === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                           {formatTime(message.timestamp)}
                         </span>
                         {message.error && (
                           <button
-                            className="flex items-center gap-1 text-[10px] text-red-600 dark:text-red-400 hover:underline"
+                            className="flex items-center gap-1 text-[0.769rem] text-red-600 dark:text-red-400 hover:underline"
                             onClick={() => handleRetry(index)}
                           >
                             <RotateCcw className="size-3" />
@@ -356,7 +356,7 @@ export function AIAssistantPage() {
                 disabled={isLoading}
                 className="pr-16"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.769rem] text-muted-foreground">
                 {inputValue.length}/{MAX_CHARS}
               </span>
             </div>
@@ -373,7 +373,7 @@ export function AIAssistantPage() {
               )}
             </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-2 text-center">
+          <p className="text-[0.769rem] text-muted-foreground mt-2 text-center">
             AI may produce inaccurate information. Verify important details with your actual data.
           </p>
         </div>

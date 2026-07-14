@@ -420,15 +420,15 @@ function SentHistoryTab() {
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{ann.message}</p>
                     <div className="flex items-center gap-3 sm:gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
-                      <span className="flex items-center gap-1 min-h-[28px]">
+                      <span className="flex items-center gap-1 min-h-[2.154rem]">
                         <Building2 className="size-3" />
                         {ann.targetOrgName || 'All Organizations'}
                       </span>
-                      <span className="flex items-center gap-1 min-h-[28px]">
+                      <span className="flex items-center gap-1 min-h-[2.154rem]">
                         <Users className="size-3" />
                         {ann.recipientCount} recipient{ann.recipientCount !== 1 ? 's' : ''}
                       </span>
-                      <span className="flex items-center gap-1 min-h-[28px]">
+                      <span className="flex items-center gap-1 min-h-[2.154rem]">
                         <Clock className="size-3" />
                         {formatDateWithTime(ann.createdAt)}
                       </span>

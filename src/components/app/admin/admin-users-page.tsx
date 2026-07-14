@@ -171,7 +171,7 @@ export function AdminUsersPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
-        <Skeleton className="h-[400px]" />
+        <Skeleton className="h-[30.769rem]" />
       </div>
     )
   }
@@ -286,7 +286,7 @@ export function AdminUsersPage() {
                         <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold text-primary">
                           {getInitials(u.name)}
                         </div>
-                        <span className="font-medium text-sm truncate max-w-[160px]">{u.name}</span>
+                        <span className="font-medium text-sm truncate max-w-[12.308rem]">{u.name}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
@@ -296,18 +296,18 @@ export function AdminUsersPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                      <div className="flex flex-wrap gap-1 max-w-[15.385rem]">
                         {u.organizations.length === 0 ? (
                           <span className="text-xs text-muted-foreground">None</span>
                         ) : (
                           u.organizations.slice(0, 2).map(org => (
-                            <Badge key={org.id} variant="outline" className="text-[10px] py-0 truncate max-w-[100px]">
+                            <Badge key={org.id} variant="outline" className="text-[0.769rem] py-0 truncate max-w-[7.692rem]">
                               {org.name}
                             </Badge>
                           ))
                         )}
                         {u.organizations.length > 2 && (
-                          <Badge variant="outline" className="text-[10px] py-0">
+                          <Badge variant="outline" className="text-[0.769rem] py-0">
                             +{u.organizations.length - 2}
                           </Badge>
                         )}
@@ -355,11 +355,11 @@ export function AdminUsersPage() {
                   <div className="flex items-center justify-between mt-2 pt-2 border-t">
                     <div className="flex items-center gap-1">
                       {u.organizations.slice(0, 1).map(org => (
-                        <Badge key={org.id} variant="outline" className="text-[10px] py-0">
+                        <Badge key={org.id} variant="outline" className="text-[0.769rem] py-0">
                           {org.name}
                         </Badge>
                       ))}
-                      <span className="text-[10px] text-muted-foreground">{formatDate(u.createdAt)}</span>
+                      <span className="text-[0.769rem] text-muted-foreground">{formatDate(u.createdAt)}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="icon" className="size-9 md:size-7 text-muted-foreground hover:text-primary" onClick={() => setSelectedUser(u)} aria-label="View details">
@@ -441,7 +441,7 @@ export function AdminUsersPage() {
                           <p className="text-sm font-medium truncate">{org.name}</p>
                           <p className="text-xs text-muted-foreground capitalize">{org.businessType} business</p>
                         </div>
-                        <Badge variant="outline" className="text-[10px] capitalize shrink-0 ml-2">
+                        <Badge variant="outline" className="text-[0.769rem] capitalize shrink-0 ml-2">
                           {org.role}
                         </Badge>
                       </div>
@@ -538,7 +538,7 @@ export function AdminUsersPage() {
                       <div key={org.id} className="flex items-center gap-2 text-xs">
                         <Store className="size-3 text-muted-foreground" />
                         <span className="truncate">{org.name}</span>
-                        <Badge variant="outline" className="text-[10px] py-0 capitalize ml-auto shrink-0">{org.role}</Badge>
+                        <Badge variant="outline" className="text-[0.769rem] py-0 capitalize ml-auto shrink-0">{org.role}</Badge>
                       </div>
                     ))}
                   </div>
