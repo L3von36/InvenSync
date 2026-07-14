@@ -140,6 +140,24 @@
   }
 
   /* ============================================
+     Mobile density: ~80% scale on phones
+     ============================================
+     Nearly all sizing (type, spacing, gaps, icons) is rem-based, so
+     shrinking the root font size scales the whole UI proportionally —
+     the same effect as the 80% browser zoom the design was tuned
+     against. Tablets get a middle step; desktop stays at 16px. */
+  @media (max-width: 639px) {
+    html {
+      font-size: 13px; /* ≈81% of 16px */
+    }
+  }
+  @media (min-width: 640px) and (max-width: 1023px) {
+    html {
+      font-size: 14px; /* 87.5% — tablets between phone and desktop */
+    }
+  }
+
+  /* ============================================
      Accessibility: Focus-Visible Styles
      WCAG 2.4.7 — visible focus indicator for keyboard users
      ============================================ */
