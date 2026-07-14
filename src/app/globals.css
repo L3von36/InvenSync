@@ -140,21 +140,17 @@
   }
 
   /* ============================================
-     Mobile density: ~80% scale on phones
+     Fluid UI scale — tuned against 80% browser zoom
      ============================================
-     Nearly all sizing (type, spacing, gaps, icons) is rem-based, so
-     shrinking the root font size scales the whole UI proportionally —
-     the same effect as the 80% browser zoom the design was tuned
-     against. Tablets get a middle step; desktop stays at 16px. */
-  @media (max-width: 639px) {
-    html {
-      font-size: 13px; /* ≈81% of 16px */
-    }
-  }
-  @media (min-width: 640px) and (max-width: 1023px) {
-    html {
-      font-size: 14px; /* 87.5% — tablets between phone and desktop */
-    }
+     Nearly all sizing (type, spacing, gaps, icons) is rem-based, so the
+     root font size scales the whole UI proportionally. The design was
+     judged at 80% Chrome zoom (16px -> 12.8px), so the root ramps
+     fluidly with the viewport instead of hardcoded breakpoint steps:
+     ~12.2px on a small phone up to 13px (~81%) from tablet width on.
+     Tailwind's media-query breakpoints resolve against the browser
+     default (16px), so layout switch points are unaffected. */
+  html {
+    font-size: clamp(12px, 11.5px + 0.2vw, 13px);
   }
 
   /* ============================================
