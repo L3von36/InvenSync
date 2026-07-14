@@ -44,7 +44,7 @@ import { api, type DashboardData, type InventoryStats, type Sale, type Product, 
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { db } from '@/lib/db'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
-import { GreetingHeader, StatCard, StatCardSkeleton, STAT_TONE_CLASSES, type StatTone } from '@/components/shared/design-system'
+import { GreetingHeader, StatCard, StatCardSkeleton, AvatarListRow, STAT_TONE_CLASSES, type StatTone } from '@/components/shared/design-system'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { useAppStore } from '@/lib/stores/app-store'
 import { SyncPanel } from '@/components/app/dashboard/sync-panel'
@@ -493,24 +493,17 @@ const RecentSalesList = memo(function RecentSalesList({ sales, onItemClick }: { 
   }
 
   return (
-    <div className="space-y-3">
+    <div className="divide-y">
       {sales.slice(0, 8).map((sale) => (
-        <div
+        <AvatarListRow
           key={sale.id}
-          className="flex items-center justify-between py-2 border-b last:border-0 cursor-pointer hover:bg-muted/30 transition-colors rounded px-2 -mx-2"
+          name={sale.customer?.name || 'Walk-in'}
+          caption={`${sale.invoiceNumber} · ${formatDate(sale.saleDate)}`}
+          amount={formatETB(sale.total)}
+          badge={<StatusBadge status={sale.status} />}
           onClick={() => handleClick(sale)}
-        >
-          <div>
-            <p className="text-sm font-medium">{sale.invoiceNumber}</p>
-            <p className="text-xs text-muted-foreground">
-              {sale.customer?.name || 'Walk-in'} · {formatDate(sale.saleDate)}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm font-semibold">{formatETB(sale.total)}</p>
-            <StatusBadge status={sale.status} />
-          </div>
-        </div>
+          className="rounded-none px-0 mx-0"
+        />
       ))}
     </div>
   )
@@ -1001,21 +994,17 @@ function OwnerDashboard({
                   </TableBody>
                 </Table>
               </div>
-              <div className="md:hidden space-y-3">
+              <div className="md:hidden divide-y">
                 {recentSales.map((sale) => (
-                  <Card key={sale.id} className="p-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setPage('sales', { saleId: sale.id })}>
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-semibold text-sm">{sale.invoiceNumber}</p>
-                        <p className="text-xs text-muted-foreground">{sale.customer?.name || 'Walk-in'} · {sale.items?.length || 0} item{(sale.items?.length || 0) !== 1 ? 's' : ''}</p>
-                      </div>
-                      <StatusBadge status={sale.status} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">{formatDate(sale.saleDate)}</span>
-                      <span className="font-bold text-sm">{formatETB(sale.total)}</span>
-                    </div>
-                  </Card>
+                  <AvatarListRow
+                    key={sale.id}
+                    name={sale.customer?.name || 'Walk-in'}
+                    caption={`${sale.invoiceNumber} · ${formatDate(sale.saleDate)}`}
+                    amount={formatETB(sale.total)}
+                    badge={<StatusBadge status={sale.status} />}
+                    onClick={() => setPage('sales', { saleId: sale.id })}
+                    className="rounded-none px-0 mx-0"
+                  />
                 ))}
               </div>
             </>
@@ -1214,21 +1203,17 @@ function ManagerDashboard({
                   </TableBody>
                 </Table>
               </div>
-              <div className="md:hidden space-y-3">
+              <div className="md:hidden divide-y">
                 {recentSales.map((sale) => (
-                  <Card key={sale.id} className="p-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setPage('sales', { saleId: sale.id })}>
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-semibold text-sm">{sale.invoiceNumber}</p>
-                        <p className="text-xs text-muted-foreground">{sale.customer?.name || 'Walk-in'} · {sale.items?.length || 0} item{(sale.items?.length || 0) !== 1 ? 's' : ''}</p>
-                      </div>
-                      <StatusBadge status={sale.status} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">{formatDate(sale.saleDate)}</span>
-                      <span className="font-bold text-sm">{formatETB(sale.total)}</span>
-                    </div>
-                  </Card>
+                  <AvatarListRow
+                    key={sale.id}
+                    name={sale.customer?.name || 'Walk-in'}
+                    caption={`${sale.invoiceNumber} · ${formatDate(sale.saleDate)}`}
+                    amount={formatETB(sale.total)}
+                    badge={<StatusBadge status={sale.status} />}
+                    onClick={() => setPage('sales', { saleId: sale.id })}
+                    className="rounded-none px-0 mx-0"
+                  />
                 ))}
               </div>
             </>
@@ -1870,29 +1855,20 @@ function SalesDashboard({
           </CardHeader>
           <CardContent>
             {recentCustomers.length > 0 ? (
-              <div className="space-y-3 max-h-72 overflow-y-auto custom-scrollbar">
+              <div className="divide-y max-h-72 overflow-y-auto custom-scrollbar">
                 {recentCustomers.map((customer) => (
-                  <div key={customer.id} className="flex items-center justify-between py-2 border-b last:border-0 cursor-pointer hover:bg-muted/30 transition-colors rounded px-2 -mx-2" onClick={() => setPage('customers')}>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center size-8 rounded-full bg-muted text-muted-foreground font-semibold text-sm">
-                        {customer.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{customer.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {customer.phone || customer.email || 'No contact info'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">
-                        {customer._count?.sales || 0} sale{(customer._count?.sales || 0) !== 1 ? 's' : ''}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {customer._count?.debts || 0} debt{(customer._count?.debts || 0) !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                  </div>
+                  <AvatarListRow
+                    key={customer.id}
+                    name={customer.name}
+                    caption={customer.phone || customer.email || 'No contact info'}
+                    amount={
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {customer._count?.sales || 0} sale{(customer._count?.sales || 0) !== 1 ? 's' : ''} · {customer._count?.debts || 0} debt{(customer._count?.debts || 0) !== 1 ? 's' : ''}
+                      </span>
+                    }
+                    onClick={() => setPage('customers')}
+                    className="rounded-none px-0 mx-0"
+                  />
                 ))}
               </div>
             ) : (
