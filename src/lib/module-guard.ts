@@ -24,6 +24,7 @@ export const ROUTE_MODULE_MAP: Record<string, string> = {
   'ai/inventory-assistant': 'ai-inventory-assistant',
   'ai/business-assistant': 'ai-business-assistant',
   'shops': 'multi-shop',
+  'tax': 'tax-assistant',
 }
 
 // Check if an org has access to a specific module

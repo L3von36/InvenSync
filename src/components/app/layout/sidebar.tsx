@@ -41,6 +41,7 @@ import {
   Award,
   Search,
   Plus,
+  Calculator,
   CalendarClock,
   FileDown,
   DollarSign,
@@ -99,6 +100,7 @@ const MODULE_KEY_MAP: Record<string, string> = {
   'credit-limits': 'debts',
   'smart-search': 'reports',
   'anomaly-detection': 'ai-inventory',
+  'tax': 'tax-assistant',
 }
 
 const retailBusinessTypes = [
@@ -154,6 +156,7 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
       { title: 'Debts & Credits', page: 'debts', icon: CreditCard, roles: ['owner', 'manager'], moduleKey: 'debts' },
       { title: 'Profit & Loss', page: 'profit-loss', icon: TrendingUp, roles: ['owner', 'manager'], moduleKey: 'reports' },
       { title: 'Expenses', page: 'expenses', icon: Receipt, roles: ['owner', 'manager'], moduleKey: 'expenses' },
+      { title: 'Tax Assistant', page: 'tax', icon: Calculator, roles: ['owner', 'manager'], moduleKey: 'tax-assistant' },
       { title: 'Reports', page: 'reports', icon: BarChart3, roles: ['owner', 'manager'], moduleKey: 'reports' },
     ],
   },

@@ -228,6 +228,68 @@ export interface DashboardData {
   }>
 }
 
+// Tax Assistant module (Ethiopian tax rules — see src/lib/tax/ethiopia.ts)
+export interface TaxSummary {
+  profile: {
+    legalForm: 'individual' | 'entity'
+    vatRegistered: boolean
+    isProfessional: boolean
+    keepsBooks: boolean
+    hasEmployees: boolean
+    tinNumber?: string
+  }
+  configured: boolean
+  category: 'A' | 'B'
+  fiscalYear: { start: string; end: string; label: string }
+  figures: {
+    ytdGrossSales: number
+    ytdSalesCount: number
+    ytdCogs: number
+    ytdExpenses: number
+    ytdTaxableIncome: number
+    projectedGrossSales: number
+    trailing12moTurnover: number
+  }
+  estimate:
+    | { regime: 'B'; ytd: { tax: number; rate: number }; projected: { tax: number; rate: number } }
+    | {
+        regime: 'A'
+        ytd: { regularTax: number; mat: number; payable: number; matApplies: boolean }
+        projected: { regularTax: number; mat: number; payable: number; matApplies: boolean }
+      }
+  threshold: {
+    trailing12moTurnover: number
+    thresholdETB: number
+    ratio: number
+    level: 'ok' | 'approaching' | 'warning' | 'critical' | 'exceeded'
+  }
+  deadlines: Array<{
+    id: string
+    title: string
+    due: string
+    description: string
+    appliesTo: 'all' | 'vat' | 'payroll'
+  }>
+  config: {
+    effectiveFrom: string
+    legalBasis: string[]
+    categoryThresholdETB: number
+    categoryBBands: Array<{ upTo: number | null; rate: number }>
+    individualBusinessBands: Array<{ upTo: number | null; rate: number }>
+    corporateRate: number
+    matRate: number
+    vat: { standardRate: number; registrationThresholdETB: number }
+    withholding: {
+      localRate: number
+      goodsThresholdETB: number
+      servicesThresholdETB: number
+      noTinRate: number
+    }
+    cashPaymentCapETB: number
+  }
+  disclaimer: string
+}
+
 export interface InventoryStats {
   overview: {
     totalProducts: number
@@ -1658,6 +1720,28 @@ class ApiClient {
     if (params?.limit) searchParams.set('limit', params.limit.toString())
     if (params?.shopId) searchParams.set('shopId', params.shopId)
     return this.request(`/api/expenses?${searchParams.toString()}`)
+  }
+
+  // ============================================
+  // Tax Assistant
+  // ============================================
+
+  async getTaxSummary(orgId: string): Promise<TaxSummary> {
+    return this.request(`/api/tax?orgId=${orgId}`)
+  }
+
+  async saveTaxProfile(orgId: string, profile: {
+    legalForm: 'individual' | 'entity'
+    vatRegistered: boolean
+    isProfessional: boolean
+    keepsBooks: boolean
+    hasEmployees: boolean
+    tinNumber?: string
+  }): Promise<{ success: boolean }> {
+    return this.request(`/api/tax?orgId=${orgId}`, {
+      method: 'PUT',
+      body: JSON.stringify(profile),
+    })
   }
 
   async createExpense(orgId: string, data: {

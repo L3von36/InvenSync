@@ -52,6 +52,7 @@ const PriceOptimizationPage = lazy(() => import('@/components/app/ai/price-optim
 const SalesForecastPage = lazy(() => import('@/components/app/ai/sales-forecast-page').then(m => ({ default: m.SalesForecastPage })))
 const AnomalyDetectionPage = lazy(() => import('@/components/app/ai/anomaly-detection-page').then(m => ({ default: m.AnomalyDetectionPage })))
 const SyncOfflinePage = lazy(() => import('@/components/app/dashboard/sync-panel').then(m => ({ default: m.SyncOfflinePage })))
+const TaxAssistantPage = lazy(() => import('@/components/app/tax/tax-assistant-page').then(m => ({ default: m.TaxAssistantPage })))
 
 // ============================================
 // Page Router
@@ -170,6 +171,8 @@ function PageRenderer({ page }: { page: Page }) {
       return <CreditLimitsPage />
     case 'scheduled-reports':
       return <ScheduledReportsPage />
+    case 'tax':
+      return <ModuleGuard moduleKey="tax-assistant" moduleName="Tax Assistant"><TaxAssistantPage /></ModuleGuard>
     case 'smart-search':
       return <SmartSearchPage />
     case 'price-optimization':

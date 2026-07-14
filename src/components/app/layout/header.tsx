@@ -84,6 +84,7 @@ const pageBreadcrumbs: Record<Page, string[]> = {
   'sales-forecast': ['Home', 'AI', 'Sales Forecast'],
   'anomaly-detection': ['Home', 'AI', 'Anomaly Detection'],
   'sync-offline': ['Home', 'Sync & Offline'],
+  'tax': ['Home', 'Finance', 'Tax Assistant'],
 }
 
 export function AppHeader() {
