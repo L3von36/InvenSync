@@ -136,7 +136,7 @@ function PriceSuggestionCard({
               {/* Product name and confidence */}
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <h4 className="font-semibold text-sm">{suggestion.productName}</h4>
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                <Badge variant="outline" className="text-[0.769rem] px-1.5 py-0">
                   {confConfig.label} confidence
                 </Badge>
               </div>
@@ -144,14 +144,14 @@ function PriceSuggestionCard({
               {/* Price comparison */}
               <div className="flex items-center gap-3 mb-2 flex-wrap">
                 <div>
-                  <span className="text-[10px] text-muted-foreground">Current</span>
+                  <span className="text-[0.769rem] text-muted-foreground">Current</span>
                   <p className="text-sm font-medium line-through text-muted-foreground">
                     {suggestion.currentPrice.toLocaleString()} {currency}
                   </p>
                 </div>
                 <div className="text-muted-foreground">→</div>
                 <div>
-                  <span className="text-[10px] text-muted-foreground">Suggested</span>
+                  <span className="text-[0.769rem] text-muted-foreground">Suggested</span>
                   <p className={`text-sm font-bold ${
                     isPriceUp ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'
                   }`}>
@@ -160,7 +160,7 @@ function PriceSuggestionCard({
                 </div>
                 <Badge
                   variant={isPriceUp ? 'default' : 'secondary'}
-                  className={`text-[10px] ${
+                  className={`text-[0.769rem] ${
                     isPriceUp
                       ? 'bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300'
                       : 'bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300'
@@ -173,21 +173,21 @@ function PriceSuggestionCard({
               {/* Margin & Stock info */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
                 <div>
-                  <span className="text-[10px] text-muted-foreground">Current Margin</span>
+                  <span className="text-[0.769rem] text-muted-foreground">Current Margin</span>
                   <p className="text-xs font-medium">{suggestion.currentMargin.toFixed(1)}%</p>
                 </div>
                 <div>
-                  <span className="text-[10px] text-muted-foreground">New Margin</span>
+                  <span className="text-[0.769rem] text-muted-foreground">New Margin</span>
                   <p className="text-xs font-medium text-green-600 dark:text-green-400">
                     {suggestion.suggestedMargin.toFixed(1)}%
                   </p>
                 </div>
                 <div>
-                  <span className="text-[10px] text-muted-foreground">Stock</span>
+                  <span className="text-[0.769rem] text-muted-foreground">Stock</span>
                   <p className="text-xs font-medium">{suggestion.currentStock} units</p>
                 </div>
                 <div>
-                  <span className="text-[10px] text-muted-foreground">Velocity</span>
+                  <span className="text-[0.769rem] text-muted-foreground">Velocity</span>
                   <p className="text-xs font-medium">{suggestion.salesVelocity.toFixed(1)}/day</p>
                 </div>
               </div>
@@ -388,7 +388,7 @@ export function PriceOptimizationPage() {
                 </div>
                 <div>
                   <p className="text-xl font-bold">{activeSuggestions.length}</p>
-                  <p className="text-[10px] text-muted-foreground">Suggestions</p>
+                  <p className="text-[0.769rem] text-muted-foreground">Suggestions</p>
                 </div>
               </div>
             </CardContent>
@@ -404,7 +404,7 @@ export function PriceOptimizationPage() {
                   <p className="text-xl font-bold">
                     {Math.abs(totalPotentialImpact).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[0.769rem] text-muted-foreground">
                     Est. Monthly Impact ({currency})
                   </p>
                 </div>
@@ -420,7 +420,7 @@ export function PriceOptimizationPage() {
                 </div>
                 <div>
                   <p className="text-xl font-bold">{acceptedCount}</p>
-                  <p className="text-[10px] text-muted-foreground">Accepted</p>
+                  <p className="text-[0.769rem] text-muted-foreground">Accepted</p>
                 </div>
               </div>
             </CardContent>
@@ -436,7 +436,7 @@ export function PriceOptimizationPage() {
                   <p className="text-xl font-bold">
                     {result.source === 'ai' ? 'AI' : 'Rule'}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Engine</p>
+                  <p className="text-[0.769rem] text-muted-foreground">Engine</p>
                 </div>
               </div>
             </CardContent>
@@ -507,7 +507,7 @@ export function PriceOptimizationPage() {
               <span className="text-sm text-muted-foreground">Filter by confidence:</span>
             </div>
             <Select value={confidenceFilter} onValueChange={setConfidenceFilter}>
-              <SelectTrigger className="w-[140px] h-8 text-xs">
+              <SelectTrigger className="w-[10.769rem] h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

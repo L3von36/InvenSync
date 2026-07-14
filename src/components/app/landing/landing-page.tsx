@@ -119,7 +119,7 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
   return (
     <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-20 px-5 bg-gradient-to-b from-muted/50 to-background overflow-hidden">
       {/* Background glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-primary/20 dark:bg-primary/10 rounded-full blur-[100px] -z-10 pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[61.538rem] h-[46.154rem] bg-primary/20 dark:bg-primary/10 rounded-full blur-[7.692rem] -z-10 pointer-events-none" />
 
       <div className="max-w-4xl mx-auto text-center flex flex-col items-center">
         <div className="inline-flex items-center gap-2 bg-card text-muted-foreground px-4 py-2 rounded-full text-sm mb-8 shadow-sm border border-border/50">
@@ -380,7 +380,7 @@ function TestimonialsSection() {
   return (
     <section className="py-16 md:py-20 bg-background relative">
       <div className="max-w-6xl mx-auto px-5">
-        <div className="flex flex-col items-center justify-center max-w-[540px] mx-auto mb-10">
+        <div className="flex flex-col items-center justify-center max-w-[41.538rem] mx-auto mb-10">
           <div className="inline-flex items-center gap-2 bg-card text-muted-foreground px-4 py-2 rounded-full text-sm mb-6 shadow-sm border border-border/50">
             <span className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
             <span className="opacity-90">Testimonials</span>
@@ -393,7 +393,7 @@ function TestimonialsSection() {
           </p>
         </div>
 
-        <div className="flex justify-center gap-6 [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)] max-h-[740px] overflow-hidden">
+        <div className="flex justify-center gap-6 [mask-image:linear-gradient(to_bottom,transparent,black_25%,black_75%,transparent)] max-h-[56.923rem] overflow-hidden">
           <TestimonialsColumn testimonials={firstColumn} duration={15} />
           <TestimonialsColumn testimonials={secondColumn} className="hidden md:block" duration={19} />
           <TestimonialsColumn testimonials={thirdColumn} className="hidden lg:block" duration={17} />

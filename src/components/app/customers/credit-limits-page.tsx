@@ -374,7 +374,7 @@ export function CreditLimitsPage() {
                           {formatETB(cl.availableCredit)}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2 min-w-[120px]">
+                          <div className="flex items-center gap-2 min-w-[9.231rem]">
                             <Progress
                               value={usagePct}
                               className={`h-2 flex-1 ${getUsageBarClass(usagePct)}`}

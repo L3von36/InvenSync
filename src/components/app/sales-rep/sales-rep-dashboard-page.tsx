@@ -230,7 +230,7 @@ function CircularProgress({
         <span className="text-base sm:text-lg font-semibold" style={{ color }}>
           {percentage}%
         </span>
-        <span className="text-[10px] text-muted-foreground">complete</span>
+        <span className="text-[0.769rem] text-muted-foreground">complete</span>
       </div>
     </div>
   )
@@ -264,7 +264,7 @@ function DashboardLoadingSkeleton() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row items-center gap-6">
-            <Skeleton className="size-[120px] rounded-full" />
+            <Skeleton className="size-[9.231rem] rounded-full" />
             <div className="flex-1 space-y-3 w-full">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
@@ -797,7 +797,7 @@ export function SalesRepDashboardPage() {
                             <div className="size-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
                               <Store className="size-4 text-muted-foreground" />
                             </div>
-                            <span className="text-sm font-medium truncate max-w-[200px]">{org.name}</span>
+                            <span className="text-sm font-medium truncate max-w-[15.385rem]">{org.name}</span>
                           </div>
                         </td>
                         <td className="py-3 pr-4">
@@ -849,16 +849,16 @@ export function SalesRepDashboardPage() {
                     caption={`${org.city || 'N/A'} · ${org.businessType} · ${getRelativeTime(org.createdAt)}`}
                     badge={
                       <div className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="text-[10px] capitalize py-0">
+                        <Badge variant="outline" className="text-[0.769rem] capitalize py-0">
                           {org.subscriptionPlan}
                         </Badge>
                         <Badge
                           className={
                             org.subscriptionStatus === 'active'
-                              ? 'bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] py-0 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
+                              ? 'bg-emerald-100 text-emerald-700 border-emerald-200 text-[0.769rem] py-0 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
                               : org.subscriptionStatus === 'trial'
-                                ? 'bg-sky-100 text-sky-700 border-sky-200 text-[10px] py-0 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800'
-                                : 'bg-amber-100 text-amber-700 border-amber-200 text-[10px] py-0 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+                                ? 'bg-sky-100 text-sky-700 border-sky-200 text-[0.769rem] py-0 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800'
+                                : 'bg-amber-100 text-amber-700 border-amber-200 text-[0.769rem] py-0 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
                           }
                         >
                           {org.subscriptionStatus}

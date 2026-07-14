@@ -513,8 +513,8 @@ export function AdminRegionsPage() {
                   <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={orgChartData}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <XAxis dataKey="name" tick={{ fontSize: '0.846rem' }} />
+                      <YAxis tick={{ fontSize: '0.846rem' }} />
                       <Tooltip />
                       <Bar dataKey="orgs" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -533,8 +533,8 @@ export function AdminRegionsPage() {
                   <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={revenueChartData}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <XAxis dataKey="name" tick={{ fontSize: '0.846rem' }} />
+                      <YAxis tick={{ fontSize: '0.846rem' }} />
                       <Tooltip formatter={(value: number) => formatETB(value)} />
                       <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -779,8 +779,8 @@ export function AdminRegionsPage() {
                             <div className="min-w-0">
                               <p className="text-sm font-medium truncate">{org.name}</p>
                               <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                                <Badge variant="outline" className="text-[10px]">{org.businessType}</Badge>
-                                <Badge variant="outline" className="text-[10px]">{org.subscriptionPlan}</Badge>
+                                <Badge variant="outline" className="text-[0.769rem]">{org.businessType}</Badge>
+                                <Badge variant="outline" className="text-[0.769rem]">{org.subscriptionPlan}</Badge>
                                 <span className="flex items-center gap-1">
                                   <Users className="size-3" />{org.memberCount}
                                 </span>

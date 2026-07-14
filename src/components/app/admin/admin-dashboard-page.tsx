@@ -51,7 +51,7 @@ const LazyShopsMap = lazy(() =>
 function MapSkeleton() {
   return (
     <div className="space-y-3">
-      <Skeleton className="h-[300px] md:h-[450px] w-full rounded-lg" />
+      <Skeleton className="h-[23.077rem] md:h-[34.615rem] w-full rounded-lg" />
       <div className="flex gap-3">
         <Skeleton className="h-4 w-16" />
         <Skeleton className="h-4 w-16" />
@@ -221,7 +221,7 @@ function RecentActivityFeed({ data }: { data: AdminDashboardData }) {
                   <p className="text-sm font-medium truncate">{a.title}</p>
                   <p className="text-xs text-muted-foreground truncate">{a.description}</p>
                 </div>
-                <Badge variant="outline" className="text-[10px] shrink-0 ml-2">{a.time}</Badge>
+                <Badge variant="outline" className="text-[0.769rem] shrink-0 ml-2">{a.time}</Badge>
               </div>
             ))}
           </div>
@@ -270,7 +270,7 @@ function OverviewTab({ data }: { data: AdminDashboardData }) {
                   <s.icon className={`size-4 sm:size-5 ${s.color}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{s.title}</p>
+                  <p className="text-[0.846rem] sm:text-xs text-muted-foreground line-clamp-1">{s.title}</p>
                   <p className="text-sm sm:text-base font-semibold whitespace-nowrap">{s.value}</p>
                 </div>
               </div>
@@ -327,8 +327,8 @@ function OverviewTab({ data }: { data: AdminDashboardData }) {
               <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={revenueData}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="month" tick={{ fontSize: '0.846rem' }} />
+                  <YAxis tick={{ fontSize: '0.846rem' }} />
                   <Tooltip formatter={(value: number) => formatETB(value)} />
                   <Area type="monotone" dataKey="revenue" stroke="#ea580c" fill="#ea580c" fillOpacity={0.15} strokeWidth={2} />
                 </AreaChart>
@@ -383,8 +383,8 @@ function OverviewTab({ data }: { data: AdminDashboardData }) {
             <ResponsiveContainer width="100%" height={Math.max(200, topShops.length * 40)}>
               <BarChart data={topShops} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={isMobile ? 70 : 120} />
+                <XAxis type="number" tick={{ fontSize: '0.846rem' }} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: '0.846rem' }} width={isMobile ? 70 : 120} />
                 <Tooltip formatter={(value: number) => formatETB(value)} />
                 <Bar dataKey="totalRevenue" fill="#ea580c" radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -592,7 +592,7 @@ function MarketIntelligenceTab({ regionId }: { regionId?: string | null }) {
                   <div className="flex items-start justify-between">
                     <h4 className="font-semibold text-sm">{opp.productType}</h4>
                     {opp.lowStockCount >= 3 && (
-                      <Badge className="bg-amber-500 text-white text-[10px] px-1.5 py-0">HIGH DEMAND</Badge>
+                      <Badge className="bg-amber-500 text-white text-[0.769rem] px-1.5 py-0">HIGH DEMAND</Badge>
                     )}
                   </div>
                   <div className="space-y-1">
@@ -601,10 +601,10 @@ function MarketIntelligenceTab({ regionId }: { regionId?: string | null }) {
                     </p>
                     <div className="flex flex-wrap gap-1">
                       {opp.orgNames.slice(0, 3).map((name, j) => (
-                        <Badge key={j} variant="outline" className="text-[10px] py-0">{name}</Badge>
+                        <Badge key={j} variant="outline" className="text-[0.769rem] py-0">{name}</Badge>
                       ))}
                       {opp.orgNames.length > 3 && (
-                        <Badge variant="outline" className="text-[10px] py-0">+{opp.orgNames.length - 3} more</Badge>
+                        <Badge variant="outline" className="text-[0.769rem] py-0">+{opp.orgNames.length - 3} more</Badge>
                       )}
                     </div>
                   </div>
@@ -636,7 +636,7 @@ function MarketIntelligenceTab({ regionId }: { regionId?: string | null }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h4 className="font-medium text-sm truncate">{p.name}</h4>
-                      <Badge variant="outline" className="text-[10px] py-0 shrink-0">{p.category}</Badge>
+                      <Badge variant="outline" className="text-[0.769rem] py-0 shrink-0">{p.category}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {p.orgName} · {p.quantitySold} sold
@@ -644,7 +644,7 @@ function MarketIntelligenceTab({ regionId }: { regionId?: string | null }) {
                   </div>
                   <div className="text-right shrink-0 ml-3">
                     <p className="font-semibold text-sm">{formatETB(p.revenue)}</p>
-                    <p className="text-[11px] text-primary">High demand</p>
+                    <p className="text-[0.846rem] text-primary">High demand</p>
                   </div>
                 </div>
               ))}
@@ -668,8 +668,8 @@ function MarketIntelligenceTab({ regionId }: { regionId?: string | null }) {
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={insights.demandByCategory}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis dataKey="category" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="category" tick={{ fontSize: '0.846rem' }} />
+                  <YAxis tick={{ fontSize: '0.846rem' }} />
                   <Tooltip />
                   <Bar dataKey="quantitySold" fill="#ea580c" radius={[4, 4, 0, 0]} name="Quantity Sold" />
                 </BarChart>
@@ -695,8 +695,8 @@ function MarketIntelligenceTab({ regionId }: { regionId?: string | null }) {
                   businessType: item.businessType.charAt(0).toUpperCase() + item.businessType.slice(1),
                 }))}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                  <XAxis dataKey="businessType" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="businessType" tick={{ fontSize: '0.846rem' }} />
+                  <YAxis tick={{ fontSize: '0.846rem' }} />
                   <Tooltip formatter={(value: number) => formatETB(value)} />
                   <Bar dataKey="averageRevenue" fill="#06b6d4" radius={[4, 4, 0, 0]} name="Avg Revenue" />
                 </BarChart>
@@ -904,7 +904,7 @@ function SystemHealthTab() {
                 }`} />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">Server Status</p>
+                <p className="text-[0.846rem] sm:text-xs text-muted-foreground">Server Status</p>
                 <div className="flex items-center gap-1.5">
                   {isHealthy ? <CheckCircle2 className="size-3.5 sm:size-4 text-emerald-600" /> :
                    isDegraded ? <AlertCircle className="size-3.5 sm:size-4 text-amber-600" /> :
@@ -924,11 +924,11 @@ function SystemHealthTab() {
                 <Database className="size-4 sm:size-5 text-blue-600" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">DB Latency</p>
+                <p className="text-[0.846rem] sm:text-xs text-muted-foreground">DB Latency</p>
                 <p className="text-sm sm:text-base font-semibold">
                   {health.database.latencyMs}ms
                 </p>
-                <Badge variant="outline" className={`text-[10px] px-1 py-0 mt-0.5 ${
+                <Badge variant="outline" className={`text-[0.769rem] px-1 py-0 mt-0.5 ${
                   health.database.status === 'connected'
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
                     : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
@@ -948,7 +948,7 @@ function SystemHealthTab() {
                 <Clock className="size-4 sm:size-5 text-purple-600" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">Uptime</p>
+                <p className="text-[0.846rem] sm:text-xs text-muted-foreground">Uptime</p>
                 <p className="text-sm sm:text-base font-semibold">{health.uptime.formatted}</p>
               </div>
             </div>
@@ -963,9 +963,9 @@ function SystemHealthTab() {
                 <Zap className="size-4 sm:size-5 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">Cache Entries</p>
+                <p className="text-[0.846rem] sm:text-xs text-muted-foreground">Cache Entries</p>
                 <p className="text-sm sm:text-base font-semibold">{health.cache.totalEntries}</p>
-                <p className="text-[10px] text-muted-foreground">{health.cache.namespaces} namespaces</p>
+                <p className="text-[0.769rem] text-muted-foreground">{health.cache.namespaces} namespaces</p>
               </div>
             </div>
           </CardContent>
@@ -1090,7 +1090,7 @@ function SystemHealthTab() {
                       <span className="text-sm font-mono">{key}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge className={`text-[10px] px-1.5 py-0 ${
+                      <Badge className={`text-[0.769rem] px-1.5 py-0 ${
                         circuit.state === 'closed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' :
                         circuit.state === 'open' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
                         'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
@@ -1319,7 +1319,7 @@ function ActivityLogTab() {
             <opt.icon className="size-3.5" />
             {opt.label}
             {opt.value !== 'all' && (
-              <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">
+              <Badge variant="secondary" className="ml-1 text-[0.769rem] px-1 py-0">
                 {events.filter(e => e.type === opt.value).length}
               </Badge>
             )}
@@ -1341,7 +1341,7 @@ function ActivityLogTab() {
           {filteredEvents.length > 0 ? (
             <div className="relative max-h-[calc(100vh-300px)] overflow-y-auto">
               {/* Timeline line */}
-              <div className="absolute left-[18px] top-2 bottom-2 w-px bg-border" />
+              <div className="absolute left-[1.385rem] top-2 bottom-2 w-px bg-border" />
               <div className="space-y-1">
                 {filteredEvents.map(event => (
                   <div key={event.id} className="relative flex items-start gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors group">
@@ -1353,7 +1353,7 @@ function ActivityLogTab() {
                     <div className="flex-1 min-w-0 pt-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-medium">{event.title}</p>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize shrink-0">
+                        <Badge variant="outline" className="text-[0.769rem] px-1.5 py-0 capitalize shrink-0">
                           {event.type}
                         </Badge>
                       </div>
@@ -1439,7 +1439,7 @@ export function AdminDashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
         </div>
-        <Skeleton className="h-[400px]" />
+        <Skeleton className="h-[30.769rem]" />
       </div>
     )
   }
@@ -1477,7 +1477,7 @@ export function AdminDashboardPage() {
         subtitle={selectedRegionId ? `Filtered to ${dashboardData.regionInfo?.name || 'selected region'}` : 'Platform overview and market intelligence'}
         badges={
           <>
-            <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-[10px] px-1.5 py-0.5 gap-1">
+            <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-[0.769rem] px-1.5 py-0.5 gap-1">
               <Zap className="size-3" />
               Optimized
             </Badge>

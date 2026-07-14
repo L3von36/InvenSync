@@ -341,9 +341,9 @@ export function ExpensesPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <Skeleton className="h-[250px] w-full" />
+            <Skeleton className="h-[19.231rem] w-full" />
           ) : monthlySummary.length === 0 ? (
-            <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">
+            <div className="flex items-center justify-center h-[19.231rem] text-muted-foreground text-sm">
               No expense data available yet
             </div>
           ) : (
@@ -352,7 +352,7 @@ export function ExpensesPage() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="month" className="text-xs" />
                 <YAxis className="text-xs" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(value: number) => formatETB(value)} contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                <Tooltip formatter={(value: number) => formatETB(value)} contentStyle={{ borderRadius: '8px', fontSize: '0.923rem' }} />
                 <Bar dataKey="total" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -373,7 +373,7 @@ export function ExpensesPage() {
           />
         </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-full sm:w-[160px]">
+          <SelectTrigger className="w-full sm:w-[12.308rem]">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
@@ -432,7 +432,7 @@ export function ExpensesPage() {
                             {CATEGORY_LABELS[expense.category] || expense.category}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                        <TableCell className="text-sm text-muted-foreground max-w-[15.385rem] truncate">
                           {expense.description || '—'}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">

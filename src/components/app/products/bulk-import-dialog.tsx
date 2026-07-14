@@ -298,7 +298,7 @@ export function BulkImportDialog({
             <div className="space-y-2">
               <label className="text-sm font-medium">Paste CSV Text</label>
               <textarea
-                className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full min-h-[9.231rem] rounded-md border border-input bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 placeholder={`Paste CSV content here...\nname,sku,productType,costPrice,sellingPrice,quantity,lowStockThreshold\nSamsung TV,TV-001,Electronics,5000,8000,10,5`}
                 value={csvText}
                 onChange={(e) => setCsvText(e.target.value)}
@@ -371,7 +371,7 @@ export function BulkImportDialog({
             </div>
 
             {/* Preview Table */}
-            <div className="border rounded-lg overflow-x-auto max-h-[400px] overflow-y-auto">
+            <div className="border rounded-lg overflow-x-auto max-h-[30.769rem] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -484,7 +484,7 @@ export function BulkImportDialog({
                     {importResult.errors.length} error{importResult.errors.length !== 1 ? 's' : ''}
                   </p>
                 </div>
-                <div className="max-h-[200px] overflow-y-auto border rounded-lg">
+                <div className="max-h-[15.385rem] overflow-y-auto border rounded-lg">
                   <Table>
                     <TableHeader>
                       <TableRow>

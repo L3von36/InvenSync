@@ -309,7 +309,7 @@ export function BranchesPage() {
                             {shop.isActive ? 'Active' : 'Inactive'}
                           </Badge>
                           {currentShop?.id === shop.id && (
-                            <Badge className="bg-primary text-primary-foreground text-[10px]">Current</Badge>
+                            <Badge className="bg-primary text-primary-foreground text-[0.769rem]">Current</Badge>
                           )}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
@@ -366,7 +366,7 @@ export function BranchesPage() {
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <Select value={member.role} onValueChange={(role) => handleUpdateMemberRole(shop.id, member.id, role)}>
-                                <SelectTrigger className="h-7 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="h-7 w-[8.462rem] text-xs"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="manager">Manager</SelectItem>
                                   <SelectItem value="cashier">Cashier</SelectItem>

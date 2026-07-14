@@ -120,7 +120,7 @@ export class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, Err
       // Show offline-specific error message
       if (this.state.isOfflineError) {
         return (
-          <div className="min-h-[400px] flex flex-col items-center justify-center p-8 text-center">
+          <div className="min-h-[30.769rem] flex flex-col items-center justify-center p-8 text-center">
             <div className="size-16 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-4">
               <WifiOff className="size-8 text-amber-600 dark:text-amber-400" />
             </div>
@@ -144,7 +144,7 @@ export class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, Err
       // ChunkLoadError that survived auto-reload — show deployment-update message
       if (this.state.isChunkLoadError) {
         return (
-          <div className="min-h-[400px] flex flex-col items-center justify-center p-8 text-center">
+          <div className="min-h-[30.769rem] flex flex-col items-center justify-center p-8 text-center">
             <div className="size-16 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4">
               <RefreshCw className="size-8 text-blue-600 dark:text-blue-400" />
             </div>
@@ -161,7 +161,7 @@ export class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, Err
       }
 
       return (
-        <div className="min-h-[400px] flex flex-col items-center justify-center p-8 text-center">
+        <div className="min-h-[30.769rem] flex flex-col items-center justify-center p-8 text-center">
           <div className="size-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
             <AlertTriangle className="size-8 text-destructive" />
           </div>

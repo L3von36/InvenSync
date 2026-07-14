@@ -739,7 +739,7 @@ function OrgDetailTab({ org, onBack }: { org: AdminOrg; onBack: () => void }) {
                       <p className="text-sm font-medium truncate">{member.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{member.email}</p>
                     </div>
-                    <Badge variant="outline" className="text-[10px] capitalize shrink-0 ml-2">{member.role}</Badge>
+                    <Badge variant="outline" className="text-[0.769rem] capitalize shrink-0 ml-2">{member.role}</Badge>
                   </div>
                 ))}
               </div>
@@ -768,7 +768,7 @@ function OrgDetailTab({ org, onBack }: { org: AdminOrg; onBack: () => void }) {
                     </div>
                     <Badge
                       variant="outline"
-                      className={`text-[10px] shrink-0 ml-2 ${shop.isActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400'}`}
+                      className={`text-[0.769rem] shrink-0 ml-2 ${shop.isActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400'}`}
                     >
                       {shop.isActive ? 'Active' : 'Inactive'}
                     </Badge>

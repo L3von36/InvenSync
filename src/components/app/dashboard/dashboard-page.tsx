@@ -192,7 +192,7 @@ const ComparisonBadge = memo(function ComparisonBadge({ value, label }: { value:
   return (
     <Badge
       variant="outline"
-      className={`text-[10px] px-1.5 py-0 h-4 shrink-0 font-medium ${
+      className={`text-[0.769rem] px-1.5 py-0 h-4 shrink-0 font-medium ${
         isPositive
           ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800'
           : isNegative
@@ -387,7 +387,7 @@ function RevenueTrendCard({ data, className }: {
         </div>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={revenueChartConfig} className="h-[180px] sm:h-[240px] lg:h-[300px] w-full">
+        <ChartContainer config={revenueChartConfig} className="h-[13.846rem] sm:h-[18.462rem] lg:h-[23.077rem] w-full">
           <AreaChart data={chartData} margin={{ top: 10, right: 10, left: isMobile ? -10 : 0, bottom: 0 }}>
             <defs>
               <linearGradient id="fillRevenueTrend" x1="0" y1="0" x2="0" y2="1">
@@ -670,7 +670,7 @@ const AnomalyAlertWidget = memo(function AnomalyAlertWidget({ anomalies }: { ano
               </div>
               <Badge
                 variant="outline"
-                className={`text-[10px] shrink-0 ml-2 ${
+                className={`text-[0.769rem] shrink-0 ml-2 ${
                   anomaly.severity === 'high'
                     ? 'text-red-600 border-red-200 dark:text-red-400 dark:border-red-800'
                     : anomaly.severity === 'medium'
@@ -707,7 +707,7 @@ function DashboardLoading() {
             <Skeleton className="h-3 w-48" />
           </CardHeader>
           <CardContent>
-            <Skeleton className="h-[300px] w-full rounded-lg" />
+            <Skeleton className="h-[23.077rem] w-full rounded-lg" />
           </CardContent>
         </Card>
         <Card>
@@ -716,7 +716,7 @@ function DashboardLoading() {
             <Skeleton className="h-3 w-48" />
           </CardHeader>
           <CardContent>
-            <Skeleton className="h-[300px] w-full rounded-lg" />
+            <Skeleton className="h-[23.077rem] w-full rounded-lg" />
           </CardContent>
         </Card>
       </div>
@@ -879,7 +879,7 @@ function OwnerDashboard({
             <CardDescription>Product count per shop</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={shopComparisonChartConfig} className="h-[280px] w-full">
+            <ChartContainer config={shopComparisonChartConfig} className="h-[21.538rem] w-full">
               <BarChart
                 data={shopComparisonData}
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}

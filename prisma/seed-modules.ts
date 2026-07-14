@@ -158,6 +158,19 @@ const modules = [
     billingCycle: 'monthly',
     order: 10,
   },
+  // FINANCE - Ethiopian tax assistance (Proclamation 1395/2025 aware)
+  {
+    key: 'tax-assistant',
+    name: 'Tax Assistant',
+    description: 'Estimate your Ethiopian taxes from your sales records: Category A/B classification, live tax estimates, VAT threshold warnings, and filing deadline reminders',
+    icon: 'Calculator',
+    category: 'analytics',
+    priceETB: 60,
+    isFree: false,
+    freeTrialDays: 30,
+    billingCycle: 'monthly',
+    order: 13,
+  },
   // Integration modules
   {
     key: 'telegram-bot',

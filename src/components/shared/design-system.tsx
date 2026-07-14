@@ -91,7 +91,7 @@ export function PageHeader({ icon, title, subtitle, badges, actions, className }
         <div className="flex items-center gap-3 min-w-0">
           {icon && (
             <div
-              className="ds-brand-gradient flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm [&_svg]:size-5 sm:[&_svg]:size-[22px]"
+              className="ds-brand-gradient flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm [&_svg]:size-5 sm:[&_svg]:size-[1.692rem]"
               aria-hidden="true"
             >
               {icon}
@@ -228,7 +228,7 @@ export function StatChip({ label, value, tone = 'neutral' }: {
 }) {
   return (
     <div className="flex-1 min-w-0 rounded-xl border bg-card px-3 py-2">
-      <p className="text-[11px] text-muted-foreground font-medium truncate">{label}</p>
+      <p className="text-[0.846rem] text-muted-foreground font-medium truncate">{label}</p>
       <p className={cn('text-sm font-semibold tabular-nums truncate', tone === 'brand' && 'text-primary')}>
         {value}
       </p>
@@ -351,7 +351,7 @@ export const StatCard = memo(function StatCard({
   return (
     <Card className="ds-card-interactive gap-1.5 py-3 sm:gap-2.5 sm:py-4 lg:gap-3 lg:py-5">
       <CardHeader className="flex flex-row items-center justify-between pb-0 space-y-0">
-        <CardDescription className="text-[11px] sm:text-xs text-muted-foreground font-medium pr-1 line-clamp-1">
+        <CardDescription className="text-[0.846rem] sm:text-xs text-muted-foreground font-medium pr-1 line-clamp-1">
           {title}
         </CardDescription>
         <div
@@ -360,7 +360,7 @@ export const StatCard = memo(function StatCard({
             toneClasses.bg
           )}
         >
-          <div className={cn('[&_svg]:size-3 sm:[&_svg]:size-4 lg:[&_svg]:size-[18px]', toneClasses.text)}>
+          <div className={cn('[&_svg]:size-3 sm:[&_svg]:size-4 lg:[&_svg]:size-[1.385rem]', toneClasses.text)}>
             {icon}
           </div>
         </div>

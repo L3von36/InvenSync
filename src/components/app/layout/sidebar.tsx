@@ -41,6 +41,7 @@ import {
   Award,
   Search,
   Plus,
+  Calculator,
   CalendarClock,
   FileDown,
   DollarSign,
@@ -99,6 +100,7 @@ const MODULE_KEY_MAP: Record<string, string> = {
   'credit-limits': 'debts',
   'smart-search': 'reports',
   'anomaly-detection': 'ai-inventory',
+  'tax': 'tax-assistant',
 }
 
 const retailBusinessTypes = [
@@ -154,6 +156,7 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
       { title: 'Debts & Credits', page: 'debts', icon: CreditCard, roles: ['owner', 'manager'], moduleKey: 'debts' },
       { title: 'Profit & Loss', page: 'profit-loss', icon: TrendingUp, roles: ['owner', 'manager'], moduleKey: 'reports' },
       { title: 'Expenses', page: 'expenses', icon: Receipt, roles: ['owner', 'manager'], moduleKey: 'expenses' },
+      { title: 'Tax Assistant', page: 'tax', icon: Calculator, roles: ['owner', 'manager'], moduleKey: 'tax-assistant' },
       { title: 'Reports', page: 'reports', icon: BarChart3, roles: ['owner', 'manager'], moduleKey: 'reports' },
     ],
   },
@@ -384,7 +387,7 @@ export function AppSidebar() {
                       <item.icon className="size-4" aria-hidden="true" />
                       <span>{item.title}</span>
                       {item.moduleKey && activeModules.length > 0 && !activeModules.includes(item.moduleKey) && (
-                        <Badge variant="outline" className="ml-auto text-[11px] px-1.5 py-0 text-amber-600 border-amber-300">Trial</Badge>
+                        <Badge variant="outline" className="ml-auto text-[0.846rem] px-1.5 py-0 text-amber-600 border-amber-300">Trial</Badge>
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -433,7 +436,7 @@ export function AppSidebar() {
                     <Puzzle className="size-4" />
                     <span>My Modules</span>
                     {activeModules.length > 0 && (
-                      <Badge variant="secondary" className="ml-auto text-[11px] px-1.5 py-0">
+                      <Badge variant="secondary" className="ml-auto text-[0.846rem] px-1.5 py-0">
                         {activeModules.length}
                       </Badge>
                     )}

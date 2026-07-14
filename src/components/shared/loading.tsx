@@ -110,11 +110,11 @@ export function PageTransitionSkeleton() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-lg border p-4 space-y-3">
           <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-[180px] w-full rounded-md" />
+          <Skeleton className="h-[13.846rem] w-full rounded-md" />
         </div>
         <div className="rounded-lg border p-4 space-y-3">
           <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-[180px] w-full rounded-md" />
+          <Skeleton className="h-[13.846rem] w-full rounded-md" />
         </div>
       </div>
     </div>

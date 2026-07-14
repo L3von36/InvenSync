@@ -814,7 +814,7 @@ function DebtsTable({
                   <TableCell className="font-medium">
                     {debt.customer?.name || debt.supplier?.name || '—'}
                   </TableCell>
-                  <TableCell className="max-w-[150px] truncate text-muted-foreground">
+                  <TableCell className="max-w-[11.538rem] truncate text-muted-foreground">
                     {debt.description || '—'}
                   </TableCell>
                   <TableCell className="text-right">{formatETB(debt.amount)}</TableCell>

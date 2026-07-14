@@ -343,7 +343,7 @@ function AllProductsTab({
                 const status = getStockStatus(product.quantity, product.lowStockThreshold)
                 return (
                   <TableRow key={product.id}>
-                    <TableCell className="font-medium max-w-[180px] truncate">{product.name}</TableCell>
+                    <TableCell className="font-medium max-w-[13.846rem] truncate">{product.name}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{product.sku || '—'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">{product.productType?.name || '—'}</Badge>
@@ -477,7 +477,7 @@ function LowStockTab({
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div>
-                <h4 className="font-semibold text-sm truncate max-w-[200px]">{product.name}</h4>
+                <h4 className="font-semibold text-sm truncate max-w-[15.385rem]">{product.name}</h4>
                 <p className="text-xs text-muted-foreground">{product.productType.name}</p>
               </div>
               <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 shrink-0">
@@ -710,7 +710,7 @@ function StockHistoryTab({ orgId, shopId }: { orgId: string; shopId?: string }) 
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-muted-foreground">{m.previousStock}</TableCell>
                   <TableCell className="text-right font-mono text-sm font-medium">{m.newStock}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{m.reason || '—'}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-[15.385rem] truncate">{m.reason || '—'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -832,7 +832,7 @@ export function InventoryPage() {
           <TabsTrigger value="low-stock" className="gap-1 text-xs sm:text-sm">
             <AlertTriangle className="size-4" /> <span className="hidden sm:inline">Low</span> Stock
             {inventoryStats?.overview.lowStock ? (
-              <Badge variant="secondary" className="ml-1.5 size-5 p-0 text-[10px] flex items-center justify-center bg-amber-100 text-amber-800">
+              <Badge variant="secondary" className="ml-1.5 size-5 p-0 text-[0.769rem] flex items-center justify-center bg-amber-100 text-amber-800">
                 {inventoryStats.overview.lowStock}
               </Badge>
             ) : null}
@@ -840,7 +840,7 @@ export function InventoryPage() {
           <TabsTrigger value="out-of-stock" className="gap-1 text-xs sm:text-sm">
             <XCircle className="size-4" /> <span className="hidden sm:inline">Out of</span> Stock
             {inventoryStats?.overview.outOfStock ? (
-              <Badge variant="secondary" className="ml-1.5 size-5 p-0 text-[10px] flex items-center justify-center bg-red-100 text-red-800">
+              <Badge variant="secondary" className="ml-1.5 size-5 p-0 text-[0.769rem] flex items-center justify-center bg-red-100 text-red-800">
                 {inventoryStats.overview.outOfStock}
               </Badge>
             ) : null}

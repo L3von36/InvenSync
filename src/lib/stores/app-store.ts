@@ -40,6 +40,7 @@ export type Page =
   | 'sales-forecast'
   | 'anomaly-detection'
   | 'sync-offline'
+  | 'tax'
 
 interface AppState {
   currentPage: Page
@@ -134,4 +135,5 @@ export const pageTitles: Record<Page, string> = {
   'sales-forecast': 'Sales Forecast',
   'anomaly-detection': 'Anomaly Detection',
   'sync-offline': 'Sync & Offline',
+  'tax': 'Tax Assistant',
 }

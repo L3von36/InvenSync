@@ -106,7 +106,7 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <h4 className="font-semibold text-sm">{anomaly.title}</h4>
-                <Badge variant={config.badgeVariant} className="text-[10px] px-1.5 py-0">
+                <Badge variant={config.badgeVariant} className="text-[0.769rem] px-1.5 py-0">
                   {config.label}
                 </Badge>
               </div>
@@ -308,7 +308,7 @@ export function AnomalyDetectionWidget() {
                     <Icon className={`size-4 ${config.iconColor}`} />
                     <div>
                       <p className="text-lg font-bold">{count}</p>
-                      <p className="text-[10px] text-muted-foreground capitalize">{severity}</p>
+                      <p className="text-[0.769rem] text-muted-foreground capitalize">{severity}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -318,7 +318,7 @@ export function AnomalyDetectionWidget() {
 
           {/* Source badge */}
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[10px]">
+            <Badge variant="outline" className="text-[0.769rem]">
               {result.source === 'ai' ? '✨ AI-Powered' : '📊 Rule-Based'}
             </Badge>
           </div>

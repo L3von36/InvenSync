@@ -65,7 +65,7 @@ function AnomalyCard({ anomaly }: { anomaly: Anomaly }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h4 className="font-medium text-sm">{anomaly.title}</h4>
-              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 text-white ${config.badge}`}>
+              <Badge variant="outline" className={`text-[0.769rem] px-1.5 py-0 text-white ${config.badge}`}>
                 {anomaly.severity}
               </Badge>
             </div>
