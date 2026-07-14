@@ -1,6 +1,6 @@
 'use client'
 
-import { PageHeader } from '@/components/shared/design-system'
+import { PageHeader, AvatarListRow } from '@/components/shared/design-system'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
@@ -868,39 +868,28 @@ function DebtsTable({
           </TableBody>
         </Table>
         </div>
-        {/* Mobile card view */}
-        <div className="md:hidden space-y-3 p-3">
+        {/* Mobile list — Direction B avatar rows; Record Payment lives in
+            the detail dialog the row opens */}
+        <div className="md:hidden divide-y px-3">
           {debts.map((debt) => {
             const remaining = debt.amount - debt.paidAmount
             const overdue = isOverdue(debt)
             return (
-              <Card key={debt.id} className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm truncate">{debt.customer?.name || debt.supplier?.name || '—'}</p>
-                    <p className="text-xs text-muted-foreground truncate">{debt.description || 'No description'}</p>
-                  </div>
-                  {overdue && debt.status !== 'paid'
-                    ? <StatusBadge status="overdue" />
-                    : <StatusBadge status={debt.status} />}
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-medium">{formatETB(debt.amount)}</span></div>
-                  <div><span className="text-muted-foreground">Remaining:</span> <span className={`font-bold ${overdue ? 'text-red-600' : ''}`}>{formatETB(remaining)}</span></div>
-                  <div><span className="text-muted-foreground">Paid:</span> <span className="text-emerald-600">{formatETB(debt.paidAmount)}</span></div>
-                  <div><span className="text-muted-foreground">Due:</span> <span className={overdue ? 'text-red-600 font-medium' : ''}>{formatDate(debt.dueDate)}</span></div>
-                </div>
-                {debt.status !== 'paid' && (
-                  <div className="flex gap-2 mt-3">
-                    <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1" onClick={() => onViewDetail(debt)}>
-                      <Eye className="size-3" /> Details
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1 h-8 text-xs gap-1" onClick={() => onRecordPayment(debt)}>
-                      <CreditCard className="size-3" /> Pay
-                    </Button>
-                  </div>
-                )}
-              </Card>
+              <AvatarListRow
+                key={debt.id}
+                name={debt.customer?.name || debt.supplier?.name || '—'}
+                caption={`${debt.description || 'No description'} · Due ${formatDate(debt.dueDate)}`}
+                amount={
+                  <span className={overdue ? 'text-red-600 dark:text-red-400' : undefined}>
+                    {formatETB(remaining)}
+                  </span>
+                }
+                badge={overdue && debt.status !== 'paid'
+                  ? <StatusBadge status="overdue" />
+                  : <StatusBadge status={debt.status} />}
+                onClick={() => onViewDetail(debt)}
+                className="rounded-none px-0 mx-0"
+              />
             )
           })}
         </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { PageHeader } from '@/components/shared/design-system'
+import { PageHeader, AvatarListRow } from '@/components/shared/design-system'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
@@ -367,8 +367,9 @@ function AllProductsTab({
           </TableBody>
         </Table>
         </div>
-        {/* Mobile card view */}
-        <div className="md:hidden space-y-3 p-3">
+        {/* Mobile list — Direction B avatar rows; tapping a row opens
+            the stock adjustment dialog */}
+        <div className="md:hidden divide-y px-3">
           {sortedProducts.length === 0 ? (
             <EmptyState
               title="No products found"
@@ -378,22 +379,15 @@ function AllProductsTab({
             sortedProducts.map((product) => {
               const status = getStockStatus(product.quantity, product.lowStockThreshold)
               return (
-                <Card key={product.id} className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm truncate">{product.name}</p>
-                      <p className="text-xs text-muted-foreground">{product.productType?.name || '—'} {product.sku ? `· ${product.sku}` : ''}</p>
-                    </div>
-                    <Badge variant={status.variant} className="text-xs shrink-0 ml-2">{status.label}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-xs mt-2">
-                    <div className="flex items-center gap-3 text-muted-foreground">
-                      <span>Qty: <strong className="text-foreground">{product.quantity}</strong></span>
-                      <span>{formatETB(product.sellingPrice)}</span>
-                    </div>
-                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onAdjust(product)}>Adjust</Button>
-                  </div>
-                </Card>
+                <AvatarListRow
+                  key={product.id}
+                  name={product.name}
+                  caption={`${product.productType?.name || '—'}${product.sku ? ` · ${product.sku}` : ''} · ${formatETB(product.sellingPrice)}`}
+                  amount={`${product.quantity} qty`}
+                  badge={<Badge variant={status.variant} className="text-xs">{status.label}</Badge>}
+                  onClick={() => onAdjust(product)}
+                  className="rounded-none px-0 mx-0"
+                />
               )
             })
           )}
@@ -722,27 +716,22 @@ function StockHistoryTab({ orgId, shopId }: { orgId: string; shopId?: string }) 
             </TableBody>
           </Table>
         </div>
-        {/* Mobile card view */}
-        <div className="md:hidden space-y-3 p-3">
+        {/* Mobile list — Direction B avatar rows */}
+        <div className="md:hidden divide-y px-3">
           {filtered.map((m) => (
-            <Card key={m.id} className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-sm truncate">{m.product?.name || '—'}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(m.createdAt)}</p>
-                </div>
-                {typeLabel(m.type)}
-              </div>
-              <div className="flex items-center justify-between text-xs mt-2">
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <span>Qty: <strong className="text-foreground">{m.type === 'in' ? '+' : m.type === 'out' ? '-' : '±'}{m.quantity}</strong></span>
-                  <span>{m.previousStock} → {m.newStock}</span>
-                </div>
-              </div>
-              {m.reason && (
-                <p className="text-xs text-muted-foreground mt-1 truncate">{m.reason}</p>
-              )}
-            </Card>
+            <AvatarListRow
+              key={m.id}
+              name={m.product?.name || '—'}
+              caption={`${formatDateTime(m.createdAt)}${m.reason ? ` · ${m.reason}` : ''}`}
+              amount={
+                <span>
+                  {m.type === 'in' ? '+' : m.type === 'out' ? '-' : '±'}{m.quantity}
+                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">{m.previousStock} → {m.newStock}</span>
+                </span>
+              }
+              badge={typeLabel(m.type)}
+              className="rounded-none px-0 mx-0"
+            />
           ))}
         </div>
       </div>

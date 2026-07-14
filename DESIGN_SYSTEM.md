@@ -80,11 +80,14 @@ Inter, with the system stack as fallback (`--font-sans`).
 
 | Role            | Classes                                     |
 | --------------- | ------------------------------------------- |
-| Page title      | `text-xl sm:text-2xl font-semibold tracking-tight` (use `PageHeader`) |
+| Page title      | `text-lg sm:text-xl lg:text-2xl font-semibold tracking-tight` (use `PageHeader` / `GreetingHeader`) |
 | Section title   | `text-sm font-semibold` (use `SectionCard`) |
-| KPI value       | `text-xl sm:text-2xl font-semibold tabular-nums tracking-tight` (use `StatCard`) |
+| KPI value       | `text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold tabular-nums tracking-tight` (use `StatCard`) |
 | Body            | `text-sm`                                   |
 | Caption/context | `text-xs text-muted-foreground`             |
+
+Type ramps up with the viewport — phones get the compact size, desktops the
+full size. Never ship a single fixed size for headings or KPI values.
 
 Numbers are the product: KPI values never wrap, never truncate, and always use
 **`tabular-nums`** (fixed-width digits) so amounts align. Data tables get this
@@ -95,10 +98,11 @@ currency context), never inline. Weights top out at `font-semibold` —
 
 ## Spacing & layout
 
-- Base unit is 4px (Tailwind scale). Dashboards use `space-y-6` between
-  sections, `gap-3 sm:gap-4` inside KPI grids, `gap-4 sm:gap-6` inside
-  content grids (charts, lists). These are the only two grid gaps — no
-  three-step breakpoint ladders.
+- Base unit is 4px (Tailwind scale). Dashboards use `space-y-4 sm:space-y-6`
+  between sections, `gap-3 sm:gap-4` inside KPI grids, `gap-4 sm:gap-6`
+  inside content grids (charts, lists). Cards themselves are responsive:
+  the base `Card` uses `py-4 px-4 sm:py-6 sm:px-6` so every surface is
+  denser on phones without per-page overrides.
 - KPI grids: `grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4` (2-up on mobile,
   4-up on desktop). Never 1-up on mobile — shopkeepers scan pairs.
 - Page content sits inside the shell's padding; pages don't add their own
@@ -135,6 +139,13 @@ Shared primitives in `src/components/shared/design-system.tsx`:
   per-page color overrides are what created the rainbow dashboards. Supports
   a `comparisonBadge` for period-over-period deltas.
 - **`SectionCard`** — wrapper for charts/lists with a consistent header row.
+- **Mobile list pattern (Direction B)** — every list screen uses the same
+  three pieces on phones: **`StatChip`** (compact KPI pills, 2-3 in a flex
+  row, at most one `brand`), **`FilterChips`** (pill filter row replacing
+  Selects on mobile), and **`AvatarListRow`** (identity avatar with a
+  deterministic soft color, title + caption, status badge and amount on
+  the right). Row actions live in the detail dialog the row opens — no
+  inline buttons on mobile rows.
 
 Everything else composes shadcn/ui primitives (`components/ui/*`). Before
 adding a new component, check whether a composition of existing ones works.

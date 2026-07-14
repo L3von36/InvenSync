@@ -33,7 +33,7 @@ import { LocationPicker } from '@/components/app/shared/location-picker'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { registerBusinessSchema, type RegisterBusinessFormData } from '@/lib/validations'
 import { ErrorState } from '@/components/shared/error-states'
-import { PageHeader, StatCard, StatCardSkeleton } from '@/components/shared/design-system'
+import { PageHeader, StatCard, StatCardSkeleton, AvatarListRow } from '@/components/shared/design-system'
 import { formatETB, formatDate } from '@/lib/format'
 import { Form } from '@/components/ui/form'
 import { FormInputField, FormSelectField, FormSubmitButton } from '@/components/shared/form-fields'
@@ -840,30 +840,15 @@ export function SalesRepDashboardPage() {
                 </table>
               </div>
 
-              {/* Mobile card list */}
-              <div className="md:hidden space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+              {/* Mobile list — Direction B avatar rows */}
+              <div className="md:hidden divide-y max-h-96 overflow-y-auto custom-scrollbar">
                 {recentRegistrations.map((org) => (
-                  <div
+                  <AvatarListRow
                     key={org.id}
-                    className="p-3 rounded-lg border hover:bg-muted/30 transition-colors"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm truncate">{org.name}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <MapPin className="size-3" />
-                          {org.city || 'N/A'}
-                        </p>
-                      </div>
-                      <Badge className={businessTypeBadgeClass(org.businessType)} variant="outline">
-                        {org.businessType}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground" title={formatDate(org.createdAt)}>
-                        {getRelativeTime(org.createdAt)}
-                      </span>
-                      <div className="flex items-center gap-2">
+                    name={org.name}
+                    caption={`${org.city || 'N/A'} · ${org.businessType} · ${getRelativeTime(org.createdAt)}`}
+                    badge={
+                      <div className="flex items-center gap-1.5">
                         <Badge variant="outline" className="text-[10px] capitalize py-0">
                           {org.subscriptionPlan}
                         </Badge>
@@ -879,8 +864,9 @@ export function SalesRepDashboardPage() {
                           {org.subscriptionStatus}
                         </Badge>
                       </div>
-                    </div>
-                  </div>
+                    }
+                    className="rounded-none px-0 mx-0"
+                  />
                 ))}
               </div>
             </>

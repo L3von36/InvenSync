@@ -781,10 +781,37 @@ export function MobileBottomNav() {
         </div>
       )}
 
-      {/* Bottom Nav Bar */}
+      {/* Bottom Nav Bar — Direction B: center orange Create Sale FAB */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80" aria-label="Mobile navigation">
         <div className="flex items-center justify-around h-14 pb-[env(safe-area-inset-bottom)]">
-          {mainTabs.map(tab => (
+          {mainTabs.slice(0, Math.ceil(mainTabs.length / 2)).map(tab => (
+            <button
+              key={tab.page}
+              onClick={() => setPage(tab.page)}
+              className={`flex flex-col items-center justify-center gap-0.5 min-w-0 flex-1 h-full transition-colors min-h-11 ${
+                currentPage === tab.page
+                  ? 'text-primary'
+                  : 'text-muted-foreground'
+              }`}
+              aria-label={tab.label}
+              aria-current={currentPage === tab.page ? 'page' : undefined}
+            >
+              <tab.icon className="size-5" aria-hidden="true" />
+              <span className="text-xs font-medium">{tab.label}</span>
+            </button>
+          ))}
+          {!isAdmin && isModuleActive('sales') && (
+            <div className="flex-1 flex justify-center">
+              <button
+                onClick={() => setPage('sales')}
+                className="-mt-5 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-95"
+                aria-label="Create sale"
+              >
+                <Plus className="size-6" aria-hidden="true" />
+              </button>
+            </div>
+          )}
+          {mainTabs.slice(Math.ceil(mainTabs.length / 2)).map(tab => (
             <button
               key={tab.page}
               onClick={() => setPage(tab.page)}

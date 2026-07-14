@@ -99,7 +99,7 @@ export function PageHeader({ icon, title, subtitle, badges, actions, className }
           )}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{title}</h1>
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold tracking-tight">{title}</h1>
               {badges}
             </div>
             {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
@@ -143,7 +143,7 @@ export function GreetingHeader({ name, subtitle, badges, actions, className }: G
     <div className={cn('flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4', className)}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
+          <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold tracking-tight">
             {timeOfDayGreeting()}{firstName ? `, ${firstName}` : ''}
           </h1>
           {badges}
@@ -198,6 +198,116 @@ export function Sparkline({ data, className }: { data: number[]; className?: str
 }
 
 // ============================================
+// Mobile list pattern (Direction B)
+// ============================================
+// The PDF's mobile mockup pattern, shared by every list screen:
+// compact stat chips up top, pill filter chips, then avatar rows with
+// the status badge and amount on the right.
+
+const AVATAR_PALETTE = [
+  'bg-orange-500/15 text-orange-600 dark:text-orange-400',
+  'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  'bg-sky-500/15 text-sky-600 dark:text-sky-400',
+  'bg-violet-500/15 text-violet-600 dark:text-violet-400',
+  'bg-rose-500/15 text-rose-600 dark:text-rose-400',
+  'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+]
+
+/** Deterministic soft color for an identity avatar — same name, same color. */
+function nameAvatarClasses(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
+}
+
+/** Compact KPI pill for mobile headers — pair 2-3 in a flex row. */
+export function StatChip({ label, value, tone = 'neutral' }: {
+  label: string
+  value: React.ReactNode
+  tone?: 'brand' | 'neutral'
+}) {
+  return (
+    <div className="flex-1 min-w-0 rounded-xl border bg-card px-3 py-2">
+      <p className="text-[11px] text-muted-foreground font-medium truncate">{label}</p>
+      <p className={cn('text-sm font-semibold tabular-nums truncate', tone === 'brand' && 'text-primary')}>
+        {value}
+      </p>
+    </div>
+  )
+}
+
+/** Horizontal pill filter row (All / Pending / Paid ...). */
+export function FilterChips<T extends string>({ options, value, onChange, className, label }: {
+  options: Array<{ value: T; label: string }>
+  value: T
+  onChange: (value: T) => void
+  className?: string
+  label?: string
+}) {
+  return (
+    <div role="group" aria-label={label} className={cn('flex gap-2 overflow-x-auto pb-0.5', className)}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          onClick={() => onChange(option.value)}
+          aria-pressed={value === option.value}
+          className={cn(
+            'shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer',
+            value === option.value
+              ? 'bg-foreground text-background'
+              : 'border text-muted-foreground hover:text-foreground'
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** List row with identity avatar, title/caption, and badge + amount right. */
+export function AvatarListRow({ name, title, caption, amount, badge, onClick, className }: {
+  /** Identity the avatar represents (initial + deterministic color) */
+  name: string
+  /** Row title; defaults to `name` */
+  title?: React.ReactNode
+  caption?: React.ReactNode
+  amount?: React.ReactNode
+  badge?: React.ReactNode
+  onClick?: () => void
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-3 py-2.5',
+        onClick && 'cursor-pointer hover:bg-muted/30 transition-colors rounded-lg px-2 -mx-2',
+        className
+      )}
+      onClick={onClick}
+    >
+      <div
+        className={cn(
+          'flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+          nameAvatarClasses(name)
+        )}
+        aria-hidden="true"
+      >
+        {name.charAt(0).toUpperCase()}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium truncate">{title ?? name}</p>
+        {caption && <p className="text-xs text-muted-foreground truncate">{caption}</p>}
+      </div>
+      <div className="flex flex-col items-end gap-0.5 shrink-0">
+        {badge}
+        {amount && <span className="text-sm font-semibold tabular-nums">{amount}</span>}
+      </div>
+    </div>
+  )
+}
+
+// ============================================
 // StatCard
 // ============================================
 
@@ -239,28 +349,28 @@ export const StatCard = memo(function StatCard({
   const toneClasses = STAT_TONE_CLASSES[tone]
 
   return (
-    <Card className="ds-card-interactive gap-2 sm:gap-4">
+    <Card className="ds-card-interactive gap-1.5 py-3 sm:gap-2.5 sm:py-4 lg:gap-3 lg:py-5">
       <CardHeader className="flex flex-row items-center justify-between pb-0 space-y-0">
-        <CardDescription className="text-xs text-muted-foreground font-medium pr-1 line-clamp-1">
+        <CardDescription className="text-[11px] sm:text-xs text-muted-foreground font-medium pr-1 line-clamp-1">
           {title}
         </CardDescription>
         <div
           className={cn(
-            'flex items-center justify-center size-7 sm:size-10 rounded-lg shrink-0',
+            'flex items-center justify-center size-6 sm:size-8 lg:size-9 rounded-lg shrink-0',
             toneClasses.bg
           )}
         >
-          <div className={cn('[&_svg]:size-3.5 sm:[&_svg]:size-5', toneClasses.text)}>
+          <div className={cn('[&_svg]:size-3 sm:[&_svg]:size-4 lg:[&_svg]:size-[18px]', toneClasses.text)}>
             {icon}
           </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="flex items-end justify-between gap-2">
-          <div className="text-xl sm:text-2xl font-semibold tabular-nums tracking-tight leading-tight whitespace-nowrap">
+          <div className="text-base sm:text-lg lg:text-xl xl:text-2xl font-semibold tabular-nums tracking-tight leading-tight whitespace-nowrap">
             {value}
           </div>
-          {sparkline && <Sparkline data={sparkline} className="hidden sm:block mb-1" />}
+          {sparkline && <Sparkline data={sparkline} className="hidden lg:block mb-1" />}
         </div>
         {(subtitle || comparisonBadge) && (
           <div className="flex items-center gap-1.5 mt-0.5 sm:mt-1">
@@ -275,14 +385,14 @@ export const StatCard = memo(function StatCard({
 
 export function StatCardSkeleton() {
   return (
-    <Card className="gap-4">
+    <Card className="gap-1.5 py-3 sm:gap-2.5 sm:py-4 lg:gap-3 lg:py-5">
       <CardHeader className="flex flex-row items-center justify-between pb-0">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="size-10 rounded-lg" />
+        <Skeleton className="h-3.5 w-20 sm:w-24" />
+        <Skeleton className="size-6 sm:size-8 lg:size-9 rounded-lg" />
       </CardHeader>
       <CardContent className="pt-0">
-        <Skeleton className="h-8 w-36 mb-1" />
-        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-6 sm:h-7 lg:h-8 w-28 sm:w-36 mb-1" />
+        <Skeleton className="h-3 w-24 sm:w-28" />
       </CardContent>
     </Card>
   )

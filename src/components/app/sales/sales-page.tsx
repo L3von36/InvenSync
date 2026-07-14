@@ -28,7 +28,7 @@ import { toast } from 'sonner'
 import { getNetworkErrorMessage } from '@/lib/validation'
 import { saleSchema, type SaleFormData } from '@/lib/validations'
 import { ErrorState, EmptyState } from '@/components/shared/error-states'
-import { PageHeader } from '@/components/shared/design-system'
+import { PageHeader, StatChip, FilterChips, AvatarListRow } from '@/components/shared/design-system'
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
 import { FormInputField, FormTextareaField } from '@/components/shared/form-fields'
 
@@ -87,23 +87,31 @@ function SalesStatsCards({ sales }: { sales: Sale[] }) {
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-      {cards.map((card) => (
-        <Card key={card.title}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={`size-10 rounded-lg ${card.bg} flex items-center justify-center shrink-0`}>
-                <card.icon className={`size-5 ${card.color}`} />
+    <>
+      {/* Mobile: Direction B compact stat chips */}
+      <div className="flex gap-2 sm:hidden">
+        <StatChip label="Today" value={formatETB(todayTotal)} tone="brand" />
+        <StatChip label="This Week" value={formatETB(weekTotal)} />
+      </div>
+      {/* Desktop: full stat cards */}
+      <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {cards.map((card) => (
+          <Card key={card.title}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`size-9 lg:size-10 rounded-lg ${card.bg} flex items-center justify-center shrink-0`}>
+                  <card.icon className={`size-4 lg:size-5 ${card.color}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground truncate">{card.title}</p>
+                  <p className="text-lg lg:text-xl xl:text-2xl font-semibold tabular-nums truncate">{card.value}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground truncate">{card.title}</p>
-                <p className="text-xl sm:text-2xl font-semibold tabular-nums truncate">{card.value}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </>
   )
 }
 
@@ -382,7 +390,7 @@ function AllSalesTab({
           />
         </div>
         <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(1) }}>
-          <SelectTrigger className="w-full sm:w-40">
+          <SelectTrigger className="hidden sm:flex w-full sm:w-40">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -405,6 +413,20 @@ function AllSalesTab({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Mobile status filter — Direction B pill chips */}
+      <FilterChips
+        className="sm:hidden"
+        label="Filter sales by status"
+        options={[
+          { value: 'all', label: 'All' },
+          { value: 'completed', label: 'Completed' },
+          { value: 'pending', label: 'Pending' },
+          { value: 'cancelled', label: 'Cancelled' },
+        ]}
+        value={filterStatus}
+        onChange={(v) => { setFilterStatus(v); setPage(1) }}
+      />
 
       {/* Empty state or Table */}
       {!loading && filteredSales.length === 0 ? (
@@ -472,38 +494,19 @@ function AllSalesTab({
             </TableBody>
           </Table>
         </div>
-        {/* Mobile card view */}
-        <div className="md:hidden space-y-3 p-3">
+        {/* Mobile list — Direction B avatar rows; receipt/invoice actions
+            live in the detail dialog the row opens */}
+        <div className="md:hidden divide-y px-3">
           {filteredSales.map((sale) => (
-            <Card key={sale.id} className="p-4 cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onViewSale(sale)}>
-              <div className="flex items-start justify-between mb-2">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-sm">{sale.invoiceNumber}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {sale.customer?.name || 'Walk-in'} · {sale.items?.length ?? 0} item{(sale.items?.length ?? 0) !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {<StatusBadge status={sale.status} />}
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-2">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {paymentMethodIcon(sale.paymentMethod)}
-                  {paymentMethodLabel(sale.paymentMethod)}
-                  <span>· {formatDateShort(sale.saleDate)}</span>
-                </div>
-                <span className="font-bold text-sm">{formatETB(sale.total)}</span>
-              </div>
-              <div className="flex items-center gap-1.5 mt-2">
-                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); window.open(`/api/sales/${sale.id}/receipt?orgId=${orgId}`, '_blank') }}>
-                  <Download className="size-3" /> Receipt
-                </Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={(e) => { e.stopPropagation(); window.open(`/api/sales/${sale.id}/invoice?orgId=${orgId}`, '_blank') }}>
-                  <FileText className="size-3" /> Invoice
-                </Button>
-              </div>
-            </Card>
+            <AvatarListRow
+              key={sale.id}
+              name={sale.customer?.name || 'Walk-in'}
+              caption={`${sale.invoiceNumber} · ${formatDateShort(sale.saleDate)}`}
+              amount={formatETB(sale.total)}
+              badge={<StatusBadge status={sale.status} />}
+              onClick={() => onViewSale(sale)}
+              className="rounded-none px-0 mx-0"
+            />
           ))}
         </div>
       </div>

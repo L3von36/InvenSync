@@ -1,6 +1,6 @@
 'use client'
 
-import { PageHeader } from '@/components/shared/design-system'
+import { PageHeader, AvatarListRow } from '@/components/shared/design-system'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
@@ -587,37 +587,26 @@ export function CustomersPage() {
                 </TableBody>
               </Table>
             </div>
-            {/* Mobile card view */}
-            <div className="md:hidden space-y-3 p-3">
-              {customers.map((customer) => (
-                <Card
-                  key={customer.id}
-                  className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => openDetail(customer)}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <UserCircle className="size-5 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm truncate">{customer.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{customer.email || customer.phone || 'No contact'}</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 shrink-0 text-xs">
-                      {formatETB(getCustomerDebt(customer.id))}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-muted-foreground">{customer._count?.sales || 0} sales</span>
-                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={() => openEditDialog(customer)}><Pencil className="size-3.5" /></Button>
-                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive" onClick={() => openDeleteConfirm(customer)}><Trash2 className="size-3.5" /></Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+            {/* Mobile list — Direction B avatar rows; edit/delete live in
+                the detail dialog the row opens */}
+            <div className="md:hidden divide-y px-3">
+              {customers.map((customer) => {
+                const debt = getCustomerDebt(customer.id)
+                return (
+                  <AvatarListRow
+                    key={customer.id}
+                    name={customer.name}
+                    caption={`${customer.email || customer.phone || 'No contact'} · ${customer._count?.sales || 0} sales`}
+                    badge={debt > 0 ? (
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 text-xs">
+                        {formatETB(debt)}
+                      </Badge>
+                    ) : undefined}
+                    onClick={() => openDetail(customer)}
+                    className="rounded-none px-0 mx-0"
+                  />
+                )
+              })}
             </div>
           </CardContent>
         </Card>

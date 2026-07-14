@@ -1,6 +1,6 @@
 'use client'
 
-import { PageHeader } from '@/components/shared/design-system'
+import { PageHeader, AvatarListRow } from '@/components/shared/design-system'
 
 import { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
@@ -493,36 +493,17 @@ export function SuppliersPage() {
                 </TableBody>
               </Table>
             </div>
-            {/* Mobile card view */}
-            <div className="md:hidden space-y-3 p-3">
+            {/* Mobile list — Direction B avatar rows; edit/delete live in
+                the detail dialog the row opens */}
+            <div className="md:hidden divide-y px-3">
               {suppliers.map((supplier) => (
-                <Card
+                <AvatarListRow
                   key={supplier.id}
-                  className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                  name={supplier.name}
+                  caption={`${supplier.email || supplier.phone || 'No contact'} · ${supplier.address ? supplier.address.substring(0, 30) : 'No address'}`}
                   onClick={() => openDetail(supplier)}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <Truck className="size-5 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm truncate">{supplier.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{supplier.email || supplier.phone || 'No contact'}</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 shrink-0 text-xs">
-                      {formatETB(0)}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-muted-foreground">{supplier.address ? supplier.address.substring(0, 30) : 'No address'}</span>
-                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={() => openEditDialog(supplier)}><Pencil className="size-3.5" /></Button>
-                      <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-destructive" onClick={() => openDeleteConfirm(supplier)}><Trash2 className="size-3.5" /></Button>
-                    </div>
-                  </div>
-                </Card>
+                  className="rounded-none px-0 mx-0"
+                />
               ))}
             </div>
           </CardContent>
