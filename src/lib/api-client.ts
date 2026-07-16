@@ -406,21 +406,48 @@ export interface ModuleData {
 }
 
 export interface AdminDashboardData {
+  // Core counts
   totalOrganizations: number
   totalUsers: number
   totalShops: number
   totalRevenue: number
   totalProducts: number
   newShopsThisMonth: number
+
+  // Financials (platform-wide this month)
+  thisMonthRevenue: number
+  lastMonthRevenue: number
+  revenueChange: number
+  thisMonthExpenses: number
+  thisMonthNetProfit: number
+  thisMonthSalesCount: number
+  lastMonthSalesCount: number
+  salesCountChange: number
+
+  // Engagement
+  activeOrgsToday: number
+  activeOrgsThisWeek: number
+  orgsWithPendingDebt: number
+  avgRevenuePerOrg: number
+  totalCustomerDebt: number
+
+  // Subscription & distribution
   activeSubscriptions: Record<string, number>
   organizationsByBusinessType: Record<string, number>
+
+  // Charts
   revenueByMonth: Array<{ month: string; revenue: number }>
+  salesByMonth: Array<{ month: string; count: number }>
   topShopsByRevenue: Array<{ id: string; name: string; businessType: string; city: string | null; totalRevenue: number }>
+
+  // Sales team
   salesTeam?: {
     activeReps: number
     totalRegistrationsByReps: number
     registrationsThisMonth: number
   }
+
+  // Region
   regionInfo?: { id: string; name: string; slug: string } | null
   regionsBreakdown: Array<{ regionId: string; regionName: string; orgCount: number; revenue: number }>
 }

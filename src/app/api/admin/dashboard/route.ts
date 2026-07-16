@@ -9,13 +9,6 @@ import { isDatabaseError } from '@/lib/api-error'
 // ============================================
 // Admin Dashboard API — Netflix/Google/YouTube Optimized
 // ============================================
-// Patterns applied:
-// 1. Netflix EVCache: Multi-layer server-side cache with SWR
-// 2. Google API: Rate limiting with token bucket
-// 3. Netflix Hystrix: Circuit breaker for DB operations
-// 4. YouTube: Optimized queries to reduce N+1
-// 5. Google: HTTP cache headers for client-side caching
-// 6. Netflix: Bulkhead (timeout) to prevent hanging
 
 export async function GET(request: Request) {
   try {
@@ -24,7 +17,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
-    // Google Pattern: Rate limiting
     const rateLimitResult = applyRateLimit(request, RateLimitTiers.DASHBOARD, user.id)
     if (!rateLimitResult.allowed) {
       return rateLimitResult.response!
@@ -33,8 +25,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const regionId = searchParams.get('regionId') || undefined
 
-    // Netflix Pattern: Server-side SWR cache
-    // Cache key includes regionId so different regions get different cache entries
     const cacheKey = regionId || 'global'
 
     const data = await cache.swr(
@@ -42,13 +32,12 @@ export async function GET(request: Request) {
       cacheKey,
       () => withTimeout(
         () => circuitBreakers.database.execute(() => fetchDashboardData(regionId)),
-        15_000, // 15s timeout (Netflix pattern: fail fast)
+        15_000,
         'Dashboard query timed out'
       ),
-      { ttl: CacheTTL.HOT, staleTtl: CacheTTL.WARM } // 15s fresh, 30s stale
+      { ttl: CacheTTL.HOT, staleTtl: CacheTTL.WARM }
     )
 
-    // Google Pattern: Cache-Control headers for browser/CDN caching
     const headers: Record<string, string> = {
       'Cache-Control': 'private, max-age=15, stale-while-revalidate=30',
       ...getRateLimitHeaders(rateLimitResult.remaining, Date.now() + 30_000),
@@ -68,15 +57,13 @@ export async function GET(request: Request) {
 }
 
 // ============================================
-// Optimized data fetching (YouTube pattern: minimize DB round-trips)
+// Optimized data fetching
 // ============================================
 
 async function fetchDashboardData(regionId?: string) {
-  // Build org-level where clause based on region filter
   const orgWhere = regionId ? { regionId } : {}
 
-  // YouTube Pattern: Fetch org IDs for region ONCE, reuse everywhere
-  // This eliminates N+1 queries that plagued the regions breakdown
+  // Fetch org IDs for region once, reuse everywhere
   let orgIdsInRegion: string[] | undefined
   if (regionId) {
     const orgsInRegion = await db.organization.findMany({
@@ -86,8 +73,20 @@ async function fetchDashboardData(regionId?: string) {
     orgIdsInRegion = orgsInRegion.map(o => o.id)
   }
 
-  // YouTube Pattern: Batch all independent queries with Promise.all
-  // Netflix Pattern: Select only needed fields to reduce payload
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const weekStart = new Date(todayStart)
+  weekStart.setDate(weekStart.getDate() - 7)
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const orgFilter = orgIdsInRegion
+    ? (orgIdsInRegion.length > 0
+      ? { in: orgIdsInRegion }
+      : { in: [] as string[] })
+    : undefined
+
   const [
     totalOrganizations,
     totalUsers,
@@ -98,11 +97,18 @@ async function fetchDashboardData(regionId?: string) {
     activeSubscriptions,
     orgsByType,
     salesTeamData,
+    // Financials
+    thisMonthSalesData,
+    lastMonthSalesData,
+    thisMonthExpenses,
+    // Engagement
+    activeOrgsToday,
+    activeOrgsThisWeek,
+    orgsWithPendingDebt,
+    totalCustomerDebt,
   ] = await Promise.all([
-    // Org count
     db.organization.count({ where: orgWhere }),
 
-    // User count (via org memberships for region filter)
     regionId && orgIdsInRegion && orgIdsInRegion.length > 0
       ? db.organizationMember.findMany({
           where: { organizationId: { in: orgIdsInRegion } },
@@ -112,54 +118,44 @@ async function fetchDashboardData(regionId?: string) {
         ? 0
         : db.user.count(),
 
-    // Product count (via organizationId IN, NOT via organization relation)
     orgIdsInRegion && orgIdsInRegion.length > 0
       ? db.product.count({ where: { organizationId: { in: orgIdsInRegion } } })
       : orgIdsInRegion && orgIdsInRegion.length === 0
         ? 0
         : db.product.count(),
 
-    // Shop count
     orgIdsInRegion && orgIdsInRegion.length > 0
       ? db.shop.count({ where: { organizationId: { in: orgIdsInRegion } } })
       : orgIdsInRegion && orgIdsInRegion.length === 0
         ? 0
         : db.shop.count(),
 
-    // Sales data (single query, compute everything in memory - YouTube pattern)
+    // Sales data for 12 months (for charts + total revenue)
     db.sale.findMany({
       where: {
         status: 'completed',
         saleDate: { gte: twelveMonthsAgo() },
-        ...(orgIdsInRegion ? {
-          organizationId: orgIdsInRegion.length > 0
-            ? { in: orgIdsInRegion }
-            : 'impossible' as unknown as undefined
-        } : {}),
+        ...(orgFilter ? { organizationId: orgFilter } : {}),
       },
       select: { total: true, saleDate: true, organizationId: true }
     }),
 
-    // New shops this month
     db.organization.count({
-      where: { createdAt: { gte: startOfMonth() }, ...orgWhere }
+      where: { createdAt: { gte: thisMonthStart }, ...orgWhere }
     }),
 
-    // Active subscriptions by plan
     db.organization.groupBy({
       by: ['subscriptionPlan'],
       where: { subscriptionStatus: 'active', ...orgWhere },
       _count: { subscriptionPlan: true }
     }),
 
-    // Organizations by business type
     db.organization.groupBy({
       by: ['businessType'],
       where: orgWhere,
       _count: { businessType: true }
     }),
 
-    // Sales team data (batched)
     Promise.all([
       db.salesRep.count({ where: { isActive: true } }),
       db.salesRep.findMany({
@@ -167,42 +163,156 @@ async function fetchDashboardData(regionId?: string) {
         include: { _count: { select: { registrations: true } } },
       }),
       db.organization.count({
-        where: {
-          referredById: { not: null },
-          createdAt: { gte: startOfMonth() },
-        }
+        where: { referredById: { not: null }, createdAt: { gte: thisMonthStart } },
       }),
     ]),
+
+    // This month sales (revenue + count)
+    db.sale.aggregate({
+      where: {
+        status: 'completed',
+        saleDate: { gte: thisMonthStart },
+        ...(orgFilter ? { organizationId: orgFilter } : {}),
+      },
+      _sum: { total: true },
+      _count: true,
+    }),
+
+    // Last month sales (revenue + count)
+    db.sale.aggregate({
+      where: {
+        status: 'completed',
+        saleDate: { gte: lastMonthStart, lt: lastMonthEnd },
+        ...(orgFilter ? { organizationId: orgFilter } : {}),
+      },
+      _sum: { total: true },
+      _count: true,
+    }),
+
+    // This month expenses
+    db.expense.aggregate({
+      where: {
+        expenseDate: { gte: thisMonthStart },
+        ...(orgFilter ? { organizationId: orgFilter } : {}),
+      },
+      _sum: { amount: true },
+    }),
+
+    // Active orgs today (orgs with at least one completed sale today)
+    orgIdsInRegion
+      ? (orgIdsInRegion.length > 0
+          ? db.sale.findMany({
+              where: {
+                status: 'completed',
+                saleDate: { gte: todayStart },
+                organizationId: { in: orgIdsInRegion },
+              },
+              select: { organizationId: true },
+              distinct: ['organizationId'],
+            }).then(rows => rows.length)
+          : 0)
+      : db.sale.findMany({
+          where: { status: 'completed', saleDate: { gte: todayStart } },
+          select: { organizationId: true },
+          distinct: ['organizationId'],
+        }).then(rows => rows.length),
+
+    // Active orgs this week
+    orgIdsInRegion
+      ? (orgIdsInRegion.length > 0
+          ? db.sale.findMany({
+              where: {
+                status: 'completed',
+                saleDate: { gte: weekStart },
+                organizationId: { in: orgIdsInRegion },
+              },
+              select: { organizationId: true },
+              distinct: ['organizationId'],
+            }).then(rows => rows.length)
+          : 0)
+      : db.sale.findMany({
+          where: { status: 'completed', saleDate: { gte: weekStart } },
+          select: { organizationId: true },
+          distinct: ['organizationId'],
+        }).then(rows => rows.length),
+
+    // Orgs with pending debt
+    db.debt.groupBy({
+      by: ['organizationId'],
+      where: {
+        type: 'customer_debt',
+        status: { in: ['pending', 'partial'] },
+        ...(orgFilter ? { organizationId: orgFilter } : {}),
+      },
+    }).then(rows => rows.length),
+
+    // Total outstanding customer debt
+    db.debt.aggregate({
+      where: {
+        type: 'customer_debt',
+        status: { in: ['pending', 'partial'] },
+        ...(orgFilter ? { organizationId: orgFilter } : {}),
+      },
+      _sum: { amount: true, paidAmount: true },
+    }),
   ])
 
-  // Compute derived data in memory (YouTube pattern: compute once, not per-DB-query)
+  // ====== Derived computations ======
   const totalRevenue = completedSales.reduce((sum, s) => sum + s.total, 0)
 
+  // Financials
+  const thisMonthRevenue = Number(thisMonthSalesData._sum.total || 0)
+  const lastMonthRevenue = Number(lastMonthSalesData._sum.total || 0)
+  const revenueChange = lastMonthRevenue > 0
+    ? Math.round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 1000) / 10
+    : thisMonthRevenue > 0 ? 100 : 0
+
+  const thisMonthExpensesTotal = Number(thisMonthExpenses._sum.amount || 0)
+  const thisMonthNetProfit = thisMonthRevenue - thisMonthExpensesTotal
+
+  const thisMonthSalesCount = Number(thisMonthSalesData._count || 0)
+  const lastMonthSalesCount = Number(lastMonthSalesData._count || 0)
+  const salesCountChange = lastMonthSalesCount > 0
+    ? Math.round(((thisMonthSalesCount - lastMonthSalesCount) / lastMonthSalesCount) * 1000) / 10
+    : thisMonthSalesCount > 0 ? 100 : 0
+
+  // Engagement
+  const avgRevenuePerOrg = totalOrganizations > 0
+    ? Math.round(thisMonthRevenue / totalOrganizations)
+    : 0
+  const totalCustomerDebtOutstanding =
+    Number(totalCustomerDebt._sum.amount || 0) - Number(totalCustomerDebt._sum.paidAmount || 0)
+
+  // Subscriptions
   const activeSubscriptionsByPlan = activeSubscriptions.reduce<Record<string, number>>((acc, item) => {
     acc[item.subscriptionPlan] = item._count.subscriptionPlan
     return acc
   }, {})
 
+  // Business type distribution
   const organizationsByBusinessType = orgsByType.reduce<Record<string, number>>((acc, item) => {
     acc[item.businessType] = item._count.businessType
     return acc
   }, {})
 
-  // YouTube Pattern: Compute revenue by month from already-fetched data
-  // No additional DB query needed!
-  const now = new Date()
+  // Revenue by month (last 6 months)
   const revenueByMonth: { month: string; revenue: number }[] = []
+  const salesByMonth: { month: string; count: number }[] = []
   for (let i = 5; i >= 0; i--) {
     const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
     const monthSales = completedSales.filter(s => s.saleDate >= monthStart && s.saleDate < monthEnd)
     revenueByMonth.push({
       month: monthStart.toLocaleString('en-US', { month: 'short', year: 'numeric' }),
-      revenue: monthSales.reduce((sum, s) => sum + s.total, 0)
+      revenue: monthSales.reduce((sum, s) => sum + s.total, 0),
+    })
+    salesByMonth.push({
+      month: monthStart.toLocaleString('en-US', { month: 'short', year: 'numeric' }),
+      count: monthSales.length,
     })
   }
 
-  // Top shops by revenue (computed from already-fetched sales)
+  // Top shops by revenue
   const orgRevenueMap = new Map<string, number>()
   completedSales.forEach(s => {
     orgRevenueMap.set(s.organizationId, (orgRevenueMap.get(s.organizationId) || 0) + s.total)
@@ -213,7 +323,6 @@ async function fetchDashboardData(regionId?: string) {
     .slice(0, 10)
     .map(([id]) => id)
 
-  // Only fetch org names for top 10 (minimal additional query)
   const topOrgs = topOrgIds.length > 0
     ? await db.organization.findMany({
         where: { id: { in: topOrgIds } },
@@ -238,8 +347,7 @@ async function fetchDashboardData(regionId?: string) {
     (sum, rep) => sum + rep._count.registrations, 0
   )
 
-  // Netflix Pattern: Batch region breakdown into a single optimized query
-  // instead of N+1 queries per region
+  // Region breakdown
   const [regionInfo, regionsBreakdown] = await Promise.all([
     regionId
       ? db.region.findUnique({
@@ -247,7 +355,7 @@ async function fetchDashboardData(regionId?: string) {
           select: { id: true, name: true, slug: true }
         })
       : null,
-    fetchRegionsBreakdown(orgIdsInRegion),
+    fetchRegionsBreakdown(),
   ])
 
   return {
@@ -257,40 +365,62 @@ async function fetchDashboardData(regionId?: string) {
     totalRevenue,
     totalProducts,
     newShopsThisMonth,
+
+    // Financials
+    thisMonthRevenue,
+    lastMonthRevenue,
+    revenueChange,
+    thisMonthExpenses: thisMonthExpensesTotal,
+    thisMonthNetProfit,
+    thisMonthSalesCount,
+    lastMonthSalesCount,
+    salesCountChange,
+
+    // Engagement
+    activeOrgsToday,
+    activeOrgsThisWeek,
+    orgsWithPendingDebt,
+    avgRevenuePerOrg,
+    totalCustomerDebt: totalCustomerDebtOutstanding,
+
+    // Distribution
     activeSubscriptions: activeSubscriptionsByPlan,
     organizationsByBusinessType,
+
+    // Charts
     revenueByMonth,
+    salesByMonth,
     topShopsByRevenue,
+
+    // Sales team
     salesTeam: {
       activeReps: activeSalesReps,
       totalRegistrationsByReps,
       registrationsThisMonth,
     },
+
+    // Region
     regionInfo,
     regionsBreakdown,
   }
 }
 
 // ============================================
-// YouTube Pattern: Optimized regions breakdown
-// Single query with GROUP BY instead of N+1 queries per region
+// Regions breakdown — cached separately
 // ============================================
 
-async function fetchRegionsBreakdown(_orgIdsInRegion?: string[]) {
-  // Netflix Pattern: Cache the regions breakdown separately since it's expensive
+async function fetchRegionsBreakdown() {
   return cache.swr(
     CacheNamespaces.ADMIN_REGIONS,
     'breakdown',
     async () => {
-      // YouTube Pattern: Single GROUP BY query instead of N separate queries
       const orgCounts = await db.organization.groupBy({
         by: ['regionId'],
         _count: { regionId: true },
         where: { regionId: { not: null } },
       })
 
-      // Revenue per region using sales with org join
-      const revenueByRegion = await db.sale.groupBy({
+      const revenueByOrg = await db.sale.groupBy({
         by: ['organizationId'],
         where: {
           status: 'completed',
@@ -299,33 +429,29 @@ async function fetchRegionsBreakdown(_orgIdsInRegion?: string[]) {
         _sum: { total: true },
       })
 
-      // Get org-to-region mapping
-      const orgRegionMap = new Map<string, string>()
       const allOrgs = await db.organization.findMany({
         where: { regionId: { not: null } },
         select: { id: true, regionId: true },
       })
+      const orgRegionMap = new Map<string, string>()
       allOrgs.forEach(org => {
         if (org.regionId) orgRegionMap.set(org.id, org.regionId)
       })
 
-      // Compute revenue by region in memory
       const regionRevenueMap = new Map<string, number>()
-      revenueByRegion.forEach(item => {
-        const regionId = orgRegionMap.get(item.organizationId)
-        if (regionId) {
-          regionRevenueMap.set(regionId, (regionRevenueMap.get(regionId) || 0) + (item._sum.total || 0))
+      revenueByOrg.forEach(item => {
+        const rid = orgRegionMap.get(item.organizationId)
+        if (rid) {
+          regionRevenueMap.set(rid, (regionRevenueMap.get(rid) || 0) + (item._sum.total || 0))
         }
       })
 
-      // Get all regions
       const allRegions = await db.region.findMany({
         where: { isActive: true },
         select: { id: true, name: true },
         orderBy: { order: 'asc' },
       })
 
-      // Combine in memory
       const orgCountMap = new Map(
         orgCounts.map(item => [item.regionId as string, item._count.regionId])
       )
@@ -349,9 +475,4 @@ function twelveMonthsAgo(): Date {
   const d = new Date()
   d.setMonth(d.getMonth() - 12)
   return d
-}
-
-function startOfMonth(): Date {
-  const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth(), 1)
 }
